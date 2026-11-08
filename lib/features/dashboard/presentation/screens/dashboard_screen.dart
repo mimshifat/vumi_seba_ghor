@@ -98,14 +98,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_outlined, size: 22),
-            tooltip: 'রিমাইন্ডার ও কাজ',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const TaskListScreen()),
-              );
-            },
+          Badge(
+            isLabelVisible: DemoStore.todayTasksCount > 0,
+            label: Text(
+              BengaliDigits.toBengali(DemoStore.todayTasksCount),
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            backgroundColor: AppColors.rose,
+            offset: const Offset(-4, 4),
+            child: IconButton(
+              icon: const Icon(Icons.notifications_none_outlined, size: 22),
+              tooltip: 'আজকের কাজ (${BengaliDigits.toBengali(DemoStore.todayTasksCount)})',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (ctx) => const TaskListScreen()),
+                ).then((_) => setState(() {}));
+              },
+            ),
           ),
         ],
       ),

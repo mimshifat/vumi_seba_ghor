@@ -13,7 +13,7 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  int _selectedPeriodIndex = 0;
+  int _selectedPeriodIndex = 1; // Default to 'গত ৩ মাস'
   final List<String> _periods = ['চলতি মাস', 'গত ৩ মাস', 'চলতি বছর', 'সর্বকালের'];
 
   int _touchedPieIndex = -1;
@@ -247,31 +247,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 4),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
-                child: Icon(icon, size: 16, color: accentColor),
+                child: Icon(icon, size: 15, color: accentColor),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            style: AppTypography.headingMedium.copyWith(
-              fontWeight: FontWeight.w800,
-              fontSize: 18.5,
-              color: AppColors.textPrimary,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: AppTypography.headingMedium.copyWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 18.5,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -281,6 +290,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               color: AppColors.textMuted,
               fontSize: 11,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

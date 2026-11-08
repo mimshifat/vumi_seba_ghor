@@ -496,6 +496,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                                     dueTime: hTimeStr,
                                     priority: 'জরুরি',
                                     status: 'করতে হবে',
+                                    category: 'শুনানি',
                                     relatedApplicationId: _app.id,
                                     relatedApplicantName: _app.applicantName,
                                   ),

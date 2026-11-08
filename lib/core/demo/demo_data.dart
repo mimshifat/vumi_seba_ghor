@@ -349,8 +349,10 @@ class DemoTask {
   final String? dueTime;
   final String priority; // 'জরুরি', 'সাধারণ'
   final String status; // 'করতে হবে', 'চলমান', 'সম্পন্ন'
+  final String category; // 'শুনানি', 'কাগজপত্র', 'ফি/তাগাদা', 'অফিস জমা', 'ডেলিভারি', 'সাধারণ'
   final String? relatedApplicationId;
   final String? relatedApplicantName;
+  final DateTime? completedAt;
 
   const DemoTask({
     required this.id,
@@ -360,9 +362,55 @@ class DemoTask {
     this.dueTime,
     required this.priority,
     required this.status,
+    this.category = 'সাধারণ',
     this.relatedApplicationId,
     this.relatedApplicantName,
+    this.completedAt,
   });
+
+  bool get isToday {
+    final now = DateTime.now();
+    return dueDate.year == now.year && dueDate.month == now.month && dueDate.day == now.day;
+  }
+
+  bool get isOverdue {
+    if (status == 'সম্পন্ন') return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final taskDate = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    return taskDate.isBefore(today);
+  }
+
+  bool get isCompleted => status == 'সম্পন্ন';
+  bool get isUrgent => priority == 'জরুরি';
+
+  DemoTask copyWith({
+    String? id,
+    String? title,
+    String? description,
+    DateTime? dueDate,
+    String? dueTime,
+    String? priority,
+    String? status,
+    String? category,
+    String? relatedApplicationId,
+    String? relatedApplicantName,
+    DateTime? completedAt,
+  }) {
+    return DemoTask(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      dueDate: dueDate ?? this.dueDate,
+      dueTime: dueTime ?? this.dueTime,
+      priority: priority ?? this.priority,
+      status: status ?? this.status,
+      category: category ?? this.category,
+      relatedApplicationId: relatedApplicationId ?? this.relatedApplicationId,
+      relatedApplicantName: relatedApplicantName ?? this.relatedApplicantName,
+      completedAt: completedAt ?? this.completedAt,
+    );
+  }
 }
 
 class DemoStore {
@@ -1072,6 +1120,7 @@ class DemoStore {
       dueTime: 'সকাল ১১:০০',
       priority: 'জরুরি',
       status: 'চলমান',
+      category: 'শুনানি',
       relatedApplicationId: 'APP-2026-001',
       relatedApplicantName: 'মো: রহিম উদ্দিন',
     ),
@@ -1083,6 +1132,7 @@ class DemoStore {
       dueTime: 'বিকাল ০৩:৩০',
       priority: 'সাধারণ',
       status: 'করতে হবে',
+      category: 'কাগজপত্র',
       relatedApplicationId: 'APP-2026-002',
       relatedApplicantName: 'করিম মিয়া',
     ),
@@ -1094,6 +1144,7 @@ class DemoStore {
       dueTime: 'সকাল ১০:০০',
       priority: 'জরুরি',
       status: 'করতে হবে',
+      category: 'ফি/তাগাদা',
       relatedApplicationId: 'APP-2026-004',
       relatedApplicantName: 'আব্দুল জলিল',
     ),
@@ -1105,6 +1156,7 @@ class DemoStore {
       dueTime: 'দুপুর ১২:০০',
       priority: 'সাধারণ',
       status: 'করতে হবে',
+      category: 'অফিস জমা',
     ),
     DemoTask(
       id: 'tsk-5',
@@ -1113,10 +1165,20 @@ class DemoStore {
       dueDate: DateTime.now().subtract(const Duration(days: 2)),
       priority: 'সাধারণ',
       status: 'সম্পন্ন',
+      category: 'ডেলিভারি',
       relatedApplicationId: 'APP-2026-003',
       relatedApplicantName: 'হাজি মোখলেছুর রহমান',
     ),
   ];
+
+  /// আজকের কাজের তালিকা (অপেক্ষমাণ/চলমান কাজ)
+  static List<DemoTask> get todayTasks => tasks.where((t) => t.isToday && t.status != 'সম্পন্ন').toList();
+
+  /// আজকের মোট বাকি কাজের সংখ্যা (যা সম্পন্ন করা বাকি)
+  static int get todayTasksCount => tasks.where((t) => t.isToday && t.status != 'সম্পন্ন').length;
+
+  /// আজকের সকল কাজের সংখ্যা (সম্পন্ন সহ)
+  static int get todayAllTasksCount => tasks.where((t) => t.isToday).length;
 
   // ==========================================
   // CENTRALIZED FINANCIAL REPOSITORY & ENGINE
