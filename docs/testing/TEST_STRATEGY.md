@@ -312,7 +312,47 @@ Assert:
 
 ---
 
-## 7. Test Execution Commands
+## 7. Anti-Hang, Zero-Freeze & Stress Test Plans
+
+### 7.1 Database Pagination & Load Testing
+```dart
+test('ApplicationDao paginates 1,000 rows in batches of 25 with no memory spike', () async {
+  final db = AppDatabase.forTesting();
+  // Insert 1,000 mock applications
+  await db.batch((b) { ... });
+  
+  // Page 1
+  final page1 = await db.applicationsDao.getApplicationsPaginated(limit: 25, offset: 0);
+  expect(page1.length, 25);
+  
+  // Page 2
+  final page2 = await db.applicationsDao.getApplicationsPaginated(limit: 25, offset: 25);
+  expect(page2.length, 25);
+  expect(page1.first.id != page2.first.id, true);
+});
+```
+
+### 7.2 Zero BLOB Memory Leak Test
+```dart
+test('Document listing query returns metadata only and does NOT load binary file_data', () async {
+  final db = AppDatabase.forTesting();
+  // Insert a 2MB document BLOB
+  await db.documentsDao.insertDocument(..., fileData: largeBytes);
+  
+  // Query document summaries for application detail screen
+  final summaries = await db.documentsDao.getDocumentSummaries(applicationId);
+  expect(summaries.first.fileName, isNotEmpty);
+  // Must be DocumentSummary type which does NOT contain fileData property in memory
+});
+```
+
+### 7.3 Isolate Offloading Stress Test
+- Verify that compute tasks (`compute(calculateYearlySummary, data)`) return correct results without blocking UI test frame execution (`tester.pumpAndSettle()`).
+- Verify zero ANR warnings when running heavy financial aggregation across 5,000 transactions.
+
+---
+
+## 8. Test Execution Commands
 
 ```bash
 # Run all tests

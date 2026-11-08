@@ -81,6 +81,19 @@ Before writing a single line of code, read these files:
 - If the status change includes a payment or expense (from `StatusChangeDialog`), all three writes (status history + payment/expense + application update) must be in a single transaction.
 - Link any payment or expense created during a status change to the `status_history` record via `status_history_id` and populate `status_name`.
 
+### 8. Anti-Hang, Anti-Freeze & Zero-Crash Rules (MANDATORY)
+- **Mandatory Pagination in Listing Queries:**
+  - `ApplicationDao` and `PersonDao` listing queries MUST support `limit` (default 20–30) and `offset` / cursor.
+  - Never load thousands of applications into a raw in-memory list all at once.
+  - Implement infinite scroll or batched loading for `ApplicationListScreen` and `PersonListScreen`.
+- **Zero BLOB Query in Lists (OOM Prevention):**
+  - When displaying the document tab for an application, query strictly document metadata (`id`, `name`, `type`, `size`, `created_at`).
+  - **NEVER** select `file_data` (BLOB) in list queries. Fetch `file_data` only when opening `DocumentViewerScreen`.
+- **Controllers & Stream Disposal:**
+  - Dispose all `TextEditingController`, `ScrollController`, and `StreamSubscription` in `dispose()` to prevent memory leaks.
+- **Defensive Error Handling:**
+  - Wrap database operations in repository try-catch blocks with clear Bengali error states. Never leave unhandled exceptions.
+
 ---
 
 ## Status Management Rules

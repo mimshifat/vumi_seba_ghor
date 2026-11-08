@@ -166,6 +166,34 @@
 
 ---
 
+### TD-012: Mandatory Pagination & UI Virtualization (Anti-Hang Architecture)
+**Date:** 2026-11-08  
+**Status:** Confirmed — Architecture Standard  
+**Decision:** All lists (`applications`, `transactions`, `persons`, `tasks`, `expenses`) must be paginated at the database layer using `LIMIT 25 OFFSET (page * 25)` or keyset pagination, and rendered exclusively using virtualized Flutter widgets (`ListView.builder`, `SliverList`).  
+**Rationale:**
+- As the shop operates over months and years, records grow into thousands of items.
+- Loading unbounded queries into memory causes severe jank, high RAM consumption, and eventually Out-Of-Memory (OOM) crashes on Android.
+- Virtualization ensures only currently visible cards exist in memory.  
+**Decision Maker:** Architecture & Engineering Directive
+
+---
+
+### TD-013: Background Isolate Execution for Heavy Operations (`compute` / `Isolate.run`)
+**Date:** 2026-11-08  
+**Status:** Confirmed — Architecture Standard  
+**Decision:** Any task requiring intensive CPU processing (>16ms) must be offloaded to Dart background worker isolates via `compute()` or `Isolate.run()`.  
+**Scope:**
+- Multi-month/yearly financial ledger aggregation and KPI curve crunching
+- PDF document generation and binary compilation
+- Backup AES-256 encryption/decryption
+- Database `PRAGMA integrity_check`
+**Rationale:**
+- The main UI thread must never drop below 60 FPS.
+- Prevents Android OS "Application Not Responding" (ANR) warnings and freeze dialogs.  
+**Decision Maker:** Architecture & Engineering Directive
+
+---
+
 ## Open Technical Questions
 
 The following questions require resolution before implementation begins. The Team Leader must present these to the user and document the decision here.

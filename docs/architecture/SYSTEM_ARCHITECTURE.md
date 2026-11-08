@@ -304,4 +304,59 @@ See `docs/architecture/TECHNICAL_DECISIONS.md` for the full decision log.
 | Soft delete | `deleted_at INTEGER NULL` | Audit trail, calculation immunity, easy restore |
 | Snapshots | Denormalized snapshot columns in `applications` | Historical accuracy when linked records change |
 | Routing | GoRouter | Declarative, deep-link support (to be wired in Phase 7) |
+| Pagination Engine | Keyset / LIMIT-OFFSET in Drift DAOs | Prevents UI memory bloat and jank on large datasets |
+| Thread Offloading | `compute()` / `Isolate.run()` | Prevents UI freeze (maintains 60/120 FPS) during heavy crypto/analytics |
+
+---
+
+## 12. Zero-Hang, Anti-Freeze & Crash Immunity Architecture
+
+```mermaid
+flowchart TD
+    subgraph UI_Thread["Main Flutter UI Thread (60–120 FPS Guaranteed)"]
+        UI_Screens["Presentation Screens\n(ListView.builder, Shimmer)"]
+        State_Notifier["Riverpod AsyncNotifiers\n(Paginated State: 25 items/batch)"]
+        Error_Shield["Global Error Boundary\n(ErrorWidget.builder & PlatformDispatcher)"]
+    end
+
+    subgraph Background_Isolates["Dart Background Worker Isolates"]
+        Analytics_Worker["compute(runFinancialAnalytics)\n(Multi-month curve & aggregations)"]
+        Crypto_Worker["compute(aesEncryptDecrypt)\n(Backup encryption & WAL copy)"]
+        Report_Worker["compute(buildPdfDocument)\n(PDF rendering & byte compression)"]
+    end
+
+    subgraph Storage["Drift SQLite Storage Engine"]
+        WAL["WAL Mode (Concurrent Reads/Writes)"]
+        Indexes["Covering Indexes\n(status, date, reference, applicant)"]
+        BLOB_Split["Separated BLOB Fetch\n(Metadata queries NEVER load binary file_data)"]
+    end
+
+    UI_Screens <--> State_Notifier
+    State_Notifier -. Offloads heavy tasks .-> Analytics_Worker
+    State_Notifier -. Offloads backup crypto .-> Crypto_Worker
+    State_Notifier -. Offloads PDF generation .-> Report_Worker
+    State_Notifier <--> Storage
+    Error_Shield --- UI_Screens
+```
+
+### 12.1 Pagination Strategy
+- All lists (`applications`, `transactions`, `persons`, `tasks`) implement SQLite pagination: `LIMIT 25 OFFSET (page * 25)`.
+- Infinite scrolling with `ScrollController` listener triggering `loadNextPage()` when user scrolls within 200px of bottom.
+- Virtualized rendering with `ListView.builder`: elements are created on-demand and destroyed when off-screen.
+
+### 12.2 Memory Safety & BLOB Isolation
+- Documents table queries are strictly bifurcated:
+  1. `DocumentSummary` (lightweight metadata: ID, name, size, type, timestamp) for list rendering.
+  2. `DocumentBytes` (heavy BLOB: `file_data`) loaded strictly on-demand when opening document viewer.
+- Image memory caching bounded with `cacheWidth` and `cacheHeight`.
+
+### 12.3 Thread Offloading Strategy
+- Heavy algorithms (aggregating hundreds of financial items, encryption, PDF generation) are executed in background isolates via `compute()` or `Isolate.run()`.
+- The main thread never blocks, preventing Android ANR (Application Not Responding) dialogs.
+
+### 12.4 Global Crash Boundary
+- Registered in `main.dart`:
+  - `PlatformDispatcher.instance.onError` catches unhandled async errors.
+  - `FlutterError.onError` catches Flutter widget rendering errors.
+  - `ErrorWidget.builder` displays a user-friendly Bengali retry card with recovery button instead of fatal app termination.
 

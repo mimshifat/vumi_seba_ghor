@@ -251,7 +251,7 @@ See `docs/architecture/TECHNICAL_DECISIONS.md` (OTQ-001 through OTQ-005) and `do
 
 ---
 
-## Phase 8 — Validation & Reliability
+## Phase 8 — Validation, Anti-Hang & Reliability
 **Status:** ⏳ Scheduled
 **Owner:** Both developers
 **Dependency:** Phases 4–7 complete
@@ -260,24 +260,30 @@ See `docs/architecture/TECHNICAL_DECISIONS.md` (OTQ-001 through OTQ-005) and `do
 - [ ] Review all form validators and ensure Bengali error messages match standards
 - [ ] Database transaction safety audit: all multi-table operations in transactions
 - [ ] Error state audit: all screens handle AsyncError state with user-friendly UI
+- [ ] Global Crash Boundary: register `PlatformDispatcher.instance.onError` and `FlutterError.onError` in `main.dart` with user-friendly Bengali retry card via `ErrorWidget.builder`
+- [ ] Anti-Hang audit: verify all heavy computations (>16ms) use `compute()` / `Isolate.run()`
+- [ ] Memory Leak audit: verify all controllers, listeners, and subscriptions are cancelled in `dispose()`
+- [ ] BLOB separation audit: verify document list queries never fetch `file_data` (BLOB)
 - [ ] Edge case handling: empty lists, zero amounts, very large amounts
-- [ ] Concurrency: ensure WAL mode handles concurrent reads
-- [ ] Input sanitization: SQL injection prevention (Drift handles this, but verify)
+- [ ] Concurrency: ensure WAL mode handles concurrent reads without table locks
+- [ ] Input sanitization: defensive parsing (`tryParse`, null-safety, array bounds)
 - [ ] Memory: verify no memory leaks from unclosed Riverpod providers
 
 ---
 
-## Phase 9 — Existing UI Integration
+## Phase 9 — Existing UI Integration & Zero-Freeze Virtualization
 **Status:** ⏳ Scheduled
 **Owner:** Both developers
 **Dependency:** Phases 4–8 complete
 
 ### Tasks
 - [ ] Connect all 28 screens to real Riverpod providers (replace `demo_data.dart` usage)
+- [ ] Implement database pagination (`LIMIT 25 OFFSET`) and infinite scroll for applications, transactions, persons, and tasks
+- [ ] Ensure strict list virtualization with `ListView.builder` / slivers (no unbounded `SingleChildScrollView + Column`)
 - [ ] Implement GoRouter (if decided in OTQ-001)
-- [ ] Add loading states to all screens that load data
+- [ ] Add loading states to all screens that load data (non-blocking shimmer & progress bars)
 - [ ] Add empty states to all list screens
-- [ ] Add error states to all screens
+- [ ] Add error states with retry buttons to all screens
 - [ ] Verify all forms submit to real database
 - [ ] Remove all `demo_data.dart` imports from production code
 - [ ] Verify all navigation works correctly

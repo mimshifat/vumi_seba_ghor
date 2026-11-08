@@ -176,8 +176,18 @@ Test all 8 documented scenarios from `docs/PROJECT_PLAN.md`:
 - Very large monetary values (10 crore = ৳1,00,00,000 = 1,000,000,000 paisa) — no integer overflow
 - Bengali digit input in money fields
 
-### 5. Regression Tests
-- After every implementation: run ALL existing 41 tests.
+### 5. Stress, Pagination & Anti-Hang Testing (Mandatory)
+- **Pagination Verification:** Verify that listing queries fetch only the requested batch (e.g. 25 items) and increment offsets correctly on scroll.
+- **Large Dataset Stress Test:** Seed 1,000+ mock applications and 5,000+ mock transactions to verify that:
+  - List scrolling maintains 60 FPS without jank.
+  - Memory consumption remains stable and does not spike towards OOM.
+  - Database queries return in <50ms using SQLite indexes.
+- **BLOB Query Safety Check:** Verify that document listing queries return 0 bytes of binary file data until a document viewer is opened.
+- **Isolate Offloading Verification:** Verify that multi-month report aggregation, PDF export, and backup encryption do not block the UI thread.
+- **Memory Leak & Controller Disposal Test:** Verify widget state disposal and that no stream subscriptions or listeners leak across screen navigations.
+
+### 6. Regression Tests
+- After every implementation: run ALL existing baseline tests.
 - Report any regressions immediately with full details.
 - Do not proceed with new tests if regressions exist.
 

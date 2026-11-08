@@ -167,11 +167,14 @@ Work through every applicable item. Document each finding if the item fails.
 - [ ] Financial calculation tests use hand-verified expected values
 - [ ] No tests that trivially always pass
 
-### 11. Performance
-- [ ] Large lists (>100 items) use pagination or lazy loading
-- [ ] Document BLOBs not loaded eagerly
-- [ ] Database queries use appropriate indexes
-- [ ] No N+1 query patterns
+### 11. Performance, Anti-Hang & Zero-Crash Compliance
+- [ ] Database queries for lists (`applications`, `transactions`, `persons`, `tasks`) implement pagination (`LIMIT` 20–30, `OFFSET` / keyset). Unbounded `SELECT *` without limit is REJECTED.
+- [ ] UI lists use `ListView.builder` / slivers. `SingleChildScrollView + Column(children: items.map(...))` on unbounded sets is REJECTED.
+- [ ] Document list queries strictly fetch metadata (`id, file_name, file_size, file_type, created_at`). Selecting `file_data` (BLOB) in list queries is REJECTED.
+- [ ] Heavy computations (PDF export, multi-month aggregations, backup AES crypto, database integrity check) use `compute()` or `Isolate.run()`. Running heavy operations on the main UI thread is REJECTED.
+- [ ] All `TextEditingController`, `ScrollController`, and `StreamSubscription` instances are properly cancelled/disposed in `dispose()`.
+- [ ] Safe defensive parsing used (`tryParse`, null checks, index bounds checks). No blind `!` operators on potentially null values.
+- [ ] Database queries utilize proper SQLite indexes. No full-table scans on search or status filtering.
 
 ---
 

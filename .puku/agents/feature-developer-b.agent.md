@@ -102,27 +102,24 @@ total_outstanding_due    = SUM(effective_due) WHERE is_marked_as_paid = 0 AND ra
 - The status history insertion + payment/expense creation must be atomic (single Drift transaction).
 - **However:** This logic is owned by feature-developer-a (Application status changes). If you need to access status-linked transactions in financial queries, read-only access is acceptable. Coordinate with Team Leader if write access is needed.
 
-### Unified Transaction View
+### Unified Transaction View & Pagination (Anti-Hang)
 - Implement the `unified_transactions_view` exactly as specified in `docs/DATABASE_SCHEMA.md` Section 4.
 - Use this view for `TransactionHistoryScreen` and global financial summaries.
+- **Mandatory Pagination:** `TransactionHistoryScreen` queries MUST use database-level pagination (`LIMIT` 25-30, `OFFSET`). Never fetch all historical records across months/years in a single raw query.
 - Do not duplicate this logic in multiple places — the view is the single source of truth.
 
-### Never Modify What You Don't Own
-- **Never touch files in `lib/features/persons/`, `lib/features/applications/`, `lib/features/documents/`, `lib/features/offices/`, `lib/features/references/`.**
-- **Never modify `lib/core/constants/`, `lib/core/utils/`, `lib/core/widgets/`** without explicit Team Leader approval.
-- **Never modify `pubspec.yaml`** without explicit Team Leader approval.
+### Zero-Freeze Background Computation (`compute` & `Isolate.run`)
+- **Main Thread Protection:** Financial aggregation across hundreds/thousands of transactions, multi-month revenue curve crunching, and reports analytics must NOT freeze the 60fps UI.
+- Use `compute()` or `Isolate.run()` for heavy calculations (e.g., historical cashflow analytics, PDF report generation, export file packaging).
+- Always show instant UI feedback (shimmer or loading indicator) while calculations run in background isolates.
 
----
-
-## Backup Implementation (Phase 8)
-
-Implement the backup strategy from `PUKU.md` Section 14 and `docs/PROJECT_PLAN.md` Section 3.6:
-1. WAL checkpoint before backup
-2. Database file copy to temp path
-3. Integrity check (`PRAGMA integrity_check`)
-4. AES-256-CBC encryption (key from `flutter_secure_storage`)
-5. Export to phone Downloads folder
-6. Optional: Telegram upload via Bot API
+### Backup & Crypto Safety (Phase 8)
+- Backup AES-256-CBC encryption and decryption MUST run in a background isolate (`compute()`). Never perform heavy cryptography on the main UI thread.
+- WAL checkpoint before backup
+- Database file copy to temp path
+- Integrity check (`PRAGMA integrity_check`)
+- Export to phone Downloads folder
+- Optional: Telegram upload via Bot API
 
 **Safety Rules:**
 - Never replace the live DB without prior integrity validation of the backup.

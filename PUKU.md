@@ -255,15 +255,27 @@ total_outstanding_due    = SUM(effective_due) WHERE is_marked_as_paid = 0 AND ra
 
 ---
 
-## 9. Exception Handling Standards
+## 9. Exception Handling & Zero-Crash Standards
 
 1. **Never silently swallow exceptions.** Every `catch` block must either:
-   - Log the error clearly (for debugging), AND
-   - Present a user-visible error state or SnackBar.
-2. **Database exceptions** must be caught at the repository layer and converted to typed result objects (`Result<T>` pattern or similar).
-3. **Show Bengali error messages** to users. Never show raw exception stack traces.
-4. **Riverpod `AsyncError` state** must be handled in every `AsyncValue` consumer with an `error` builder.
-5. **Never crash the app** on recoverable errors (network timeout for Telegram backup, file picker cancellation, etc.).
+   - Log the error clearly with contextual information (for debugging), AND
+   - Present a user-visible, friendly Bengali error state, dialog, or SnackBar.
+2. **Repository Layer Defense:**
+   - All SQLite queries and DAOs must be wrapped in defensive try-catch blocks in repositories.
+   - Return typed `Result<T>` or propagate controlled exceptions so UI providers never receive unhandled low-level SQLite driver exceptions.
+3. **User-Centric Bengali Error Messages:**
+   - Always display actionable Bengali error messages to the user (e.g., `'ডেটা লোড করতে সমস্যা হয়েছে, পুনরায় চেষ্টা করুন'`).
+   - Never expose raw SQL exceptions, stack traces, or technical jargon in UI.
+4. **Riverpod `AsyncValue` Guard:**
+   - Wrap all async operations in providers with `AsyncValue.guard(() async { ... })`.
+   - Every UI consumer of `AsyncValue` MUST handle `.when(data: ..., loading: ..., error: ...)` with an appropriate user-facing error and retry button.
+5. **Never crash the app on recoverable errors:**
+   - Network failure or timeout (during optional Telegram backup) must fail gracefully with offline fallback.
+   - User file picker cancellation must return cleanly with zero exceptions.
+   - Missing or corrupted document BLOBs must show a placeholder badge rather than throwing an unhandled exception.
+6. **Global Crash Shield:**
+   - Register `FlutterError.onError` and `PlatformDispatcher.instance.onError` in `main.dart`.
+   - Override `ErrorWidget.builder` so unexpected rendering glitches display a friendly recovery card rather than a fatal crash.
 
 ---
 
@@ -397,14 +409,60 @@ test/
 
 ---
 
-## 18. Performance Standards
+## 18. Performance, Anti-Hang & Zero-Crash Standards
 
-1. **Paginate large lists.** Application list, transaction history, and task list must use pagination or lazy loading when records exceed 100 items.
-2. **Do not load document BLOBs eagerly.** Load document binary data only when the user opens a document.
-3. **Database queries must use indexes.** All `WHERE` clauses on commonly filtered columns must have corresponding indexes defined in the schema.
-4. **Riverpod providers must use `keepAlive` appropriately.** Do not keep large data providers alive when not needed.
-5. **Avoid rebuilding the entire widget tree.** Use `Consumer`, `select`, or `ref.watch` on specific provider fields.
-6. **WAL mode** must be active for database performance during read/write concurrency.
+> **ZERO TOLERANCE FOR FREEZES, ANR (APPLICATION NOT RESPONDING), OR CRASHES.**
+> The app is designed for local business owners on budget and mid-range Android devices. It must run butter-smooth (60–120 FPS), never hang, never freeze the UI thread, and never crash even with thousands of files and heavy attachments.
+
+### 18.1 Mandatory Database Pagination & UI Virtualization
+1. **Never load unbounded datasets into memory.**
+   - All queries for `applications`, `transactions`, `persons`, `tasks`, and `expenses` MUST be paginated at the SQLite database level using `LIMIT` and `OFFSET` or keyset (cursor) pagination.
+   - Standard batch size: **20 to 30 items per page**.
+   - Search queries must also be paginated with a limit of 20 results per batch with debounce (300ms).
+2. **Strict UI Virtualization:**
+   - Always use `ListView.builder`, `GridView.builder`, or `CustomScrollView` with `SliverList`.
+   - **STRICTLY FORBIDDEN:** Wrapping unbounded lists inside `SingleChildScrollView + Column(children: list.map(...))` — this instantiates every widget simultaneously and causes frame drops and out-of-memory (OOM) crashes.
+   - Keep item widgets lightweight. Use `addAutomaticKeepAlives: false` and `addRepaintBoundaries: true` on complex card items (`ApplicationCard`, `TaskCard`) to optimize GPU memory.
+
+### 18.2 Zero UI-Thread Block / Background Isolates (`compute` & `Isolate.run`)
+1. **The Main Flutter Thread (UI Thread) is strictly for 60/120 FPS rendering and user interactions.**
+   - Any computation taking more than **16 milliseconds** MUST be offloaded to a background Dart isolate using `compute()` or `Isolate.run()`.
+2. **Operations that MUST run on background isolates:**
+   - Full multi-month/multi-year financial ledger aggregation and analytics calculations.
+   - PDF report rendering and document byte processing.
+   - Database WAL checkpointing and database file backup copy.
+   - AES-256-CBC database encryption and decryption during backup/restore.
+   - SQLite `PRAGMA integrity_check` execution.
+3. **Async UI Feedback:**
+   - During any background operation, always display immediate visual feedback (e.g., non-blocking shimmer loading, circular progress indicator, or bottom sheet progress bar) so the UI remains 100% responsive to gestures.
+
+### 18.3 BLOB & Memory Management (OOM Crash Prevention)
+1. **Metadata vs Binary Separation (Strict Rule):**
+   - The `documents` table stores binary file data as BLOBs (`file_data`).
+   - **NEVER** select `file_data` in list or summary queries.
+   - When listing documents for an application, query strictly metadata: `id, application_id, file_name, file_type, file_size, created_at`.
+   - The binary `file_data` BLOB is queried ONLY on-demand when the user explicitly taps to view or export a specific file.
+2. **Image Optimization & Memory Caching:**
+   - Set maximum cache dimensions on images (`cacheWidth`, `cacheHeight`) to prevent decoding full-resolution multi-megapixel photos in memory.
+   - Warn user if picking documents larger than 5MB; hard block files over 10MB to protect SQLite file size and RAM.
+
+### 18.4 Lifecycle & Memory Leak Immunity
+1. **Mandatory Controller & Subscription Disposal:**
+   - Every `TextEditingController`, `ScrollController`, `TabController`, `AnimationController`, and `StreamSubscription` MUST be cancelled and disposed inside `dispose()`.
+   - Use Riverpod `autoDispose` on search and transient form providers so unused memory is reclaimed immediately when navigating away.
+2. **Database Connection Safety:**
+   - Database connection is managed as a singleton lifecycle through `databaseProvider`.
+   - Prevent connection leaks by closing auxiliary database connections (e.g., backup verification instances) immediately after use in `finally` blocks.
+
+### 18.5 Global Crash Shield & Safe Defensiveness
+1. **Global Unhandled Error Boundary:**
+   - In `main.dart`, register `FlutterError.onError` and `PlatformDispatcher.instance.onError` to capture any unexpected asynchronous or framework errors without killing the app process.
+   - Set `ErrorWidget.builder` to show a clean Bengali user recovery widget with a `[পুনরায় চেষ্টা করুন]` (Retry) button instead of the fatal grey/red screen of death.
+2. **Defensive Parsing & Boundary Protection:**
+   - Never use bang operator (`!`) blindly on nullable values.
+   - Use `int.tryParse()` and `double.tryParse()` with safe default values (`?? 0`).
+   - Validate array indices before access (`if (index >= 0 && index < list.length)`).
+   - Use safe type conversions when dealing with database result rows.
 
 ---
 

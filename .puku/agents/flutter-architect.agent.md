@@ -48,8 +48,16 @@ You are **analysis-focused and read-only**. You do not write, edit, or delete ap
 ### Repository & Service Architecture
 - Design the repository pattern for each feature module.
 - Define the DAO (Data Access Object) interface for each table.
-- Specify the Riverpod provider hierarchy.
+- **Mandate Pagination in DAOs:** Design all listing DAO queries with `limit` and `offset` / cursor parameters.
+- **Isolate Offloading Architecture:** Define contracts for operations that must run on background isolates using `compute()` / `Isolate.run()` (analytical aggregations, PDF export, backup crypto).
+- **BLOB Memory Isolation:** Ensure `DocumentDao` separates metadata queries (`DocumentSummary` without bytes) from raw binary retrieval.
+- Specify the Riverpod provider hierarchy with `autoDispose` for transient state to prevent memory leaks.
 - Identify shared providers vs. feature-specific providers.
+
+### Anti-Freeze & Zero-Crash Architecture
+- Define safe defensive boundaries so low-level database errors never crash the UI thread.
+- Establish global error handling guidelines (`PlatformDispatcher.instance.onError`, `FlutterError.onError`, and fallback error UI).
+- Review database index coverage for every filtered or sorted column to avoid table scans.
 
 ### Technical Risk Identification
 - Identify risks in the transition from demo data to real database.
