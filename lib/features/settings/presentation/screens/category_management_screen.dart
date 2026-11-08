@@ -1,0 +1,670 @@
+import 'package:flutter/material.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_typography.dart';
+import '../../../../core/demo/demo_data.dart';
+import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/widgets/app_dialog_action_row.dart';
+import '../../../../core/widgets/app_field_label.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/empty_state.dart';
+
+class CategoryManagementScreen extends StatefulWidget {
+  const CategoryManagementScreen({super.key});
+
+  @override
+  State<CategoryManagementScreen> createState() => _CategoryManagementScreenState();
+}
+
+class _CategoryManagementScreenState extends State<CategoryManagementScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  // Expense sub-filter: 0 = All, 1 = Application Expenses, 2 = Office Expenses
+  int _expenseFilterIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // --- Work Types Actions ---
+  void _showAddEditWorkTypeDialog({String? existingType}) {
+    final controller = TextEditingController(text: existingType ?? '');
+    final isEditing = existingType != null;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+        title: Text(isEditing ? 'কাজের ধরন পরিবর্তন' : 'নতুন কাজের ধরন যোগ করুন'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'আবেদন নিবন্ধনের সময় এই কাজের ধরনটি নির্বাচন তালিকায় যুক্ত থাকবে।',
+              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                label: AppFieldLabel.inline(label: 'কাজের নাম', isRequired: true),
+                hintText: 'যেমন: বাটোয়ারা বা খাস জমি বন্দোবস্ত',
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        actions: [
+          AppDialogActionRow(
+            confirmText: isEditing ? 'সংরক্ষণ করুন' : 'যোগ করুন',
+            onConfirm: () {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+
+              setState(() {
+                if (isEditing) {
+                  final index = DemoStore.workTypes.indexOf(existingType);
+                  if (index != -1) {
+                    DemoStore.workTypes[index] = text;
+                  }
+                } else {
+                  if (!DemoStore.workTypes.contains(text)) {
+                    DemoStore.workTypes.add(text);
+                  }
+                }
+              });
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(isEditing ? 'কাজের ধরন সফলভাবে হালনাগাদ হয়েছে' : 'নতুন কাজের ধরন যুক্ত করা হয়েছে'),
+                  backgroundColor: AppColors.emerald,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteWorkType(String type) async {
+    final count = DemoStore.applications.where((a) => a.workType == type).length;
+    final message = count > 0
+        ? 'এই ধরনের অধীনে ${BengaliDigits.toBengali(count)} টি আবেদন সংরক্ষিত রয়েছে। আপনি কি নিশ্চিত যে এটি তালিকা থেকে মুছতে চান?'
+        : 'আপনি কি নিশ্চিত যে "$type" কাজের ধরনটি তালিকা থেকে মুছে ফেলতে চান?';
+
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'কাজের ধরন মুছবেন?',
+      message: message,
+      confirmText: 'হ্যাঁ, মুছুন',
+      isDestructive: true,
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        DemoStore.workTypes.remove(type);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('কাজের ধরন তালিকা থেকে মুছে ফেলা হয়েছে'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    }
+  }
+
+  // --- Expense Categories Actions ---
+  void _showAddEditExpenseCategoryDialog({
+    String? existingCategory,
+    bool isGeneral = false,
+  }) {
+    final controller = TextEditingController(text: existingCategory ?? '');
+    final isEditing = existingCategory != null;
+    bool targetIsGeneral = isGeneral;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+          title: Text(isEditing ? 'খরচের খাত পরিবর্তন' : 'নতুন খরচের খাত যোগ করুন'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'দৈনিক খরচের হিসাব রাখার সময় এই খাত থেকে বাছাই করা যাবে।',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (!isEditing) ...[
+                  Text(
+                    'খাতের শ্রেণি নির্বাচন করুন',
+                    style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Text('আবেদনের খরচ'),
+                          selected: !targetIsGeneral,
+                          onSelected: (val) {
+                            setDialogState(() => targetIsGeneral = false);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Text('দোকান খরচ'),
+                          selected: targetIsGeneral,
+                          onSelected: (val) {
+                            setDialogState(() => targetIsGeneral = true);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    label: AppFieldLabel.inline(label: 'খাতের নাম', isRequired: true),
+                    hintText: 'যেমন: আপ্যায়ন বা কম্পিউটার কালি',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+          actions: [
+            AppDialogActionRow(
+              confirmText: isEditing ? 'সংরক্ষণ করুন' : 'যোগ করুন',
+              onConfirm: () {
+                final text = controller.text.trim();
+                if (text.isEmpty) return;
+
+                setState(() {
+                  if (isEditing) {
+                    if (isGeneral) {
+                      final idx = DemoStore.generalExpenseCategories.indexOf(existingCategory);
+                      if (idx != -1) DemoStore.generalExpenseCategories[idx] = text;
+                    } else {
+                      final idx = DemoStore.applicationExpenseCategories.indexOf(existingCategory);
+                      if (idx != -1) DemoStore.applicationExpenseCategories[idx] = text;
+                    }
+                  } else {
+                    if (targetIsGeneral) {
+                      if (!DemoStore.generalExpenseCategories.contains(text)) {
+                        DemoStore.generalExpenseCategories.add(text);
+                      }
+                    } else {
+                      if (!DemoStore.applicationExpenseCategories.contains(text)) {
+                        DemoStore.applicationExpenseCategories.add(text);
+                      }
+                    }
+                  }
+                  // Keep general list in sync
+                  if (!DemoStore.expenseCategories.contains(text)) {
+                    DemoStore.expenseCategories.add(text);
+                  }
+                });
+
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isEditing ? 'খরচের খাত হালনাগাদ হয়েছে' : 'নতুন খরচের খাত যুক্ত করা হয়েছে'),
+                    backgroundColor: AppColors.emerald,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _deleteExpenseCategory(String cat, bool isGeneral) async {
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'খরচের খাত মুছবেন?',
+      message: 'আপনি কি নিশ্চিত যে "$cat" খাতটি তালিকা থেকে মুছে ফেলতে চান?',
+      confirmText: 'হ্যাঁ, মুছুন',
+      isDestructive: true,
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        if (isGeneral) {
+          DemoStore.generalExpenseCategories.remove(cat);
+        } else {
+          DemoStore.applicationExpenseCategories.remove(cat);
+        }
+        DemoStore.expenseCategories.remove(cat);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('খরচের খাত মুছে ফেলা হয়েছে'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('ক্যাটাগরি ও খাত ব্যবস্থাপনা'),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textMuted,
+          indicatorColor: AppColors.primary,
+          indicatorWeight: 3,
+          labelStyle: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, fontSize: 13.5),
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.work_outline, size: 20),
+              text: 'কাজের ধরন (${BengaliDigits.toBengali(DemoStore.workTypes.length)})',
+            ),
+            Tab(
+              icon: const Icon(Icons.receipt_long_outlined, size: 20),
+              text: 'খরচের খাত (${BengaliDigits.toBengali(DemoStore.applicationExpenseCategories.length + DemoStore.generalExpenseCategories.length)})',
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // Search & Filter Box
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.sm),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+              decoration: InputDecoration(
+                hintText: _tabController.index == 0 ? 'কাজের ধরন খুঁজুন...' : 'খরচের খাত খুঁজুন...',
+                prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textMuted),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.slate100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ),
+
+          // Tab Views
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildWorkTypesTab(),
+                _buildExpenseCategoriesTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: Text(
+          _tabController.index == 0 ? 'নতুন কাজের ধরন' : 'নতুন খরচের খাত',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        onPressed: () {
+          if (_tabController.index == 0) {
+            _showAddEditWorkTypeDialog();
+          } else {
+            _showAddEditExpenseCategoryDialog(
+              isGeneral: _expenseFilterIndex == 2,
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildWorkTypesTab() {
+    final filtered = DemoStore.workTypes.where((wt) {
+      if (_searchQuery.isEmpty) return true;
+      return wt.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      children: [
+        // Informative Header Banner
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEEF2FF),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(color: const Color(0xFFC7D2FE)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Color(0xFF4F46E5), size: 22),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'নতুন আবেদন গ্রহণ ও হিসাবের সুবিধার্থে ভূমিসেবার কাজের ধরনগুলো এখানে সাজিয়ে রাখুন।',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: const Color(0xFF3730A3),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        if (filtered.isEmpty)
+          EmptyState(
+            icon: Icons.work_off_outlined,
+            title: 'কোনো কাজের ধরন পাওয়া যায়নি',
+            message: _searchQuery.isNotEmpty
+                ? '"$_searchQuery" এর সাথে কোনো কাজের ধরন মেলেনি।'
+                : 'তালিকায় কোনো কাজের ধরন নেই। নতুন ধরন যোগ করুন।',
+            actionText: 'নতুন কাজের ধরন যোগ করুন',
+            onAction: () => _showAddEditWorkTypeDialog(),
+          )
+        else
+          ...filtered.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final wt = entry.value;
+            final count = DemoStore.applications.where((a) => a.workType == wt).length;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 4),
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                  child: Center(
+                    child: Text(
+                      BengaliDigits.toBengali(idx + 1),
+                      style: AppTypography.labelMedium.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                title: Text(
+                  wt,
+                  style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  count > 0 ? '$count টি আবেদনে ব্যবহৃত' : 'এখনও কোনো আবেদনে ব্যবহার হয়নি',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: count > 0 ? AppColors.emeraldDark : AppColors.textMuted,
+                  ),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.slate600),
+                      tooltip: 'সম্পাদনা',
+                      onPressed: () => _showAddEditWorkTypeDialog(existingType: wt),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.rose),
+                      tooltip: 'মুছুন',
+                      onPressed: () => _deleteWorkType(wt),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        const SizedBox(height: 80), // Fab spacing
+      ],
+    );
+  }
+
+  Widget _buildExpenseCategoriesTab() {
+    final filteredAppCats = DemoStore.applicationExpenseCategories.where((c) {
+      if (_searchQuery.isEmpty) return true;
+      return c.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    final filteredGenCats = DemoStore.generalExpenseCategories.where((c) {
+      if (_searchQuery.isEmpty) return true;
+      return c.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      children: [
+        // Sub-filter tabs
+        Row(
+          children: [
+            _buildFilterPill('সকল খাত', 0),
+            const SizedBox(width: 8),
+            _buildFilterPill('আবেদনের খরচ (${BengaliDigits.toBengali(DemoStore.applicationExpenseCategories.length)})', 1),
+            const SizedBox(width: 8),
+            _buildFilterPill('দোকান খরচ (${BengaliDigits.toBengali(DemoStore.generalExpenseCategories.length)})', 2),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.md),
+
+        // Section 1: Application Expenses
+        if (_expenseFilterIndex == 0 || _expenseFilterIndex == 1) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'আবেদনের সাথে সম্পৃক্ত খরচ',
+                  style: AppTypography.headingSmall.copyWith(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  '${BengaliDigits.toBengali(filteredAppCats.length)} টি খাত',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          if (filteredAppCats.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              margin: const EdgeInsets.only(bottom: AppSpacing.base),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Center(
+                child: Text('এই বিভাগে কোনো খরচের খাত পাওয়া যায়নি', style: AppTypography.bodySmall),
+              ),
+            )
+          else
+            ...filteredAppCats.map((cat) => _buildExpenseCard(cat, isGeneral: false)),
+          const SizedBox(height: AppSpacing.md),
+        ],
+
+        // Section 2: General Shop Expenses
+        if (_expenseFilterIndex == 0 || _expenseFilterIndex == 2) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'দোকানের সাধারণ পরিচালন খরচ',
+                  style: AppTypography.headingSmall.copyWith(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  '${BengaliDigits.toBengali(filteredGenCats.length)} টি খাত',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          if (filteredGenCats.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              margin: const EdgeInsets.only(bottom: AppSpacing.base),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Center(
+                child: Text('এই বিভাগে কোনো খরচের খাত পাওয়া যায়নি', style: AppTypography.bodySmall),
+              ),
+            )
+          else
+            ...filteredGenCats.map((cat) => _buildExpenseCard(cat, isGeneral: true)),
+        ],
+
+        const SizedBox(height: 80),
+      ],
+    );
+  }
+
+  Widget _buildFilterPill(String label, int index) {
+    final isSelected = _expenseFilterIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _expenseFilterIndex = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : Colors.white,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: AppTypography.bodySmall.copyWith(
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 11.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpenseCard(String cat, {required bool isGeneral}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 4),
+        leading: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: isGeneral ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+          child: Icon(
+            isGeneral ? Icons.storefront_outlined : Icons.description_outlined,
+            size: 20,
+            color: isGeneral ? const Color(0xFFD97706) : AppColors.rose,
+          ),
+        ),
+        title: Text(
+          cat,
+          style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          isGeneral ? 'দোকানের ওভারহেড বা মাসিক খরচ' : 'আবেদনের ফাইল সংক্রান্ত কাজের খরচ',
+          style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 12),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.slate600),
+              tooltip: 'সম্পাদনা',
+              onPressed: () => _showAddEditExpenseCategoryDialog(
+                existingCategory: cat,
+                isGeneral: isGeneral,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.rose),
+              tooltip: 'মুছুন',
+              onPressed: () => _deleteExpenseCategory(cat, isGeneral),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

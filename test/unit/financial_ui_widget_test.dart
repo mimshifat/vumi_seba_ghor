@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bhumi_kajer_hisab/core/demo/demo_data.dart';
+import 'package:bhumi_kajer_hisab/core/widgets/app_floating_button.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/financial_overview_screen.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/income_form_screen.dart';
 import 'package:bhumi_kajer_hisab/features/applications/presentation/screens/application_detail_screen.dart';
@@ -25,10 +26,10 @@ void main() {
       expect(find.text('আয় যোগ করুন'), findsNothing);
       expect(find.text('খরচ যোগ করুন'), findsNothing);
 
-      // 2. Exactly two FloatingActionButtons exist with exact labels "আয়" and "খরচ"
-      expect(find.byType(FloatingActionButton), findsNWidgets(2));
-      expect(find.widgetWithText(FloatingActionButton, 'আয়'), findsOneWidget);
-      expect(find.widgetWithText(FloatingActionButton, 'খরচ'), findsOneWidget);
+      // 2. Exactly two AppFloatingButtons exist with exact labels "আয়" and "খরচ"
+      expect(find.byType(AppFloatingButton), findsNWidgets(2));
+      expect(find.widgetWithText(AppFloatingButton, 'আয়'), findsOneWidget);
+      expect(find.widgetWithText(AppFloatingButton, 'খরচ'), findsOneWidget);
 
       // 3. Overall summary hero metrics exist
       expect(find.text('প্রকৃত নিট ইনকাম'), findsOneWidget);
@@ -50,7 +51,7 @@ void main() {
       expect(find.text('সাম্প্রতিক লেনদেন'), findsNothing);
 
       // 8. Tapping 'আয়' FAB opens IncomeFormScreen
-      await tester.tap(find.widgetWithText(FloatingActionButton, 'আয়'));
+      await tester.tap(find.widgetWithText(AppFloatingButton, 'আয়'));
       await tester.pumpAndSettle();
       expect(find.text('আয় যোগ করুন (স্বাধীন আয়)'), findsOneWidget);
 
@@ -59,7 +60,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 9. Tapping 'খরচ' FAB opens ExpenseFormScreen
-      await tester.tap(find.widgetWithText(FloatingActionButton, 'খরচ'));
+      await tester.tap(find.widgetWithText(AppFloatingButton, 'খরচ'));
       await tester.pumpAndSettle();
       expect(find.text('খরচ যোগ করুন'), findsOneWidget);
     });

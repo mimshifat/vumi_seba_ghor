@@ -4,6 +4,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/app_search_bar.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/filter_bottom_sheet.dart';
@@ -136,14 +137,14 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppFloatingButton(
+        label: 'নতুন আবেদন',
+        icon: Icons.add,
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (ctx) => const ApplicationCreateScreen()),
           ).then((_) => setState(() {}));
         },
-        icon: const Icon(Icons.add),
-        label: const Text('নতুন আবেদন'),
       ),
       body: Column(
         children: [

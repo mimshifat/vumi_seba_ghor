@@ -689,7 +689,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'কাজের অগ্রগতি ও পাইপলাইন ফানেল',
+                'ফাইলের ধাপভিত্তিক অগ্রগতি',
                 style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
               ),
               const Icon(Icons.filter_alt_outlined, size: 18, color: AppColors.slate400),

@@ -7,6 +7,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/summary_card.dart';
 import '../../../applications/presentation/screens/application_detail_screen.dart';
 import 'due_management_screen.dart';
@@ -458,49 +459,34 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
           ),
         ],
       ),
-      floatingActionButton: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'financial_income_fab',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const IncomeFormScreen()),
-              ).then((_) => setState(() {}));
-            },
-            icon: const Icon(Icons.add_circle, size: 18),
-            label: const Text(
-              'আয়',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13.5,
-              ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppFloatingButton(
+              label: 'আয়',
+              icon: Icons.add_circle,
+              backgroundColor: AppColors.emerald,
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (ctx) => const IncomeFormScreen()),
+                ).then((_) => setState(() {}));
+              },
             ),
-            backgroundColor: AppColors.emerald,
-            foregroundColor: Colors.white,
-            elevation: 3,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          FloatingActionButton.extended(
-            heroTag: 'financial_expense_fab',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const ExpenseFormScreen()),
-              ).then((_) => setState(() {}));
-            },
-            icon: const Icon(Icons.remove_circle, size: 18),
-            label: const Text(
-              'খরচ',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13.5,
-              ),
+            const SizedBox(width: AppSpacing.sm),
+            AppFloatingButton(
+              label: 'খরচ',
+              icon: Icons.remove_circle,
+              backgroundColor: AppColors.rose,
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (ctx) => const ExpenseFormScreen()),
+                ).then((_) => setState(() {}));
+              },
             ),
-            backgroundColor: AppColors.rose,
-            foregroundColor: Colors.white,
-            elevation: 3,
-          ),
-        ],
+          ],
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.sm, AppSpacing.base, 96),

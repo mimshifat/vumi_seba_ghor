@@ -4,6 +4,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../applications/presentation/screens/application_detail_screen.dart';
@@ -190,20 +191,14 @@ class _TaskListScreenState extends State<TaskListScreen> with SingleTickerProvid
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppFloatingButton(
+        label: 'নতুন কাজ',
+        icon: Icons.add_task,
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (ctx) => const TaskCreateEditScreen()),
           ).then((_) => setState(() {}));
         },
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 3,
-        icon: const Icon(Icons.add_task),
-        label: const Text(
-          'নতুন কাজ',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
       ),
       body: TabBarView(
         controller: _tabController,

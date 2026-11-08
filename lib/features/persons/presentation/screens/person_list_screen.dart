@@ -4,6 +4,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'person_create_edit_screen.dart';
 import 'person_detail_screen.dart';
@@ -53,14 +54,14 @@ class _PersonListScreenState extends State<PersonListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppFloatingButton(
+        label: 'নতুন ব্যক্তি',
+        icon: Icons.person_add,
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (ctx) => const PersonCreateEditScreen()),
           ).then((_) => setState(() {}));
         },
-        icon: const Icon(Icons.person_add),
-        label: const Text('নতুন ব্যক্তি'),
       ),
       body: Column(
         children: [

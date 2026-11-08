@@ -6,6 +6,7 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/money_field.dart';
@@ -57,13 +58,11 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
             hintText: 'যেমন: জমির নকশা স্ক্যানিং',
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('বাতিল'),
-          ),
-          ElevatedButton(
-            onPressed: () {
+          AppDialogActionRow(
+            confirmText: 'যোগ করুন',
+            onConfirm: () {
               final newCat = catController.text.trim();
               if (newCat.isNotEmpty) {
                 if (!DemoStore.incomeCategories.contains(newCat)) {
@@ -77,7 +76,6 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('যোগ করুন'),
           ),
         ],
       ),

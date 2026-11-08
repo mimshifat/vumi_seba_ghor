@@ -5,6 +5,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../applications/presentation/screens/application_detail_screen.dart';
 import 'payment_form_screen.dart';
@@ -255,26 +256,12 @@ class _DueManagementScreenState extends State<DueManagementScreen> {
                                     ),
                                   ),
                                   onPressed: () async {
-                                    final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text('পরিশোধিত হিসেবে চিহ্নিত?'),
-                                        content: Text('${app.applicantName}-এর অবশিষ্ট ${app.dueAmount.formatBengali()} টাকা মওকুফ করে সম্পূর্ণ পরিশোধিত চিহ্নিত করতে চান?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx, false),
-                                            child: const Text('বাতিল'),
-                                          ),
-                                          ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.emerald,
-                                              foregroundColor: Colors.white,
-                                            ),
-                                            onPressed: () => Navigator.pop(ctx, true),
-                                            child: const Text('হ্যাঁ, চিহ্নিত করুন'),
-                                          ),
-                                        ],
-                                      ),
+                                    final confirmed = await ConfirmDialog.show(
+                                      context,
+                                      title: 'পরিশোধিত হিসেবে চিহ্নিত?',
+                                      message: '${app.applicantName}-এর অবশিষ্ট ${app.dueAmount.formatBengali()} টাকা মওকুফ করে সম্পূর্ণ পরিশোধিত চিহ্নিত করতে চান?',
+                                      confirmText: 'হ্যাঁ, চিহ্নিত করুন',
+                                      icon: Icons.check_circle_outline,
                                     );
                                     if (confirmed == true) {
                                       final updated = app.copyWith(isMarkedAsPaid: true);

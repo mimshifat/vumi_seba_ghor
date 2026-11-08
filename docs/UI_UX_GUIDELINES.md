@@ -111,8 +111,11 @@ Bottom Navigation with 5 clean, non-overlapping destinations:
    - **ভূমি অফিসভিত্তিক কাজের চাপ ও রাজস্ব:** অফিসভিত্তিক কাজের শতকরা অনুপাত ও রাজস্ব অর্জন সূচক।
    - **স্মার্ট ব্যবসায়িক অন্তর্দৃষ্টি (Insights):** সর্বোচ্চ ইনকাম সৃষ্টিকারী সেবা, দ্রুততম নিষ্পত্তি ও প্রধান অপারেশন কেন্দ্রের হাইলাইট কার্ড।
 5. **মেনু (Management & System):**
+   - *দোকান ও প্রতিষ্ঠান প্রোফাইল:* শীর্ষে সরাসরি প্রতিষ্ঠানের নাম, স্বত্বাধিকারী ও মোবাইল নম্বর প্রদর্শন এবং ১-ক্লিকে সম্পাদনা।
    - *দৈনিক ব্যবস্থাপনা ও খাতা:* করণীয় কাজ ও রিমাইন্ডার, গ্রাহক খাতা (আবেদনকারী), রেফারেন্স খাতা (রেফারেন্স ব্যক্তি ও আনীত আবেদন), ভূমি অফিস তালিকা
-   - *সিস্টেম ও ডেটা ব্যাকআপ:* টেলিগ্রাম ক্লাউড ব্যাকআপ ও রিস্টোর, সেটিংস ও কাস্টমাইজেশন
+   - *কনফিগারেশন ও ডেটা ব্যাকআপ:* কাজের ধরন ও খরচের খাত (`CategoryManagementScreen`), ডেটা ব্যাকআপ ও রিস্টোর (`BackupRestoreScreen` - ফোনে অফলাইন ব্যাকআপ এক্সপোর্ট ও ইমপোর্ট এবং ঐচ্ছিক টেলিগ্রাম ক্লাউড ব্যাকআপ)
+   - *সহায়তা ও তথ্য:* কারিগরি সহায়তা কেন্দ্র ও হেল্পলাইন, সংস্করণ ১.০.০
+   - *জিরো রিডানডেন্সি:* মধ্যবর্তী অতিরিক্ত ও ডুপ্লিকেট সেটিংস সাব-স্ক্রিন মুক্ত সরাসরি নেভিগেশন।
 
 ---
 
@@ -206,5 +209,21 @@ To eliminate long scroll fatigue and reduce form abandonment, complex data entry
   - **Transaction Cards:** Distinct cards replacing standard list tiles; green downward arrows for deposits with payment method tags (নগদ, বিকাশ, ইত্যাদি); red upward arrows for expenses with category tags.
 - **Modern Modal & Dialog Architecture:**
   - Status change and Mark-as-Paid dialogs use 20px rounded corners (`radiusXl`), soft info banners, and clean responsive scroll views.
+
+---
+
+## 8. Dialog & Modal Action Alignment Standards (`AppDialogActionRow`)
+
+- **Strict One-Alignment Rule (এক অনুভূমিক সারিতে বাটন):** 
+  - ফ্লাটারের ডিফল্ট `AlertDialog` অ্যাকশন বারের আন-অ্যালাইন্ড বা ভার্টিক্যাল স্ট্যাকিং (যেখানে "বাতিল" বাটন উপরে এবং "যোগ করুন" বাটন নিচে বিচ্ছিন্নভাবে নেমে যায়) কঠোরভাবে নিষিদ্ধ।
+  - প্রতিটি ডায়লগে `AppDialogActionRow` ব্যবহার বাধ্যতামূলক।
+- **বাটন অবস্থান ও স্টাইলিং:**
+  - **বাম পাশে:** `[ বাতিল ]` — `ButtonVariant.outline` (হালকা বর্ডার, ধূসর টেক্সট, কোনো ব্যাকগ্রাউন্ড ফিল নেই)।
+  - **ডান পাশে:** `[ যোগ করুন / সংরক্ষণ করুন / নিশ্চিত করুন ]` — `ButtonVariant.primary` (সলিড ব্র্যান্ড কালার) বা `ButtonVariant.danger` (মুছে ফেলার নিশ্চিতকরণে লাল কালার)।
+- **প্রস্থ ও অনুপাত:**
+  - উভয় বাটন `Expanded` উইজেট দ্বারা আবৃত থাকায় ৫০%-৫০% প্রস্থ পায়।
+  - মাঝে `AppSpacing.md` (12px) স্পষ্ট গ্যাপ এবং নির্দিষ্ট `42px` উচ্চতা বজায় থাকে।
+- **প্যাডিং:** ডায়লগ অ্যাকশন প্যাডিং সবসময় `EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg)` (20px, 0, 20px, 20px) যাতে কোনো ওভারফ্লো না হয়।
+
 
 

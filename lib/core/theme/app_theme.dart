@@ -133,7 +133,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 3,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
         ),
       ),
     );

@@ -6,6 +6,7 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/money_field.dart';
@@ -305,10 +306,11 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
             hintText: 'যেমন: উপজেলা ভূমি অফিস, ধামরাই',
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('বাতিল')),
-          ElevatedButton(
-            onPressed: () {
+          AppDialogActionRow(
+            confirmText: 'যোগ করুন',
+            onConfirm: () {
               final newName = controller.text.trim();
               if (newName.isNotEmpty) {
                 setState(() {
@@ -322,7 +324,6 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('যোগ করুন'),
           ),
         ],
       ),
@@ -342,10 +343,11 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
             hintText: 'যেমন: মিস কেস বা নামজারি আপিল',
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('বাতিল')),
-          ElevatedButton(
-            onPressed: () {
+          AppDialogActionRow(
+            confirmText: 'যোগ করুন',
+            onConfirm: () {
               final newType = controller.text.trim();
               if (newType.isNotEmpty) {
                 setState(() {
@@ -356,7 +358,6 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('যোগ করুন'),
           ),
         ],
       ),

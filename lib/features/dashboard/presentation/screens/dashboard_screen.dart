@@ -33,6 +33,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int get _completedCount => DemoStore.applications.where((a) => a.status == 'সম্পন্ন').length;
 
   List<DemoApplication> get _recentApplications => DemoStore.applications.take(4).toList();
+  bool _isNavigatingToTasks = false;
+
+  void _openTasks() async {
+    if (_isNavigatingToTasks) return;
+    _isNavigatingToTasks = true;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (ctx) => const TaskListScreen()),
+    );
+    _isNavigatingToTasks = false;
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,26 +109,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             },
           ),
-          Badge(
-            isLabelVisible: DemoStore.todayTasksCount > 0,
-            label: Text(
-              BengaliDigits.toBengali(DemoStore.todayTasksCount),
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: AppColors.rose,
-            offset: const Offset(-4, 4),
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
             child: IconButton(
-              icon: const Icon(Icons.notifications_none_outlined, size: 22),
               tooltip: 'আজকের কাজ (${BengaliDigits.toBengali(DemoStore.todayTasksCount)})',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (ctx) => const TaskListScreen()),
-                ).then((_) => setState(() {}));
-              },
+              onPressed: _openTasks,
+              icon: Badge(
+                isLabelVisible: DemoStore.todayTasksCount > 0,
+                label: Text(
+                  BengaliDigits.toBengali(DemoStore.todayTasksCount),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                backgroundColor: AppColors.rose,
+                child: const Icon(Icons.notifications_none_outlined, size: 24),
+              ),
             ),
           ),
         ],
@@ -311,7 +320,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'কাজের পাইপলাইন ও অবস্থা',
+                'ফাইলের বর্তমান অবস্থা',
                 style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
               ),
               Text(
@@ -324,7 +333,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               _buildPipelineStatusItem(
-                label: 'চলমান কাজ',
+                label: 'চলমান',
                 count: _ongoingCount,
                 color: AppColors.primary,
                 status: null,
@@ -338,7 +347,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: AppSpacing.sm),
               _buildPipelineStatusItem(
-                label: 'অনুমোদিত / মঞ্জুর',
+                label: 'অনুমোদিত',
                 count: _passedCount,
                 color: AppColors.emerald,
                 status: 'মঞ্জুর',

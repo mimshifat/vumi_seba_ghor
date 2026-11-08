@@ -60,8 +60,8 @@ The user operates a local land services shop in Bangladesh (রজব ভূম�
 | 9 | Dashboard | High |
 | 10 | Search, Filter & Sort | Critical |
 | 11 | Reports & Analytics | Medium-High |
-| 12 | Telegram Backup & Restore | Medium |
-| 13 | Settings | Medium |
+| 12 | Offline & Cloud Backup (ফোনে ব্যাকআপ এক্সপোর্ট/ইমপোর্ট ও টেলিগ্রাম ক্লাউড) | High |
+| 13 | Category & Shop Management (কাজের ধরন, খরচের খাত ও দোকান পরিচিতি) | Medium |
 
 ---
 
@@ -671,13 +671,12 @@ To ensure data integrity and prevent accidental empty submissions in a fast-pace
 - PDF/Excel export
 - **Duration: ~1 session**
 
-### Phase 8: Backup & Restore
-- Telegram Bot integration
-- WAL checkpoint + snapshot
-- Encryption
-- Upload/download
-- Restore flow
-- Scheduled backup
+### Phase 8: Offline & Cloud Backup & Restore
+- Primary: Offline manual phone export (.db file to Downloads folder)
+- Primary: Offline manual file picker import & restore flow with confirmation dialog
+- Secondary: Telegram Bot cloud upload/export integration
+- Database snapshot & AES encryption
+- Scheduled backup reminder
 - **Duration: ~1 session**
 
 ### Phase 9: Testing & QA

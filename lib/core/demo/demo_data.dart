@@ -437,6 +437,12 @@ class DemoStore {
     ...exceptionStatuses,
   ];
 
+  // Shop & Business Profile
+  static String shopName = 'রজব ভূমি সেবা ঘর';
+  static String proprietorName = 'মোঃ রজব আলী';
+  static String shopPhone = '০১৭১২-৩৪৫৬৭৮';
+  static String shopAddress = 'উপজেলা ভূমি অফিস সংলগ্ন, সাভার, ঢাকা';
+
   static List<String> workTypes = [
     'নামজারি',
     'জমাভাগ',

@@ -6,7 +6,7 @@ import '../../../backup/presentation/screens/backup_restore_screen.dart';
 import '../../../offices/presentation/screens/office_management_screen.dart';
 import '../../../persons/presentation/screens/person_list_screen.dart';
 import '../../../references/presentation/screens/reference_list_screen.dart';
-import '../../../settings/presentation/screens/settings_screen.dart';
+import '../../../settings/presentation/screens/category_management_screen.dart';
 import '../../../tasks/presentation/screens/task_list_screen.dart';
 
 class MoreMenuScreen extends StatelessWidget {
@@ -23,12 +23,13 @@ class MoreMenuScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.base),
         children: [
+          // 1. Daily Ledgers & Management
           _buildMenuSection(
             title: 'দৈনিক ব্যবস্থাপনা ও খাতা',
             items: [
               _MenuItem(
-                title: 'করণীয় কাজ ও রিমাইন্ডার',
-                subtitle: 'দৈনিক শিডিউল, শুনানি ও কাজ অনুসরণ',
+                title: 'করণীয় কাজ ও শিডিউল',
+                subtitle: 'দৈনিক শিডিউল, শুনানি ও কাজের রিমাইন্ডার',
                 icon: Icons.checklist_rtl,
                 color: AppColors.primary,
                 onTap: () {
@@ -39,7 +40,7 @@ class MoreMenuScreen extends StatelessWidget {
               ),
               _MenuItem(
                 title: 'গ্রাহক ও ব্যক্তি খাতা',
-                subtitle: 'সকল আবেদনকারী গ্রাহকের রেকর্ড',
+                subtitle: 'সকল আবেদনকারী গ্রাহকের রেকর্ড ও যোগাযোগ',
                 icon: Icons.people_outline,
                 color: AppColors.emerald,
                 onTap: () {
@@ -75,13 +76,25 @@ class MoreMenuScreen extends StatelessWidget {
 
           const SizedBox(height: AppSpacing.base),
 
+          // 2. Configurations & Data Backup
           _buildMenuSection(
-            title: 'সিস্টেম ও ডেটা ব্যাকআপ',
+            title: 'কনফিগারেশন ও ব্যাকআপ',
             items: [
               _MenuItem(
-                title: 'টেলিগ্রাম ক্লাউড ব্যাকআপ ও রিস্টোর',
-                subtitle: 'সম্পূর্ণ SQLite ডেটাবেস স্ন্যাপশট ব্যাকআপ',
-                icon: Icons.cloud_sync_outlined,
+                title: 'কাজের ধরন ও খরচের খাত',
+                subtitle: 'সেবার ধরন ও খরচের খাতের তালিকা পরিচালনা',
+                icon: Icons.category_outlined,
+                color: const Color(0xFF4F46E5),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (ctx) => const CategoryManagementScreen()),
+                  );
+                },
+              ),
+              _MenuItem(
+                title: 'ডেটা ব্যাকআপ ও রিস্টোর',
+                subtitle: 'ফোনে ব্যাকআপ ফাইল ডাউনলোড ও আপলোড',
+                icon: Icons.backup_outlined,
                 color: const Color(0xFF0284C7),
                 onTap: () {
                   Navigator.of(context).push(
@@ -89,19 +102,58 @@ class MoreMenuScreen extends StatelessWidget {
                   );
                 },
               ),
-              _MenuItem(
-                title: 'সেটিংস ও কাস্টমাইজেশন',
-                subtitle: 'কাজের ধরন, খরচের খাত ও অ্যাপ সংক্রান্ত',
-                icon: Icons.settings_outlined,
-                color: AppColors.slate600,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (ctx) => const SettingsScreen()),
-                  );
-                },
-              ),
             ],
           ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          // 3. Clean Developer & App Info Footer
+          const Center(
+            child: Column(
+              children: [
+                Text(
+                  'রজব ভূমি সেবা ঘর • সংস্করণ ১.০.০',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.code_rounded, size: 14, color: AppColors.primary),
+                    SizedBox(width: 4),
+                    Text(
+                      'ডেভেলপার: Md Mim Shifat',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 3),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.email_outlined, size: 14, color: AppColors.textMuted),
+                    SizedBox(width: 4),
+                    Text(
+                      'mimshifat5@gmail.com',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
@@ -175,4 +227,3 @@ class _MenuItem {
     required this.onTap,
   });
 }
-

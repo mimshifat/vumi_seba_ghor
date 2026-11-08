@@ -4,7 +4,9 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
+import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
 
@@ -32,10 +34,11 @@ class _OfficeManagementScreenState extends State<OfficeManagementScreen> {
             hintText: 'যেমন: উপজেলা ভূমি অফিস, সাভার',
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('বাতিল')),
-          ElevatedButton(
-            onPressed: () {
+          AppDialogActionRow(
+            confirmText: isEditing ? 'সংরক্ষণ' : 'যোগ করুন',
+            onConfirm: () {
               final text = controller.text.trim();
               if (text.isNotEmpty) {
                 setState(() {
@@ -60,7 +63,6 @@ class _OfficeManagementScreenState extends State<OfficeManagementScreen> {
                 Navigator.pop(ctx);
               }
             },
-            child: Text(isEditing ? 'সংরক্ষণ' : 'যোগ করুন'),
           ),
         ],
       ),
@@ -76,10 +78,10 @@ class _OfficeManagementScreenState extends State<OfficeManagementScreen> {
       appBar: AppBar(
         title: const Text('ভূমি অফিস তালিকা'),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppFloatingButton(
         onPressed: () => _showAddEditDialog(),
-        icon: const Icon(Icons.add_business),
-        label: const Text('নতুন অফিস'),
+        icon: Icons.add_business,
+        label: 'নতুন অফিস',
       ),
       body: list.isEmpty
           ? EmptyState(

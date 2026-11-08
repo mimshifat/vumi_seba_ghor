@@ -5,6 +5,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_field_label.dart';
+import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../data/demo_reference_store.dart';
 import '../widgets/reference_card.dart';
@@ -211,12 +212,10 @@ class _ReferenceListScreenState extends State<ReferenceListScreen> {
       appBar: AppBar(
         title: const Text('রেফারেন্স খাতা'),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppFloatingButton(
+        label: 'নতুন রেফারেন্স',
+        icon: Icons.person_add_alt_1,
         onPressed: _showAddReferenceSheet,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('নতুন রেফারেন্স'),
       ),
       body: Column(
         children: [
