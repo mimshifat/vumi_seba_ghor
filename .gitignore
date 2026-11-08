@@ -26,6 +26,12 @@ private/
 *.sqlite
 *.sqlite3
 *.db
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db-journal
+*.db-wal
+*.db-shm
 *.bak
 *.backup
 
@@ -121,6 +127,14 @@ linux/flutter/ephemeral/
 .fleet/
 *.sublime-project
 *.sublime-workspace
+
+# Puku Editor Runtime / Sessions (Agents in .puku/agents/ are tracked)
+.puku/sessions/
+.puku/history/
+.puku/logs/
+.puku/cache/
+.puku/*.log
+.puku/*.tmp
 
 # ==============================================================================
 # OS & SYSTEM ARTIFACTS

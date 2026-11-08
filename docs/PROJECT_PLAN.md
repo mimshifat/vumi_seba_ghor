@@ -228,92 +228,107 @@ lib/
 └── gen/                            # Generated files
 ```
 
-### 3.3 Database Schema
+### 3.3 Database Schema (Production-Aligned with Zero Hard Delete & Historical Snapshots)
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
-│   persons    │     │   applications   │     │   offices    │
-├─────────────┤     ├──────────────────┤     ├──────────────┤
-│ id (PK)     │◄────│ applicant_id(FK) │     │ id (PK)      │
-│ name        │     │ reference_id(FK)─┼──┐  │ name         │
-│ phone       │     │ office_id (FK)   │  │  │ created_at   │
-│ address     │     │ mouza            │  │  │ updated_at   │
-│ photo (blob)│     │ app_number       │  │  └──────────────┘
-│ notes       │     │ case_number      │  │
-│ created_at  │     │ work_type        │  │
-│ updated_at  │     │ application_date │  │
-└─────────────┘     │ status           │  │
-                    │ agreed_amount    │  │  ┌──────────────┐
-                    │ notes            │  └─►│  references  │
-                    │ created_at       │     ├──────────────┤
-                    │ updated_at       │     │ id (PK)      │
-                    └──────────────────┘     │ name         │
-                           │                 │ phone        │
-                           │                 │ address      │
-                           │                 │ photo (blob) │
-                           │                 │ notes        │
-                           │                 │ created_at   │
-                           │                 │ updated_at   │
-                           │                 └──────────────┘
-                           │                │ prev_status      │
-                           │                │ new_status       │
-                           │                │ changed_at       │
-                           │                │ note             │
-                           │                └──────────────────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         │                 │                 │
-┌────────────────┐ ┌───────────────┐ ┌──────────────┐
-│   payments     │ │   expenses    │ │  documents   │
-├────────────────┤ ├───────────────┤ ├──────────────┤
-│ id (PK)        │ │ id (PK)       │ │ id (PK)      │
-│ application_id │ │ application_id│ │ application_id│
-│ amount         │ │ amount        │ │ file_name    │
-│ date           │ │ category      │ │ file_type    │
-│ method         │ │ date          │ │ file_data    │
-│ note           │ │ note          │ │ file_size    │
-│ status_hist_id │ │ status_hist_id│ │ created_at   │
-│ is_status_fee  │ │ is_status_exp │ └──────────────┘
-│ created_at     │ │ is_general    │
-└────────────────┘ │ created_at    │
-                   └───────────────┘
+┌───────────────────────────┐     ┌──────────────────────────────────────────────┐     ┌───────────────────────────┐
+│          persons          │     │                 applications                 │     │          offices          │
+├───────────────────────────┤     ├──────────────────────────────────────────────┤     ├───────────────────────────┤
+│ id (TEXT PK UUID)         │◄────│ applicant_id (TEXT FK NULL)                  │     │ id (TEXT PK UUID)         │
+│ name (TEXT NOT NULL)      │     │ applicant_name (TEXT NOT NULL - Snapshot)    │     │ name (TEXT NOT NULL)      │
+│ phone (TEXT NOT NULL)     │     │ applicant_phone (TEXT NOT NULL - Snapshot)   │     │ created_at (INTEGER DT)   │
+│ address (TEXT NULL)       │     │ applicant_address (TEXT NULL - Snapshot)     │     │ updated_at (INTEGER DT)   │
+│ photo (BLOB NULL)         │     │ reference_id (FK TEXT NULL)─┬────────────────┤     │ deleted_at (INTEGER NULL) │
+│ notes (TEXT NULL)         │     │ reference_name (TEXT NULL - Snapshot)        │     └───────────────────────────┘
+│ created_at (INTEGER DT)   │     │ office_id (TEXT FK NULL)                     │
+│ updated_at (INTEGER DT)   │     │ office_name (TEXT NOT NULL - Snapshot)       │  ┌───────────────────────────┐
+│ deleted_at (INTEGER NULL) │     │ mouza (TEXT NULL)                            │  │        references         │
+└───────────────────────────┘     │ app_number (TEXT NULL)                       │  ├───────────────────────────┤
+                                  │ case_number (TEXT NULL)                      │  │ id (TEXT PK UUID)         │
+                                  │ work_type (TEXT NOT NULL)                    │  │ name (TEXT NOT NULL)      │
+                                  │ application_date (INT DT)                    │  │ phone (TEXT NOT NULL)     │
+                                  │ status (TEXT NOT NULL)                       │  │ address (TEXT NULL)       │
+                                  │ agreed_amount (INT Paisa)                    │  │ photo (BLOB NULL)         │
+                                  │ is_marked_as_paid (BOOL)                     │  │ notes (TEXT NULL)         │
+                                  │ notes (TEXT NULL)                            │  │ created_at (INTEGER DT)   │
+                                  │ created_at (INTEGER DT)                      │  │ updated_at (INTEGER DT)   │
+                                  │ updated_at (INTEGER DT)                      │  │ deleted_at (INTEGER NULL) │
+                                  │ deleted_at (INTEGER NULL)                    │  └───────────────────────────┘
+                                  └──────────────────────┬───────────────────────┘
+                                                         │
+                     ┌───────────────────────────────────┼───────────────────────────────────┐
+                     │                                   │                                   │
+      ┌──────────────┴──────────────┐     ┌──────────────┴──────────────┐     ┌──────────────┴──────────────┐
+      │          payments           │     │          expenses           │     │          documents          │
+      ├─────────────────────────────┤     ├─────────────────────────────┤     ├─────────────────────────────┤
+      │ id (TEXT PK UUID)           │     │ id (TEXT PK UUID)           │     │ id (TEXT PK UUID)           │
+      │ application_id (TEXT FK)    │     │ application_id (TEXT NULL)  │     │ application_id (TEXT FK)    │
+      │ amount (INT Paisa)          │     │ amount (INT Paisa)          │     │ file_name (TEXT NOT NULL)   │
+      │ date (INTEGER DT)           │     │ category (TEXT NOT NULL)    │     │ file_type (TEXT NOT NULL)   │
+      │ method (TEXT NOT NULL)      │     │ date (INTEGER DT)           │     │ file_data (BLOB NOT NULL)   │
+      │ note (TEXT NULL)            │     │ is_general (BOOL NOT NULL)  │     │ file_size (TEXT NOT NULL)   │
+      │ status_history_id (TEXT FK) │     │ note (TEXT NULL)            │     │ created_at (INTEGER DT)     │
+      │ status_name (TEXT NULL)     │     │ status_history_id (TEXT FK) │     │ deleted_at (INTEGER NULL)   │
+      │ is_status_fee (BOOL)        │     │ status_name (TEXT NULL)     │     └─────────────────────────────┘
+      │ created_at (INTEGER DT)     │     │ is_status_exp (BOOL)        │
+      │ deleted_at (INTEGER NULL)   │     │ created_at (INTEGER DT)     │
+      └─────────────────────────────┘     │ deleted_at (INTEGER NULL)   │
+                                          └─────────────────────────────┘
+                     ┌────────────────────────────┐
+                     │       status_history       │
+                     ├────────────────────────────┤
+                     │ id (TEXT PK UUID)          │
+                     │ application_id (TEXT FK)   │
+                     │ prev_status (TEXT NOT NULL)│
+                     │ new_status (TEXT NOT NULL) │
+                     │ changed_at (INTEGER DT)    │
+                     │ note (TEXT NULL)           │
+                     └────────────────────────────┘
 
-┌─────────────────────────┐     ┌──────────────────┐
-│   independent_incomes   │     │     tasks        │
-├─────────────────────────┤     ├──────────────────┤
-│ id (PK)                 │     │ id (PK)          │
-│ category                │     │ title            │
-│ amount (Integer Paisa)  │     │ description      │
-│ date                    │     │ due_date         │
-│ payment_method          │     │ due_time         │
-│ customer_name           │     │ priority         │
-│ note                    │     │ status           │
-│ created_at              │     │ application_id   │
-└─────────────────────────┘     │ created_at       │
-                                │ updated_at       │
-                                └──────────────────┘
+┌─────────────────────────┐     ┌───────────────────────────────────┐     ┌─────────────────────────┐
+│   independent_incomes   │     │               tasks               │     │      shop_settings      │
+├─────────────────────────┤     ├───────────────────────────────────┤     ├─────────────────────────┤
+│ id (TEXT PK UUID)       │     │ id (TEXT PK UUID)                 │     │ key (TEXT PK)           │
+│ category (TEXT NOT NULL)│     │ title (TEXT NOT NULL)             │     │ value (TEXT NOT NULL)   │
+│ amount (INT Paisa)      │     │ description (TEXT NULL)           │     │ updated_at (INTEGER DT) │
+│ date (INTEGER DT)       │     │ due_date (INTEGER DT NOT NULL)    │     └─────────────────────────┘
+│ payment_method (TEXT)   │     │ due_time (TEXT NULL)              │
+│ customer_name (TEXT)    │     │ priority (TEXT NOT NULL)          │
+│ note (TEXT NULL)        │     │ status (TEXT NOT NULL)            │
+│ created_at (INTEGER DT) │     │ category (TEXT NOT NULL)          │
+│ deleted_at (INT NULL)   │     │ application_id (TEXT FK NULL)     │
+└─────────────────────────┘     │ completed_at (INTEGER DT NULL)    │
+                                │ created_at (INTEGER DT)           │
+                                │ updated_at (INTEGER DT)           │
+                                │ deleted_at (INTEGER NULL)         │
+                                └───────────────────────────────────┘
 
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│   work_types     │     │ expense_categories│    │ income_categories│
-├──────────────────┤     ├──────────────────┤     ├──────────────────┤
-│ id (PK)          │     │ id (PK)          │     │ id (PK)          │
-│ name             │     │ name             │     │ name             │
-│ is_default       │     │ is_general       │     │ is_default       │
-│ created_at       │     │ is_default       │     │ created_at       │
-└──────────────────┘     │ created_at       │     └──────────────────┘
-                         └──────────────────┘
+┌───────────────────────────┐     ┌───────────────────────────┐     ┌───────────────────────────┐
+│        work_types         │     │    expense_categories     │     │     income_categories     │
+├───────────────────────────┤     ├───────────────────────────┤     ├───────────────────────────┤
+│ id (TEXT PK UUID)         │     │ id (TEXT PK UUID)         │     │ id (TEXT PK UUID)         │
+│ name (TEXT NOT NULL)      │     │ name (TEXT NOT NULL)      │     │ name (TEXT NOT NULL)      │
+│ is_default (BOOL)         │     │ is_general (BOOL NOT NULL)│     │ is_default (BOOL)         │
+│ created_at (INTEGER DT)   │     │ is_default (BOOL NOT NULL)│     │ created_at (INTEGER DT)   │
+│ deleted_at (INTEGER NULL) │     │ created_at (INTEGER DT)   │     │ deleted_at (INTEGER NULL) │
+└───────────────────────────┘     │ deleted_at (INTEGER NULL) │     └───────────────────────────┘
+                                  └───────────────────────────┘
 ```
 
-**Key Schema Decisions:**
+**Key Schema Decisions (Zero Hard Delete & Snapshot Isolation):**
 
+- **Zero Hard Deletes (`deleted_at INTEGER NULL`):** কোনো রেকর্ড কখনো ফিজিক্যালি ডেটাবেজ থেকে মোছা হবে না। ডিলিট অ্যাকশন কেবল সফট ডিলিট টাইমস্ট্যাম্প বসাবে।
+- **Historical Snapshot Preservation:** `applications` টেবিলে `reference_name`, `applicant_name`, `applicant_phone`, `applicant_address` এবং `office_name` স্বাধীন কলাম হিসেবে স্থায়ীভাবে সংরক্ষিত থাকবে। যদি রেফারেন্স ব্যক্তি বা গ্রাহককে তার প্রোফাইল লিস্ট থেকে মুছেও ফেলা হয়, তবু আবেদনের ফাইলে ও ডিটেইল স্ক্রিনে রেফারেন্স ব্যক্তির নাম ও সকল হিসাব অবিকল এবং নির্ভুল থাকবে।
+- **Calculation Immunity:** যেকোনো আইটেম ডিলিট হলেও পূর্বের ফিন্যান্সিয়াল হিসাব বা ক্যাশ ব্যালেন্সে কোনো গরমিল হবে না।
 - **Money stored as integers** (paisa/smallest unit) to avoid floating-point errors. ৳7,000 = 700000 in storage.
-- **Dedicated Independent Income table (`independent_incomes`)** ensures non-application revenue (printing, computer services, personal business) is never mixed with application contracts or duplicate-counted.
-- **Documents stored as BLOBs** inside SQLite so backup includes everything.
-- **`is_general` flag on expenses** clearly separates file-specific work expenses from shop overheads (rent, bills, stationery).
-- **Status history linkage:** Optional fee receipts (`is_status_fee`) and status expenses (`is_status_exp`) link back to `status_history`.
-- **Work types, expense categories, and income categories** are separate customizable tables.
-- **Status values stored as strings** (not enums) for extensibility.
-- **Foreign keys enforced** with `PRAGMA foreign_keys = ON`.
+- **`is_marked_as_paid` in `applications`:** Crucial business requirement added during UI development. When a customer pays partial money (e.g. ৳6,500 of ৳7,000) and the rest ৳500 is waived or settled, this boolean flag ensures outstanding dues drop to ৳0 while preserving the raw difference for historical audit.
+- **`category` & `completed_at` in `tasks`:** Extended to support the 6 business task categories (`⚖️ শুনানি`, `📄 কাগজপত্র`, `💰 ফি/তাগাদা`, `🏛️ অফিস জমা`, `📦 ডেলিভারি`, `📌 সাধারণ`) and exact completion timestamps.
+- **Dedicated Independent Income table (`independent_incomes`)** ensures non-application revenue (printing, computer services, photocopying, deed typing) is completely isolated from application contracts.
+- **Status history linkage (`status_history_id` & `status_name`):** Payments and expenses generated during a status transition (e.g., govt application fee ৳৭০, hearing expense ৳৩০০, DCR fee ৳১,১০০) retain a foreign key to `status_history` and store the `status_name` for instant audit trail.
+- **Documents stored as BLOBs** inside SQLite so phone backups and Telegram snapshots are fully self-contained.
+- **`is_general` flag on expenses** clearly separates file-specific work expenses (which directly reduce that file's net income) from shop overheads.
+- **`shop_settings` table:** Key-value persistence for shop profile and backup configurations.
+- **Foreign keys enforced** with `PRAGMA foreign_keys = ON` and `ON DELETE SET NULL` for parent relationships to prevent cascade deletions.
 - **WAL mode enabled** for concurrent access and clean backup snapshots.
 
 ### 3.4 Financial Architecture
@@ -322,7 +337,8 @@ lib/
 Per Application:
   agreed_amount             = Total service fee agreed with customer
   total_received            = SUM(payments WHERE application_id = X)  [includes contract installments & status fees]
-  remaining_due             = agreed_amount - total_received
+  raw_due                   = agreed_amount - total_received
+  effective_due             = is_marked_as_paid ? 0 : raw_due
   application_expenses      = SUM(expenses WHERE application_id = X AND is_general = false)  [includes work costs & status expenses]
   estimated_income          = agreed_amount - application_expenses
   actual_realized_income    = total_received - application_expenses
@@ -337,7 +353,7 @@ Global Financial Totals:
   grand_total_expense       = total_app_expense + total_general_expense
 
   net_business_income       = grand_total_income - grand_total_expense
-  total_outstanding_due     = SUM(agreed_amount - total_received) for all applications with positive due
+  total_outstanding_due     = SUM(effective_due) for all applications where is_marked_as_paid = false AND raw_due > 0
 ```
 
 **Accounting Rules:**
@@ -477,11 +493,11 @@ A custom `Money` class wrapping `int` (paisa):
 
 ## 5. Screen Inventory
 
-### 5.1 Complete Screen List (27 Screens)
+### 5.1 Complete Screen List (28 Screens)
 
 | # | Screen | Description |
 |---|---|---|
-| 1 | Dashboard | Privacy-first operational view (search, quick actions, hearing schedule, pipeline, recent apps) |
+| 1 | Dashboard | Privacy-first operational view (search, quick actions, hearing schedule, pipeline, recent apps, task notification badge) |
 | 2 | Application List | Searchable, filterable list of all applications with multi-filter sheet, mouza badge, left status accent border, and 3-column financial summary inset |
 | 3 | Application Create | Modern 3-Step Wizard (Client info + address + auto-fill, Work & Office + mouza, Agreement + summary card + reference + docs) with strict per-step validation |
 | 4 | Application Detail | Modernized tabbed detail view (Info with call shortcut & reference link, Connected vertical Progress Timeline, Finance with Hero Net Profit banner & 2x2 grid, Documents with file badges) |
@@ -490,24 +506,25 @@ A custom `Money` class wrapping `int` (paisa):
 | 7 | Person Create/Edit | Add or edit an applicant person |
 | 8 | Person Detail | Person profile + their applications (as applicant) + financial ledger |
 | 9 | Office Management | Land offices list with add/edit/delete |
-| 10 | Financial Overview | Live monthly income, expense, profit with clean cashflow charts |
-| 11 | Payment Form | Record a payment with one-click full due settlement |
-| 12 | Expense Form | Record an expense (application-specific or shop general) |
-| 13 | Transaction History | All payments and expenses with filters |
-| 14 | Due Management | Outstanding dues list, phone shortcuts, and direct PDF report download |
-| 15 | Task List | All tasks with status tabs (To-do, In-progress, Done) and priority filters |
-| 16 | Task Create/Edit | Add or edit a task with application linkage |
-| 17 | Task Detail | Task details with status toggle & linked application |
-| 18 | Analytics Dashboard | Interactive visual dashboard with period filters, 4 executive KPIs, multi-month revenue curve, work-type donut chart, pipeline funnel, office metrics & business insights |
-| 19 | Report Detail | Category drill-down with detailed data tables and statistics |
-| 20 | Document Viewer | PDF/image preview screen with share action |
-| 21 | Backup & Restore | Telegram bot snapshot backup & encrypted SQLite restore |
-| 22 | Settings | Work types, expense categories, app preferences |
-| 23 | Reference List | Dedicated reference ledger with search, total stats banner, status chips, and call shortcuts |
-| 24 | Reference Detail | Complete reference profile (photo, name, phone, address, notes), financial totals, and application history |
-| 25 | More Menu | Simplified 2-section management hub (Daily Records including Reference ledger + System Backup) |
-| 26 | Status Change Dialog | Quick status selector with progress notes |
-| 27 | Main Shell | 5-tab production navigation container |
+| 10 | Financial Overview | Live monthly income, expense, profit with clean cashflow charts, dues list & dual FABs |
+| 11 | Payment Form | Record a payment with one-click full due settlement and mark-as-paid option |
+| 12 | Income Form | Record independent/shop service income (computer, printing, deeds) |
+| 13 | Expense Form | Record an expense (application-specific or shop general) |
+| 14 | Transaction History | All payments, independent incomes, and expenses with multi-criteria filters |
+| 15 | Due Management | Outstanding dues list, phone shortcuts, mark as paid action, and direct PDF report download |
+| 16 | Task List | All tasks with 5 status tabs (Today, To-do, In-progress, Done, All), priority chips, and 1-tap checkbox |
+| 17 | Task Create/Edit | Add or edit a task with 6 categories, shortcuts, and application linkage |
+| 18 | Task Detail | Task details with 3-step directional status stepper & linked application shortcut |
+| 19 | Analytics Dashboard | Interactive visual dashboard with period filters, 4 executive KPIs, multi-month revenue curve, work-type donut chart, pipeline funnel, office metrics & business insights |
+| 20 | Report Detail | Category drill-down with detailed data tables and statistics |
+| 21 | Document Viewer | PDF/image preview screen with share action |
+| 22 | Backup & Restore | Local phone export/import (.db in Downloads) & Telegram bot snapshot backup |
+| 23 | Category Management | Work types & expense categories (work-specific vs general shop) management |
+| 24 | Reference List | Dedicated reference ledger with search, total stats banner, status chips, and call shortcuts |
+| 25 | Reference Detail | Complete reference profile (photo, name, phone, address, notes), financial totals, and application history |
+| 26 | More Menu | Simplified 2-section management hub (Daily Records including Reference ledger + System Backup & clean developer footer) |
+| 27 | Status Change Dialog | Quick status selector with BD land workflow steps, hearing scheduling & instant stage expense/fee recording |
+| 28 | Main Shell | 5-tab production navigation container (Dashboard, Applications, Finance, Analytics, Menu) |
 
 ### 5.2 Key Dialogs & Bottom Sheets
 

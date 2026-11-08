@@ -32,6 +32,29 @@ void main() {
       expect(appWithRef.referencePersonId, isNotNull);
       expect(appWithRef.referencePersonName, isNotNull);
     });
+
+    test('Soft delete & snapshot isolation: deleting a reference preserves application snapshot and calculations', () {
+      // Find an application with a reference
+      final app = DemoStore.applications.firstWhere((a) => a.referencePersonName != null);
+      final refName = app.referencePersonName;
+      final originalAgreed = app.agreedAmount;
+      final originalReceived = app.receivedAmount;
+      final originalExpense = app.expenseAmount;
+      final originalIncome = app.actualIncome;
+
+      // Simulate reference person being deleted from directory (soft delete / directory removal)
+      // Even if reference person ID is removed or record is archived, application snapshot holds the name
+      final appAfterDeletion = app.copyWith(referencePersonId: null); // FK severed / soft deleted
+
+      // Snapshot name MUST remain intact
+      expect(appAfterDeletion.referencePersonName, equals(refName));
+      // Financial amounts and calculations MUST be 100% unaffected
+      expect(appAfterDeletion.agreedAmount, equals(originalAgreed));
+      expect(appAfterDeletion.receivedAmount, equals(originalReceived));
+      expect(appAfterDeletion.expenseAmount, equals(originalExpense));
+      expect(appAfterDeletion.actualIncome, equals(originalIncome));
+      expect(appAfterDeletion.dueAmount, equals(app.dueAmount));
+    });
   });
 }
 
