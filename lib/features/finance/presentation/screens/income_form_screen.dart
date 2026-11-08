@@ -1,0 +1,353 @@
+import 'package:flutter/material.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_typography.dart';
+import '../../../../core/demo/demo_data.dart';
+import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_field_label.dart';
+import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/money_field.dart';
+
+class IncomeFormScreen extends StatefulWidget {
+  const IncomeFormScreen({super.key});
+
+  @override
+  State<IncomeFormScreen> createState() => _IncomeFormScreenState();
+}
+
+class _IncomeFormScreenState extends State<IncomeFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  final _customerController = TextEditingController();
+  final _noteController = TextEditingController();
+
+  late String _selectedCategory;
+  String _selectedMethod = 'নগদ';
+  DateTime _incomeDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = DemoStore.incomeCategories.isNotEmpty
+        ? DemoStore.incomeCategories.first
+        : 'অন্যান্য আয়';
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _customerController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _showAddCategoryDialog() {
+    final catController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('নতুন আয়ের খাত যোগ করুন'),
+        content: TextField(
+          controller: catController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            label: AppFieldLabel.inline(label: 'খাতের নাম', isRequired: true),
+            hintText: 'যেমন: জমির নকশা স্ক্যানিং',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('বাতিল'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newCat = catController.text.trim();
+              if (newCat.isNotEmpty) {
+                if (!DemoStore.incomeCategories.contains(newCat)) {
+                  setState(() {
+                    DemoStore.incomeCategories.add(newCat);
+                    _selectedCategory = newCat;
+                  });
+                } else {
+                  setState(() => _selectedCategory = newCat);
+                }
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('যোগ করুন'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _saveIncome() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final raw = _amountController.text.replaceAll(',', '').replaceAll('৳', '').trim();
+    final taka = int.tryParse(BengaliDigits.toEnglish(raw)) ?? 0;
+    if (taka <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('অনুগ্রহ করে আয়ের সঠিক পরিমাণ লিখুন'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+      return;
+    }
+
+    final newIncome = DemoIncome(
+      id: 'inc-${DateTime.now().millisecondsSinceEpoch}',
+      category: _selectedCategory,
+      amount: Money.fromTaka(taka),
+      date: _incomeDate,
+      paymentMethod: _selectedMethod,
+      customerName: _customerController.text.trim().isNotEmpty
+          ? _customerController.text.trim()
+          : null,
+      note: _noteController.text.trim().isNotEmpty
+          ? _noteController.text.trim()
+          : null,
+    );
+
+    DemoStore.independentIncomes.insert(0, newIncome);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('৳${BengaliDigits.toBengali(taka)} স্বাধীন আয় সফলভাবে যুক্ত হয়েছে!'),
+        backgroundColor: AppColors.emerald,
+      ),
+    );
+
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('আয় যোগ করুন (স্বাধীন আয়)'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.base),
+          children: [
+            // Notice banner explaining this is exclusively for independent income
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.emeraldSurface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(color: AppColors.emerald.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: AppColors.emerald, size: 22),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'দোকানের স্বাধীন বা অন্যান্য সার্ভিসের আয় এখানে লিখুন। আবেদন সংক্রান্ত পেমেন্ট সংশ্লিষ্ট আবেদন ফাইল থেকে যুক্ত হয়।',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.emeraldDark,
+                        fontWeight: FontWeight.w500,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.base),
+
+            // Form container
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.base),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Amount Field
+                  MoneyField(
+                    label: 'আয়ের পরিমাণ (টাকা)',
+                    hint: '০',
+                    controller: _amountController,
+                    isRequired: true,
+                    showQuickChips: true,
+                  ),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Income Category Selection
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const AppFieldLabel(
+                        label: 'আয়ের খাত / ধরন',
+                        isRequired: true,
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 14),
+                        label: const Text('নতুন খাত', style: TextStyle(fontSize: 12)),
+                        onPressed: _showAddCategoryDialog,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: const Size(0, 30),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ...DemoStore.incomeCategories.map((cat) {
+                        final isSelected = _selectedCategory == cat;
+                        return ChoiceChip(
+                          label: Text(cat),
+                          selected: isSelected,
+                          onSelected: (sel) {
+                            if (sel) setState(() => _selectedCategory = cat);
+                          },
+                          selectedColor: AppColors.emeraldSurface,
+                          backgroundColor: AppColors.slate100,
+                          labelStyle: TextStyle(
+                            color: isSelected ? AppColors.emeraldDark : AppColors.textSecondary,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 12,
+                            fontFamily: AppTypography.fontFamily,
+                          ),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.emerald : AppColors.border,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Payment Method
+                  const AppFieldLabel(
+                    label: 'পেমেন্ট পদ্ধতি',
+                    isRequired: true,
+                  ),
+                  const SizedBox(height: AppSpacing.xs + 2),
+                  Row(
+                    children: ['নগদ', 'বিকাশ', 'ব্যাংক', 'অন্যান্য'].map((m) {
+                      final isSelected = _selectedMethod == m;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(m),
+                          selected: isSelected,
+                          onSelected: (sel) {
+                            if (sel) setState(() => _selectedMethod = m);
+                          },
+                          selectedColor: AppColors.primarySurface,
+                          backgroundColor: AppColors.slate100,
+                          labelStyle: TextStyle(
+                            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 12,
+                            fontFamily: AppTypography.fontFamily,
+                          ),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.primary : AppColors.border,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Date Picker
+                  const AppFieldLabel(
+                    label: 'আয়ের তারিখ',
+                    isRequired: true,
+                  ),
+                  const SizedBox(height: AppSpacing.xs + 2),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _incomeDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2035),
+                      );
+                      if (picked != null) setState(() => _incomeDate = picked);
+                    },
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.emerald),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            BengaliDigits.toBengali('${_incomeDate.day}/${_incomeDate.month}/${_incomeDate.year}'),
+                            style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Customer Name (Optional)
+                  AppTextField(
+                    label: 'ব্যক্তি বা গ্রাহকের নাম',
+                    hint: 'যেমন: বশির আহমেদ',
+                    controller: _customerController,
+                  ),
+
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Note / Description (Optional)
+                  AppTextField(
+                    label: 'বিবরণ বা নোট',
+                    hint: 'যেমন: চাকরির আবেদন ফরম পূরণ ও কালার প্রিন্ট বাবদ গ্রহণ',
+                    controller: _noteController,
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            AppButton(
+              text: 'আয় সংরক্ষণ করুন',
+              icon: Icons.check,
+              onPressed: _saveIncome,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

@@ -1,0 +1,143 @@
+# ==============================================================================
+# SECRETS & SENSITIVE CREDENTIALS (NEVER COMMIT)
+# ==============================================================================
+.env
+.env.*
+*.env
+*.key
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.cer
+*.crt
+key.properties
+local.properties
+**/android/local.properties
+**/android/key.properties
+google-services.json
+GoogleService-Info.plist
+*credentials*.json
+*service-account*.json
+client_secrets*.json
+secrets/
+private/
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.backup
+
+# ==============================================================================
+# BINARIES & COMPILED OUTPUTS
+# ==============================================================================
+*.apk
+*.aab
+*.ipa
+*.app
+*.exe
+*.dll
+*.so
+*.dylib
+
+# ==============================================================================
+# FLUTTER / DART / PUB
+# ==============================================================================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+/build/
+coverage/
+doc/api/
+**/doc/api/
+*.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Obfuscation & Symbolication
+app.*.symbols
+app.*.map.json
+*.symbols
+*.map.json
+
+# ==============================================================================
+# ANDROID BUILD & CACHE
+# ==============================================================================
+.gradle/
+/.gradle/
+**/android/.gradle/
+**/android/.kotlin/
+**/android/captures/
+**/android/.cxx/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+GeneratedPluginRegistrant.java
+**/GeneratedPluginRegistrant.java
+
+# ==============================================================================
+# IOS / MACOS
+# ==============================================================================
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/flutter_assets/
+**/Pods/
+**/.symlinks/
+**/DerivedData/
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+xcuserdata/
+**/xcuserdata/
+
+# ==============================================================================
+# WINDOWS / LINUX / DESKTOP EPHEMERAL
+# ==============================================================================
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+*.buildlog/
+.buildlog/
+
+# ==============================================================================
+# IDEs & EDITORS
+# ==============================================================================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.fleet/
+*.sublime-project
+*.sublime-workspace
+
+# ==============================================================================
+# OS & SYSTEM ARTIFACTS
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Logs & Temporary Files
+*.log
+*.tmp
+*.temp
+*.swp
+*.class
+*.pyc
