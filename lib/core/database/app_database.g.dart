@@ -9111,6 +9111,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_tasks_active',
     'CREATE INDEX idx_tasks_active ON tasks (deleted_at)',
   );
+  late final ApplicationDao applicationDao = ApplicationDao(
+    this as AppDatabase,
+  );
+  late final FinanceDao financeDao = FinanceDao(this as AppDatabase);
+  late final PersonDao personDao = PersonDao(this as AppDatabase);
+  late final ReferenceDao referenceDao = ReferenceDao(this as AppDatabase);
+  late final TaskDao taskDao = TaskDao(this as AppDatabase);
+  late final OfficeDao officeDao = OfficeDao(this as AppDatabase);
+  late final CategoryDao categoryDao = CategoryDao(this as AppDatabase);
+  late final ShopSettingsDao shopSettingsDao = ShopSettingsDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

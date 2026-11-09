@@ -1,0 +1,209 @@
+import 'package:drift/drift.dart';
+
+import '../../errors/app_failure.dart';
+import '../app_database.dart';
+import '../tables/expense_categories_table.dart';
+import '../tables/income_categories_table.dart';
+import '../tables/work_types_table.dart';
+
+part 'category_dao.g.dart';
+
+@DriftAccessor(tables: [
+  ExpenseCategories,
+  IncomeCategories,
+  WorkTypes,
+])
+class CategoryDao extends DatabaseAccessor<AppDatabase>
+    with _$CategoryDaoMixin {
+  CategoryDao(super.db);
+
+  // -------------------------------------------------------------
+  // ১. খরচের খাত (Expense Categories)
+  // -------------------------------------------------------------
+
+  Stream<List<ExpenseCategory>> watchExpenseCategories({
+    bool? isGeneral,
+    bool includeDeleted = false,
+  }) {
+    final query = select(expenseCategories);
+    query.where((tbl) {
+      var expr = includeDeleted ? const Constant(true) : tbl.deletedAt.isNull();
+      if (isGeneral != null) {
+        expr = expr & tbl.isGeneral.equals(isGeneral ? 1 : 0);
+      }
+      return expr;
+    });
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.watch();
+  }
+
+  Future<List<ExpenseCategory>> getExpenseCategories({
+    bool? isGeneral,
+    bool includeDeleted = false,
+  }) {
+    final query = select(expenseCategories);
+    query.where((tbl) {
+      var expr = includeDeleted ? const Constant(true) : tbl.deletedAt.isNull();
+      if (isGeneral != null) {
+        expr = expr & tbl.isGeneral.equals(isGeneral ? 1 : 0);
+      }
+      return expr;
+    });
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.get();
+  }
+
+  Future<ExpenseCategory?> getExpenseCategoryById(String id) {
+    return (select(expenseCategories)..where((tbl) => tbl.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<int> insertExpenseCategory(ExpenseCategoriesCompanion companion) {
+    return into(expenseCategories).insert(companion);
+  }
+
+  Future<bool> updateExpenseCategory(ExpenseCategoriesCompanion companion) {
+    return update(expenseCategories).replace(companion);
+  }
+
+  /// খরচের খাত মোছা — ডিফল্ট সিস্টেম ক্যাটাগরি সুরক্ষিত (BACKEND_MASTER_PLAN.md §5)
+  Future<bool> deleteExpenseCategory(String id) async {
+    final cat = await getExpenseCategoryById(id);
+    if (cat == null) return false;
+
+    if (cat.isDefault == 1) {
+      throw AppFailure.cannotDeleteDefaultCategory(cat.name);
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final affected = await (update(expenseCategories)
+          ..where((tbl) => tbl.id.equals(id)))
+        .write(
+      ExpenseCategoriesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+    return affected > 0;
+  }
+
+  // -------------------------------------------------------------
+  // ২. স্বতন্ত্র আয়ের খাত (Income Categories)
+  // -------------------------------------------------------------
+
+  Stream<List<IncomeCategory>> watchIncomeCategories({
+    bool includeDeleted = false,
+  }) {
+    final query = select(incomeCategories);
+    if (!includeDeleted) {
+      query.where((tbl) => tbl.deletedAt.isNull());
+    }
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.watch();
+  }
+
+  Future<List<IncomeCategory>> getIncomeCategories({
+    bool includeDeleted = false,
+  }) {
+    final query = select(incomeCategories);
+    if (!includeDeleted) {
+      query.where((tbl) => tbl.deletedAt.isNull());
+    }
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.get();
+  }
+
+  Future<IncomeCategory?> getIncomeCategoryById(String id) {
+    return (select(incomeCategories)..where((tbl) => tbl.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<int> insertIncomeCategory(IncomeCategoriesCompanion companion) {
+    return into(incomeCategories).insert(companion);
+  }
+
+  Future<bool> updateIncomeCategory(IncomeCategoriesCompanion companion) {
+    return update(incomeCategories).replace(companion);
+  }
+
+  /// স্বতন্ত্র আয়ের খাত মোছা — ডিফল্ট সিস্টেম ক্যাটাগরি সুরক্ষিত
+  Future<bool> deleteIncomeCategory(String id) async {
+    final cat = await getIncomeCategoryById(id);
+    if (cat == null) return false;
+
+    if (cat.isDefault == 1) {
+      throw AppFailure.cannotDeleteDefaultCategory(cat.name);
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final affected = await (update(incomeCategories)
+          ..where((tbl) => tbl.id.equals(id)))
+        .write(
+      IncomeCategoriesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+    return affected > 0;
+  }
+
+  // -------------------------------------------------------------
+  // ৩. কাজের ধরন (Work Types)
+  // -------------------------------------------------------------
+
+  Stream<List<WorkType>> watchWorkTypes({
+    bool includeDeleted = false,
+  }) {
+    final query = select(workTypes);
+    if (!includeDeleted) {
+      query.where((tbl) => tbl.deletedAt.isNull());
+    }
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.watch();
+  }
+
+  Future<List<WorkType>> getWorkTypes({
+    bool includeDeleted = false,
+  }) {
+    final query = select(workTypes);
+    if (!includeDeleted) {
+      query.where((tbl) => tbl.deletedAt.isNull());
+    }
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.get();
+  }
+
+  Future<WorkType?> getWorkTypeById(String id) {
+    return (select(workTypes)..where((tbl) => tbl.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<int> insertWorkType(WorkTypesCompanion companion) {
+    return into(workTypes).insert(companion);
+  }
+
+  Future<bool> updateWorkType(WorkTypesCompanion companion) {
+    return update(workTypes).replace(companion);
+  }
+
+  /// কাজের ধরন মোছা — ডিফল্ট কাজের ধরন সুরক্ষিত
+  Future<bool> deleteWorkType(String id) async {
+    final wt = await getWorkTypeById(id);
+    if (wt == null) return false;
+
+    if (wt.isDefault == 1) {
+      throw AppFailure.cannotDeleteDefaultCategory(wt.name);
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final affected =
+        await (update(workTypes)..where((tbl) => tbl.id.equals(id))).write(
+      WorkTypesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+    return affected > 0;
+  }
+}
+

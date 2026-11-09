@@ -52,6 +52,36 @@ class AppValidators {
     );
   }
 
+  /// ফোন নম্বরকে আদর্শ ১১-ডিজিট ইংরেজি ফরম্যাটে রূপান্তর করে (যেমন: `01711223344`)।
+  ///
+  /// বাংলা অঙ্ক, স্পেস, হাইফেন ও কান্ট্রি কোড (+880, 880, 00880) স্বয়ংক্রিয়ভাবে ছাঁটাই হয়।
+  /// নম্বরটি অবৈধ হলে মূল ইনপুট বা ট্রিম করা মান ফেরত দেয়।
+  static String standardizePhone(String? value) {
+    if (value == null) return '';
+    final digits = normalizeDigits(value).replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return value.trim();
+
+    String raw = digits;
+    if (raw.startsWith('00880')) {
+      raw = raw.substring(4);
+    } else if (raw.startsWith('880')) {
+      raw = raw.substring(2);
+    } else if (raw.startsWith('+880')) {
+      raw = raw.substring(3);
+    }
+
+    // এখন যদি 1[3-9] দিয়ে শুরু হয় এবং 10 ডিজিট হয়, সামনে 0 যোগ করি
+    if (raw.length == 10 && RegExp(r'^1[3-9]\d{8}$').hasMatch(raw)) {
+      raw = '0$raw';
+    }
+
+    if (raw.length == 11 && RegExp(r'^01[3-9]\d{8}$').hasMatch(raw)) {
+      return raw;
+    }
+
+    return value.trim();
+  }
+
   /// আবেদনকারীর নাম আবশ্যক।
   static String? validateApplicantName(String? value) {
     if (value == null || value.trim().isEmpty) return applicantNameRequired;

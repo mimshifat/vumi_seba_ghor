@@ -17,6 +17,24 @@ import 'tables/status_history_table.dart';
 import 'tables/tasks_table.dart';
 import 'tables/work_types_table.dart';
 
+import 'daos/application_dao.dart';
+import 'daos/category_dao.dart';
+import 'daos/finance_dao.dart';
+import 'daos/office_dao.dart';
+import 'daos/person_dao.dart';
+import 'daos/reference_dao.dart';
+import 'daos/shop_settings_dao.dart';
+import 'daos/task_dao.dart';
+
+export 'daos/application_dao.dart';
+export 'daos/category_dao.dart';
+export 'daos/finance_dao.dart';
+export 'daos/office_dao.dart';
+export 'daos/person_dao.dart';
+export 'daos/reference_dao.dart';
+export 'daos/shop_settings_dao.dart';
+export 'daos/task_dao.dart';
+
 export 'tables/applications_table.dart';
 export 'tables/documents_table.dart';
 export 'tables/expense_categories_table.dart';
@@ -51,6 +69,16 @@ part 'app_database.g.dart';
     ExpenseCategories,
     IncomeCategories,
     ShopSettings,
+  ],
+  daos: [
+    ApplicationDao,
+    FinanceDao,
+    PersonDao,
+    ReferenceDao,
+    TaskDao,
+    OfficeDao,
+    CategoryDao,
+    ShopSettingsDao,
   ],
   include: {
     'unified_transactions_view.drift',
