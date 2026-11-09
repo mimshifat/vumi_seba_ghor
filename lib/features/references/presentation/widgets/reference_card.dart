@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
-import '../../data/demo_reference_store.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
+import '../../domain/models/reference_stats.dart';
 import '../screens/reference_detail_screen.dart';
 import 'reference_stats_row.dart';
 
-class ReferenceCard extends StatelessWidget {
-  final DemoReference reference;
+class ReferenceCard extends ConsumerWidget {
+  final dynamic reference; // Reference or DemoReference
   final VoidCallback? onRefresh;
 
   const ReferenceCard({
@@ -18,9 +21,36 @@ class ReferenceCard extends StatelessWidget {
     this.onRefresh,
   });
 
+  String get _id => reference is Reference
+      ? (reference as Reference).id
+      : (reference as DemoReference).id;
+
+  String get _name => reference is Reference
+      ? (reference as Reference).name
+      : (reference as DemoReference).name;
+
+  String get _phone => reference is Reference
+      ? (reference as Reference).phone
+      : (reference as DemoReference).phone;
+
+  String? get _address => reference is Reference
+      ? (reference as Reference).address
+      : (reference as DemoReference).address;
+
   @override
-  Widget build(BuildContext context) {
-    final stats = ReferenceHelper.getStats(reference.id, reference.name);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? [];
+
+    final matchingApps = allApps.where((a) {
+      final app = a.application;
+      return (app.referenceId != null && app.referenceId == _id) ||
+          (_name.isNotEmpty &&
+              app.referenceName != null &&
+              app.referenceName!.trim() == _name.trim());
+    }).toList();
+
+    final stats = ReferenceStats.fromApplications(matchingApps);
 
     return Material(
       color: Colors.transparent,
@@ -61,7 +91,7 @@ class ReferenceCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          reference.name,
+                          _name,
                           style: AppTypography.headingSmall.copyWith(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
@@ -72,10 +102,11 @@ class ReferenceCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            const Icon(Icons.phone_android, size: 13, color: AppColors.textMuted),
+                            const Icon(Icons.phone_android,
+                                size: 13, color: AppColors.textMuted),
                             const SizedBox(width: 4),
                             Text(
-                              BengaliDigits.toBengali(reference.phone),
+                              BengaliDigits.toBengali(_phone),
                               style: AppTypography.bodySmall.copyWith(
                                 color: AppColors.textSecondary,
                                 fontSize: 12,
@@ -84,15 +115,16 @@ class ReferenceCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (reference.address != null && reference.address!.trim().isNotEmpty) ...[
+                        if (_address != null && _address!.trim().isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
+                              const Icon(Icons.location_on_outlined,
+                                  size: 13, color: AppColors.textMuted),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  reference.address!,
+                                  _address!,
                                   style: AppTypography.bodySmall.copyWith(
                                     color: AppColors.textMuted,
                                     fontSize: 11.5,
@@ -108,14 +140,17 @@ class ReferenceCard extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.phone_in_talk, size: 19, color: AppColors.emerald),
+                    icon: const Icon(Icons.phone_in_talk,
+                        size: 19, color: AppColors.emerald),
                     style: IconButton.styleFrom(
                       backgroundColor: const Color(0xFFECFDF5),
                       padding: const EdgeInsets.all(8),
                     ),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('${reference.name} (${reference.phone})-এ কল করা হচ্ছে...')),
+                        SnackBar(
+                            content: Text(
+                                '$_name ($_phone)-এ কল করা হচ্ছে...')),
                       );
                     },
                   ),
@@ -126,7 +161,8 @@ class ReferenceCard extends StatelessWidget {
 
               // Total service amount & applications count banner
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.slate50,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -137,7 +173,8 @@ class ReferenceCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.folder_shared_outlined, size: 15, color: AppColors.primary),
+                        const Icon(Icons.folder_shared_outlined,
+                            size: 15, color: AppColors.primary),
                         const SizedBox(width: 6),
                         Text(
                           'মোট আবেদন: ${BengaliDigits.toBengali(stats.totalApplications.toString())}টি',
@@ -173,17 +210,6 @@ class ReferenceCard extends StatelessWidget {
   }
 
   Widget _buildAvatar() {
-    if (reference.photo != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        child: Image.memory(
-          reference.photo!,
-          width: 46,
-          height: 46,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
     return Container(
       width: 46,
       height: 46,

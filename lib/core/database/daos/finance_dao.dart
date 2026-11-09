@@ -347,18 +347,10 @@ class FinanceDao extends DatabaseAccessor<AppDatabase>
         final searchPredicates = <Expression<bool>>[
           tbl.category.contains(term),
         ];
-        if (tbl.applicationTitle != null) {
-          searchPredicates.add(tbl.applicationTitle.contains(term));
-        }
-        if (tbl.applicantName != null) {
-          searchPredicates.add(tbl.applicantName.contains(term));
-        }
-        if (tbl.customerName != null) {
-          searchPredicates.add(tbl.customerName.contains(term));
-        }
-        if (tbl.note != null) {
-          searchPredicates.add(tbl.note.contains(term));
-        }
+        searchPredicates.add(tbl.applicationTitle.contains(term));
+        searchPredicates.add(tbl.applicantName.contains(term));
+        searchPredicates.add(tbl.customerName.contains(term));
+        searchPredicates.add(tbl.note.contains(term));
 
         Expression<bool>? combined;
         for (final p in searchPredicates) {

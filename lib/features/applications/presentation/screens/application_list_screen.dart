@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -8,29 +9,37 @@ import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/app_search_bar.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/filter_bottom_sheet.dart';
+import '../../../offices/presentation/providers/office_providers.dart';
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../providers/application_providers.dart';
 import '../widgets/application_card.dart';
 import 'application_create_screen.dart';
 
-class ApplicationListScreen extends StatefulWidget {
+class ApplicationListScreen extends ConsumerStatefulWidget {
   final String? initialStatusFilter;
 
   const ApplicationListScreen({super.key, this.initialStatusFilter});
 
   @override
-  State<ApplicationListScreen> createState() => _ApplicationListScreenState();
+  ConsumerState<ApplicationListScreen> createState() =>
+      _ApplicationListScreenState();
 }
 
-class _ApplicationListScreenState extends State<ApplicationListScreen> {
+class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
   final _searchController = TextEditingController();
-  String _searchQuery = '';
-  String? _quickFilterKey; // 'all', 'ongoing', 'hearing', 'has_due', 'completed', or specific status name
   late FilterCriteria _criteria;
 
   @override
   void initState() {
     super.initState();
-    _quickFilterKey = widget.initialStatusFilter ?? 'all';
     _criteria = FilterCriteria(selectedStatus: widget.initialStatusFilter);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.initialStatusFilter != null) {
+        ref
+            .read(applicationFilterProvider.notifier)
+            .setQuickFilterKey(widget.initialStatusFilter);
+      }
+    });
   }
 
   @override
@@ -39,87 +48,58 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
     super.dispose();
   }
 
-  List<DemoApplication> get _filteredApplications {
-    return DemoStore.applications.where((app) {
-      // 1. Search Query filter
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final nameMatch = app.applicantName.toLowerCase().contains(q);
-        final phoneMatch = app.applicantPhone.contains(q);
-        final appNumMatch = app.appNumber != null && app.appNumber!.toLowerCase().contains(q);
-        final caseNumMatch = app.caseNumber != null && app.caseNumber!.toLowerCase().contains(q);
-        if (!nameMatch && !phoneMatch && !appNumMatch && !caseNumMatch) {
-          return false;
-        }
-      }
-
-      // 2. High-priority Quick Filter Chips
-      if (_quickFilterKey != null && _quickFilterKey != 'all') {
-        if (_quickFilterKey == 'ongoing') {
-          if (app.status == 'সম্পন্ন' || app.status == 'নামঞ্জুর' || app.status == 'বাতিল') return false;
-        } else if (_quickFilterKey == 'has_due') {
-          if (!app.dueAmount.isPositive) return false;
-        } else if (_quickFilterKey == 'hearing') {
-          if (app.status != 'শুনানি') return false;
-        } else if (_quickFilterKey == 'completed') {
-          if (app.status != 'সম্পন্ন') return false;
-        } else {
-          // Specific status name
-          if (app.status != _quickFilterKey) return false;
-        }
-      }
-
-      // 3. Criteria from BottomSheet (if active)
-      if (_criteria.selectedStatus != null && _criteria.selectedStatus!.isNotEmpty) {
-        if (app.status != _criteria.selectedStatus) return false;
-      }
-
-      if (_criteria.selectedWorkType != null && _criteria.selectedWorkType!.isNotEmpty) {
-        if (app.workType != _criteria.selectedWorkType) return false;
-      }
-
-      if (_criteria.selectedOffice != null && _criteria.selectedOffice!.isNotEmpty) {
-        if (app.officeName != _criteria.selectedOffice) return false;
-      }
-
-      if (_criteria.dueStatus == 'has_due') {
-        if (!app.dueAmount.isPositive) return false;
-      } else if (_criteria.dueStatus == 'paid') {
-        if (app.dueAmount.isPositive) return false;
-      }
-
-      return true;
-    }).toList();
-  }
-
   void _openFilterBottomSheet() {
+    final workTypes = ref
+            .read(workTypesStreamProvider)
+            .valueOrNull
+            ?.map((w) => w.name)
+            .toList() ??
+        DemoStore.workTypes;
+    final offices = ref
+            .read(officesStreamProvider)
+            .valueOrNull
+            ?.map((o) => o.name)
+            .toList() ??
+        DemoStore.offices.map((o) => o.name).toList();
+
     FilterBottomSheet.show(
       context,
       initialCriteria: _criteria,
       availableStatuses: DemoStore.statuses,
-      availableWorkTypes: DemoStore.workTypes,
-      availableOffices: DemoStore.offices.map((o) => o.name).toList(),
+      availableWorkTypes: workTypes,
+      availableOffices: offices,
       onApply: (updated) {
         setState(() {
           _criteria = updated;
-          if (updated.selectedStatus != null) {
-            _quickFilterKey = updated.selectedStatus;
-          }
         });
+        ref.read(applicationFilterProvider.notifier).setCriteria(updated);
+        if (updated.selectedStatus != null) {
+          ref
+              .read(applicationFilterProvider.notifier)
+              .setQuickFilterKey(updated.selectedStatus);
+        }
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final list = _filteredApplications;
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? const [];
+    final filteredApps = ref.watch(filteredApplicationsProvider);
+    final filterState = ref.watch(applicationFilterProvider);
 
-    final ongoingCount = DemoStore.applications
-        .where((a) => a.status != 'সম্পন্ন' && a.status != 'নামঞ্জুর' && a.status != 'বাতিল')
+    final ongoingCount = allApps
+        .where((a) =>
+            a.application.status != 'সম্পন্ন' &&
+            a.application.status != 'নামঞ্জুর' &&
+            a.application.status != 'বাতিল')
         .length;
-    final hearingCount = DemoStore.applications.where((a) => a.status == 'শুনানি').length;
-    final dueCount = DemoStore.applications.where((a) => a.dueAmount.isPositive).length;
-    final completedCount = DemoStore.applications.where((a) => a.status == 'সম্পন্ন').length;
+    final hearingCount =
+        allApps.where((a) => a.application.status == 'শুনানি').length;
+    final dueCount = allApps.where((a) => a.effectiveDue.isPositive).length;
+    final completedCount =
+        allApps.where((a) => a.application.status == 'সম্পন্ন').length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -131,8 +111,9 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
             tooltip: 'নতুন আবেদন',
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const ApplicationCreateScreen()),
-              ).then((_) => setState(() {}));
+                MaterialPageRoute(
+                    builder: (ctx) => const ApplicationCreateScreen()),
+              );
             },
           ),
         ],
@@ -142,15 +123,17 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
         icon: Icons.add,
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (ctx) => const ApplicationCreateScreen()),
-          ).then((_) => setState(() {}));
+            MaterialPageRoute(
+                builder: (ctx) => const ApplicationCreateScreen()),
+          );
         },
       ),
       body: Column(
         children: [
           // Search & Filter header
           Container(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.sm),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.sm),
             color: Colors.white,
             child: Column(
               children: [
@@ -158,8 +141,17 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                   controller: _searchController,
                   hint: 'গ্রাহক নাম, মোবাইল, আবেদন বা কেস নং...',
                   activeFilterCount: _criteria.activeCount,
-                  onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                  onClear: () => setState(() => _searchQuery = ''),
+                  onChanged: (val) {
+                    ref
+                        .read(applicationFilterProvider.notifier)
+                        .setSearchQuery(val);
+                  },
+                  onClear: () {
+                    _searchController.clear();
+                    ref
+                        .read(applicationFilterProvider.notifier)
+                        .setSearchQuery('');
+                  },
                   onFilterTap: _openFilterBottomSheet,
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -171,35 +163,50 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                     children: [
                       _buildQuickFilterPill(
                         key: 'all',
-                        label: 'সব (${BengaliDigits.toBengali(DemoStore.applications.length)})',
+                        label:
+                            'সব (${BengaliDigits.toBengali(allApps.length)})',
                         color: AppColors.primary,
+                        currentKey: filterState.quickFilterKey,
                       ),
                       _buildQuickFilterPill(
                         key: 'ongoing',
-                        label: 'চলমান (${BengaliDigits.toBengali(ongoingCount)})',
+                        label:
+                            'চলমান (${BengaliDigits.toBengali(ongoingCount)})',
                         color: AppColors.primary,
+                        currentKey: filterState.quickFilterKey,
                       ),
                       _buildQuickFilterPill(
                         key: 'hearing',
-                        label: 'শুনানি (${BengaliDigits.toBengali(hearingCount)})',
+                        label:
+                            'শুনানি (${BengaliDigits.toBengali(hearingCount)})',
                         color: const Color(0xFF8B5CF6),
+                        currentKey: filterState.quickFilterKey,
                       ),
                       _buildQuickFilterPill(
                         key: 'has_due',
-                        label: 'বকেয়া আছে (${BengaliDigits.toBengali(dueCount)})',
+                        label:
+                            'বকেয়া আছে (${BengaliDigits.toBengali(dueCount)})',
                         color: AppColors.rose,
+                        currentKey: filterState.quickFilterKey,
                       ),
                       _buildQuickFilterPill(
                         key: 'completed',
-                        label: 'সম্পন্ন (${BengaliDigits.toBengali(completedCount)})',
+                        label:
+                            'সম্পন্ন (${BengaliDigits.toBengali(completedCount)})',
                         color: AppColors.emerald,
+                        currentKey: filterState.quickFilterKey,
                       ),
-                      ...DemoStore.statuses.where((s) => s != 'শুনানি' && s != 'সম্পন্ন').map((st) {
-                        final cnt = DemoStore.applications.where((a) => a.status == st).length;
+                      ...DemoStore.statuses
+                          .where((s) => s != 'শুনানি' && s != 'সম্পন্ন')
+                          .map((st) {
+                        final cnt = allApps
+                            .where((a) => a.application.status == st)
+                            .length;
                         return _buildQuickFilterPill(
                           key: st,
                           label: '$st (${BengaliDigits.toBengali(cnt)})',
                           color: AppColors.getStatusColor(st),
+                          currentKey: filterState.quickFilterKey,
                         );
                       }),
                     ],
@@ -212,7 +219,8 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
           // Active criteria indicator bar (when advanced filter used)
           if (_criteria.activeCount > 0)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.base, vertical: 8),
               color: AppColors.primarySurface,
               child: Row(
                 children: [
@@ -224,17 +232,33 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                       child: Row(
                         children: [
                           if (_criteria.selectedWorkType != null)
-                            _buildActivePill('কাজের ধরন: ${_criteria.selectedWorkType}', () {
+                            _buildActivePill(
+                                'কাজের ধরন: ${_criteria.selectedWorkType}', () {
                               setState(() => _criteria.selectedWorkType = null);
+                              ref
+                                  .read(applicationFilterProvider.notifier)
+                                  .setSelectedWorkType(null);
                             }),
                           if (_criteria.selectedOffice != null)
-                            _buildActivePill('অফিস: ${_criteria.selectedOffice}', () {
-                              setState(() => _criteria.selectedOffice = null);
-                            }),
-                          if (_criteria.dueStatus != null && _criteria.dueStatus != 'all')
                             _buildActivePill(
-                              _criteria.dueStatus == 'has_due' ? 'বকেয়া আছে' : 'পরিশোধিত',
-                              () => setState(() => _criteria.dueStatus = 'all'),
+                                'অফিস: ${_criteria.selectedOffice}', () {
+                              setState(() => _criteria.selectedOffice = null);
+                              ref
+                                  .read(applicationFilterProvider.notifier)
+                                  .setSelectedOffice(null);
+                            }),
+                          if (_criteria.dueStatus != null &&
+                              _criteria.dueStatus != 'all')
+                            _buildActivePill(
+                              _criteria.dueStatus == 'has_due'
+                                  ? 'বকেয়া আছে'
+                                  : 'পরিশোধিত',
+                              () {
+                                setState(() => _criteria.dueStatus = 'all');
+                                ref
+                                    .read(applicationFilterProvider.notifier)
+                                    .setDueStatus('all');
+                              },
                             ),
                         ],
                       ),
@@ -244,12 +268,15 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                     onTap: () {
                       setState(() {
                         _criteria.clear();
-                        _quickFilterKey = 'all';
                       });
+                      ref
+                          .read(applicationFilterProvider.notifier)
+                          .clearFilters();
                     },
                     child: Text(
                       'রিসেট',
-                      style: AppTypography.bodySmall.copyWith(color: AppColors.rose, fontWeight: FontWeight.bold),
+                      style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.rose, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -258,12 +285,13 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
 
           // Count summary bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.base, vertical: AppSpacing.sm),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'মোট দেখানো হচ্ছে: ${BengaliDigits.toBengali(list.length)} টি ফাইল',
+                  'মোট দেখানো হচ্ছে: ${BengaliDigits.toBengali(filteredApps.length)} টি ফাইল',
                   style: AppTypography.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
@@ -277,7 +305,8 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                       const SizedBox(width: 4),
                       Text(
                         _getSortLabel(_criteria.sortBy),
-                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 11),
+                        style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textSecondary, fontSize: 11),
                       ),
                     ],
                   ),
@@ -286,32 +315,40 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
             ),
           ),
 
-          // Application Cards List (With Financials visible safely in this list, or tap for detail)
+          // Application Cards List
           Expanded(
-            child: list.isEmpty
+            child: filteredApps.isEmpty
                 ? EmptyState(
                     icon: Icons.search_off,
                     title: 'কোনো আবেদন পাওয়া যায়নি',
-                    message: 'অনুসন্ধানের শব্দ পরিবর্তন করুন অথবা ফিল্টার রিসেট করুন।',
+                    message:
+                        'অনুসন্ধানের শব্দ পরিবর্তন করুন অথবা ফিল্টার রিসেট করুন।',
                     actionText: 'সব ফিল্টার মুছুন',
                     onAction: () {
                       setState(() {
-                        _searchQuery = '';
                         _searchController.clear();
-                        _quickFilterKey = 'all';
                         _criteria.clear();
                       });
+                      ref
+                          .read(applicationFilterProvider.notifier)
+                          .clearFilters();
                     },
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.base, 0, AppSpacing.base, 80),
-                    itemCount: list.length,
-                    separatorBuilder: (ctx, i) => const SizedBox(height: AppSpacing.base),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.base, 0, AppSpacing.base, 80),
+                    itemCount: filteredApps.length,
+                    separatorBuilder: (ctx, i) =>
+                        const SizedBox(height: AppSpacing.base),
                     itemBuilder: (ctx, i) {
+                      final item = filteredApps[i];
                       return ApplicationCard(
-                        application: list[i],
+                        application: item.toDemoApplication(),
                         showFinancials: true,
-                        onRefresh: () => setState(() {}),
+                        onRefresh: () {
+                          ref.invalidate(
+                              applicationsWithFinancialsStreamProvider);
+                        },
                       );
                     },
                   ),
@@ -325,32 +362,23 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
     required String key,
     required String label,
     required Color color,
+    required String? currentKey,
   }) {
-    final isSelected = _quickFilterKey == key;
-
+    final isSelected = currentKey == key;
     return Padding(
       padding: const EdgeInsets.only(right: 6),
-      child: ChoiceChip(
+      child: FilterChip(
         label: Text(label),
         selected: isSelected,
-        onSelected: (sel) {
-          setState(() {
-            _quickFilterKey = sel ? key : 'all';
-            if (sel && DemoStore.statuses.contains(key)) {
-              _criteria.selectedStatus = key;
-            } else if (key == 'all') {
-              _criteria.selectedStatus = null;
-            }
-          });
-        },
-        selectedColor: isSelected ? color.withValues(alpha: 0.15) : AppColors.slate100,
-        backgroundColor: AppColors.slate100,
+        showCheckmark: false,
         labelStyle: TextStyle(
-          color: isSelected ? color : AppColors.textSecondary,
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           fontSize: 11.5,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          color: isSelected ? Colors.white : AppColors.textPrimary,
           fontFamily: AppTypography.fontFamily,
         ),
+        backgroundColor: AppColors.slate100,
+        selectedColor: color.withValues(alpha: 0.15),
         side: BorderSide(
           color: isSelected ? color : AppColors.border,
           width: 1,
@@ -359,6 +387,24 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
         ),
+        onSelected: (_) {
+          final nextKey = isSelected ? 'all' : key;
+          ref
+              .read(applicationFilterProvider.notifier)
+              .setQuickFilterKey(nextKey);
+          if (key != 'all' &&
+              key != 'ongoing' &&
+              key != 'hearing' &&
+              key != 'has_due' &&
+              key != 'completed') {
+            setState(() {
+              _criteria.selectedStatus = isSelected ? null : key;
+            });
+            ref
+                .read(applicationFilterProvider.notifier)
+                .setSelectedStatus(isSelected ? null : key);
+          }
+        },
       ),
     );
   }
@@ -377,7 +423,10 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: 4),
           InkWell(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -10,17 +12,23 @@ import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/money_field.dart';
+import '../../../offices/presentation/providers/office_providers.dart';
+import '../../../persons/presentation/providers/person_providers.dart';
 import '../../../references/presentation/widgets/reference_selector_sheet.dart';
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../providers/application_providers.dart';
 import '../widgets/form_step_indicator.dart';
 
-class ApplicationCreateScreen extends StatefulWidget {
+class ApplicationCreateScreen extends ConsumerStatefulWidget {
   const ApplicationCreateScreen({super.key});
 
   @override
-  State<ApplicationCreateScreen> createState() => _ApplicationCreateScreenState();
+  ConsumerState<ApplicationCreateScreen> createState() =>
+      _ApplicationCreateScreenState();
 }
 
-class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
+class _ApplicationCreateScreenState
+    extends ConsumerState<ApplicationCreateScreen> {
   final _pageController = PageController();
   int _currentStep = 0;
 
@@ -135,7 +143,21 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          final filteredPersons = DemoStore.persons.where((p) {
+          final livePersons = ref.read(personsStreamProvider).valueOrNull;
+          final personList = livePersons != null && livePersons.isNotEmpty
+              ? livePersons
+                  .map((p) => DemoPerson(
+                        id: p.id,
+                        name: p.name,
+                        phone: p.phone,
+                        address: p.address,
+                        totalAgreed: Money.zero,
+                        totalDue: Money.zero,
+                      ))
+                  .toList()
+              : DemoStore.persons;
+
+          final filteredPersons = personList.where((p) {
             if (searchQuery.isEmpty) return true;
             final query = searchQuery.toLowerCase();
             return p.name.toLowerCase().contains(query) ||
@@ -313,11 +335,10 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
             onConfirm: () {
               final newName = controller.text.trim();
               if (newName.isNotEmpty) {
+                ref
+                    .read(officeControllerProvider.notifier)
+                    .createOffice(name: newName);
                 setState(() {
-                  DemoStore.offices.add(DemoOffice(
-                    id: 'off-${DateTime.now().millisecondsSinceEpoch}',
-                    name: newName,
-                  ));
                   _selectedOffice = newName;
                 });
                 onAdded?.call(newName);
@@ -350,8 +371,10 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
             onConfirm: () {
               final newType = controller.text.trim();
               if (newType.isNotEmpty) {
+                ref
+                    .read(categoryControllerProvider.notifier)
+                    .createWorkType(name: newType);
                 setState(() {
-                  DemoStore.workTypes.add(newType);
                   _selectedWorkType = newType;
                 });
                 onAdded?.call(newType);
@@ -376,7 +399,7 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
     }
   }
 
-  void _saveApplication() {
+  Future<void> _saveApplication() async {
     if (!_step1FormKey.currentState!.validate()) {
       _goToStep(0);
       return;
@@ -389,89 +412,73 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
       return;
     }
 
-    final agreedTaka = int.tryParse(BengaliDigits.toEnglish(_agreedAmountController.text.replaceAll(',', ''))) ?? 0;
-    final initialTaka = int.tryParse(BengaliDigits.toEnglish(_initialPaymentController.text.replaceAll(',', ''))) ?? 0;
+    final agreedTaka = int.tryParse(BengaliDigits.toEnglish(
+            _agreedAmountController.text.replaceAll(',', ''))) ??
+        0;
+    final initialTaka = int.tryParse(BengaliDigits.toEnglish(
+            _initialPaymentController.text.replaceAll(',', ''))) ??
+        0;
 
-    final newApp = DemoApplication(
-      id: 'APP-${DateTime.now().year}-${(DemoStore.applications.length + 1).toString().padLeft(3, '0')}',
-      applicantId: _selectedPersonId ?? 'p-${DateTime.now().millisecondsSinceEpoch}',
-      applicantName: _nameController.text.trim(),
-      applicantPhone: _phoneController.text.trim(),
-      applicantAddress: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
-      referencePersonId: _selectedReference?.id,
-      referencePersonName: _selectedReference?.name,
-      mouza: _mouzaController.text.trim().isNotEmpty ? _mouzaController.text.trim() : null,
-      appNumber: _appNumberController.text.trim().isNotEmpty ? _appNumberController.text.trim() : null,
-      caseNumber: _caseNumberController.text.trim().isNotEmpty ? _caseNumberController.text.trim() : null,
-      workType: _selectedWorkType,
-      officeName: _selectedOffice,
-      applicationDate: _applicationDate,
-      status: 'আবেদন',
-      agreedAmount: Money.fromTaka(agreedTaka),
-      receivedAmount: Money.fromTaka(initialTaka),
-      expenseAmount: Money.zero,
-      notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
-      payments: initialTaka > 0
-          ? [
-              DemoPayment(
-                id: 'pay-${DateTime.now().millisecondsSinceEpoch}',
-                applicationId: 'temp',
-                amount: Money.fromTaka(initialTaka),
-                date: DateTime.now(),
-                method: 'নগদ',
-                note: 'প্রাথমিক অগ্রিম জমা',
-              )
-            ]
-          : [],
-      statusHistory: [
-        DemoStatusHistory(
-          id: 'sh-${DateTime.now().millisecondsSinceEpoch}',
-          prevStatus: '',
-          newStatus: 'আবেদন',
-          changedAt: DateTime.now(),
-          note: 'নতুন আবেদন তৈরি করা হয়েছে',
+    final agreedPaisa = Money.fromTaka(agreedTaka).paisa;
+    final initialPaymentPaisa =
+        initialTaka > 0 ? Money.fromTaka(initialTaka).paisa : null;
+
+    try {
+      await ref.read(applicationControllerProvider.notifier).createApplication(
+            applicantId: _selectedPersonId,
+            applicantName: _nameController.text.trim(),
+            applicantPhone: _phoneController.text.trim(),
+            applicantAddress: _addressController.text.trim().isNotEmpty
+                ? _addressController.text.trim()
+                : null,
+            referenceId: _selectedReference?.id,
+            referenceName: _selectedReference?.name,
+            officeName: _selectedOffice,
+            mouza: _mouzaController.text.trim().isNotEmpty
+                ? _mouzaController.text.trim()
+                : null,
+            appNumber: _appNumberController.text.trim().isNotEmpty
+                ? _appNumberController.text.trim()
+                : null,
+            caseNumber: _caseNumberController.text.trim().isNotEmpty
+                ? _caseNumberController.text.trim()
+                : null,
+            workType: _selectedWorkType,
+            applicationDate: _applicationDate,
+            status: 'আবেদন',
+            agreedAmountPaisa: agreedPaisa,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+            initialPaymentPaisa: initialPaymentPaisa,
+            initialPaymentMethod: 'নগদ',
+          );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'আবেদন "${_nameController.text.trim()}" সফলভাবে সংরক্ষিত হয়েছে!'),
+          backgroundColor: AppColors.emerald,
+          behavior: SnackBarBehavior.floating,
         ),
-      ],
-      documents: _attachedFileName != null
-          ? [
-              DemoDocument(
-                id: 'doc-${DateTime.now().millisecondsSinceEpoch}',
-                name: _attachedFileName!,
-                type: _attachedFileName!.endsWith('.pdf') ? 'pdf' : 'image',
-                size: '1.4 MB',
-                uploadDate: DateTime.now(),
-              )
-            ]
-          : [],
-    );
+      );
 
-    DemoStore.applications.insert(0, newApp);
-
-    // If new person, add to DemoStore.persons
-    if (_selectedPersonId == null && newApp.applicantName.isNotEmpty) {
-      final exists = DemoStore.persons.any((p) => p.phone == newApp.applicantPhone);
-      if (!exists) {
-        DemoStore.persons.add(DemoPerson(
-          id: newApp.applicantId,
-          name: newApp.applicantName,
-          phone: newApp.applicantPhone,
-          address: newApp.applicantAddress,
-          applicationCount: 1,
-          totalAgreed: newApp.agreedAmount,
-          totalDue: newApp.dueAmount,
-        ));
-      }
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      final message = e is AppFailure
+          ? e.message
+          : 'সংরক্ষণে একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('আবেদন "${newApp.applicantName}" সফলভাবে সংরক্ষিত হয়েছে!'),
-        backgroundColor: AppColors.emerald,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-
-    Navigator.of(context).pop();
   }
 
   @override
@@ -782,8 +789,15 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
                           if (val.trim().length < 3) {
                             return 'সঠিক আবেদন নম্বর দিন';
                           }
-                          final isDuplicate = DemoStore.applications.any(
-                            (a) => a.appNumber != null && a.appNumber!.trim().toLowerCase() == val.trim().toLowerCase(),
+                          final allApps = ref
+                              .read(applicationsWithFinancialsStreamProvider)
+                              .valueOrNull ??
+                              const [];
+                          final isDuplicate = allApps.any(
+                            (a) =>
+                                a.application.appNumber != null &&
+                                a.application.appNumber!.trim().toLowerCase() ==
+                                    val.trim().toLowerCase(),
                           );
                           if (isDuplicate) {
                             return 'নম্বরটি ইতিমধ্যে ব্যবহৃত';
@@ -823,6 +837,16 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
                     return null;
                   },
                   builder: (fieldState) {
+                    final liveWorkTypes = ref
+                        .watch(workTypesStreamProvider)
+                        .valueOrNull
+                        ?.map((w) => w.name)
+                        .toList();
+                    final workTypeList =
+                        (liveWorkTypes != null && liveWorkTypes.isNotEmpty)
+                            ? liveWorkTypes
+                            : DemoStore.workTypes;
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -848,7 +872,7 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: DemoStore.workTypes.map((wt) {
+                          children: workTypeList.map((wt) {
                             final isSelected = _selectedWorkType == wt;
                             return ChoiceChip(
                               label: Text(wt),
@@ -916,44 +940,59 @@ class _ApplicationCreateScreenState extends State<ApplicationCreateScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xs + 2),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedOffice.isNotEmpty && DemoStore.offices.any((o) => o.name == _selectedOffice)
+                () {
+                  final liveOffices = ref
+                      .watch(officesStreamProvider)
+                      .valueOrNull
+                      ?.map((o) => o.name)
+                      .toList();
+                  final officeList =
+                      (liveOffices != null && liveOffices.isNotEmpty)
+                          ? liveOffices
+                          : DemoStore.offices.map((o) => o.name).toList();
+
+                  final effectiveOffice = _selectedOffice.isNotEmpty &&
+                          officeList.contains(_selectedOffice)
                       ? _selectedOffice
-                      : (DemoStore.offices.isNotEmpty ? DemoStore.offices.first.name : null),
-                  isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.account_balance_outlined, size: 18, color: AppColors.slate400),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      : (officeList.isNotEmpty ? officeList.first : null);
+
+                  return DropdownButtonFormField<String>(
+                    initialValue: effectiveOffice,
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.account_balance_outlined, size: 18, color: AppColors.slate400),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: const BorderSide(color: AppColors.rose),
+                      ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      borderSide: const BorderSide(color: AppColors.rose),
-                    ),
-                  ),
-                  items: DemoStore.offices.map((off) {
-                    return DropdownMenuItem(
-                      value: off.name,
-                      child: Text(off.name, style: AppTypography.bodyMedium),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedOffice = val);
-                  },
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'ভূমি অফিস নির্বাচন আবশ্যক';
-                    }
-                    return null;
-                  },
-                ),
+                    items: officeList.map((offName) {
+                      return DropdownMenuItem(
+                        value: offName,
+                        child: Text(offName, style: AppTypography.bodyMedium),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedOffice = val);
+                    },
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'ভূমি অফিস নির্বাচন আবশ্যক';
+                      }
+                      return null;
+                    },
+                  );
+                }(),
 
                 const SizedBox(height: AppSpacing.md),
 

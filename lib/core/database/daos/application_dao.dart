@@ -113,17 +113,11 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
           tbl.applicantPhone.contains(rawTerm),
         ];
 
-        if (tbl.mouza != null) {
-          searchPredicates.add(tbl.mouza.contains(rawTerm));
-        }
-        if (tbl.appNumber != null) {
-          searchPredicates.add(tbl.appNumber.contains(enTerm));
-          searchPredicates.add(tbl.appNumber.contains(rawTerm));
-        }
-        if (tbl.caseNumber != null) {
-          searchPredicates.add(tbl.caseNumber.contains(enTerm));
-          searchPredicates.add(tbl.caseNumber.contains(rawTerm));
-        }
+        searchPredicates.add(tbl.mouza.contains(rawTerm));
+        searchPredicates.add(tbl.appNumber.contains(enTerm));
+        searchPredicates.add(tbl.appNumber.contains(rawTerm));
+        searchPredicates.add(tbl.caseNumber.contains(enTerm));
+        searchPredicates.add(tbl.caseNumber.contains(rawTerm));
 
         Expression<bool>? combined;
         for (final p in searchPredicates) {

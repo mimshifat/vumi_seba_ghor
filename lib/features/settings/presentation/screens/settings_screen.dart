@@ -1,28 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
+import '../providers/settings_providers.dart';
 import 'category_management_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _useBengaliDigits = true;
 
-  void _showEditShopProfileDialog() {
-    final nameCtrl = TextEditingController(text: DemoStore.shopName);
-    final ownerCtrl = TextEditingController(text: DemoStore.proprietorName);
-    final phoneCtrl = TextEditingController(text: DemoStore.shopPhone);
-    final addressCtrl = TextEditingController(text: DemoStore.shopAddress);
+  void _showEditShopProfileDialog({
+    required String currentShopName,
+    required String currentProprietorName,
+    required String currentShopPhone,
+    required String currentShopAddress,
+  }) {
+    final nameCtrl = TextEditingController(text: currentShopName);
+    final ownerCtrl = TextEditingController(text: currentProprietorName);
+    final phoneCtrl = TextEditingController(text: currentShopPhone);
+    final addressCtrl = TextEditingController(text: currentShopAddress);
 
     showModalBottomSheet(
       context: context,
@@ -113,14 +121,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: AppButton(
                         text: 'সংরক্ষণ করুন',
                         height: 42,
-                        onPressed: () {
-                          if (nameCtrl.text.trim().isNotEmpty) {
-                            setState(() {
-                              DemoStore.shopName = nameCtrl.text.trim();
-                              DemoStore.proprietorName = ownerCtrl.text.trim();
-                              DemoStore.shopPhone = phoneCtrl.text.trim();
-                              DemoStore.shopAddress = addressCtrl.text.trim();
-                            });
+                        onPressed: () async {
+                          final name = nameCtrl.text.trim();
+                          final owner = ownerCtrl.text.trim();
+                          final phone = phoneCtrl.text.trim();
+                          final address = addressCtrl.text.trim();
+
+                          if (name.isEmpty) return;
+
+                          try {
+                            final ctrl = ref.read(shopSettingsControllerProvider.notifier);
+                            await ctrl.setSetting('shop_name', name);
+                            await ctrl.setSetting('proprietor_name', owner);
+                            await ctrl.setSetting('shop_phone', phone);
+                            await ctrl.setSetting('shop_address', address);
+
+                            // Sync DemoStore as memory fallback
+                            DemoStore.shopName = name;
+                            DemoStore.proprietorName = owner;
+                            DemoStore.shopPhone = phone;
+                            DemoStore.shopAddress = address;
+
+                            if (!mounted) return;
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -128,6 +150,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 backgroundColor: AppColors.emerald,
                                 behavior: SnackBarBehavior.floating,
                               ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            final msg = e is AppFailure ? e.message : 'সেটিংস সংরক্ষণ করা যায়নি।';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
                             );
                           }
                         },
@@ -207,6 +235,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settingsAsync = ref.watch(shopSettingsStreamProvider);
+    final settings = settingsAsync.valueOrNull ?? {};
+
+    final shopName = settings['shop_name'] ?? DemoStore.shopName;
+    final proprietorName = settings['proprietor_name'] ?? DemoStore.proprietorName;
+    final shopPhone = settings['shop_phone'] ?? DemoStore.shopPhone;
+    final shopAddress = settings['shop_address'] ?? DemoStore.shopAddress;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -240,12 +276,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        DemoStore.shopName,
+                        shopName,
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${DemoStore.proprietorName} • ${DemoStore.shopPhone}',
+                        '$proprietorName • $shopPhone',
                         style: AppTypography.bodySmall.copyWith(fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -256,157 +292,184 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: 20),
                   tooltip: 'সম্পাদনা করুন',
-                  onPressed: _showEditShopProfileDialog,
+                  onPressed: () => _showEditShopProfileDialog(
+                    currentShopName: shopName,
+                    currentProprietorName: proprietorName,
+                    currentShopPhone: shopPhone,
+                    currentShopAddress: shopAddress,
+                  ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: AppSpacing.base),
+          const SizedBox(height: AppSpacing.lg),
 
-          // 2. Business Configuration & Data
-          _buildSectionHeader('কনফিগারেশন ও ডেটা'),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border),
+          // 2. Business Management Category
+          _buildCategoryHeader('ব্যবসা ব্যবস্থাপনা'),
+          const SizedBox(height: AppSpacing.xs),
+          _buildSettingsTile(
+            icon: Icons.category_outlined,
+            title: 'ক্যাটাগরি ও খাত ব্যবস্থাপনা',
+            subtitle: 'কাজের ধরন ও খরচের খাত পরিচালনা',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (ctx) => const CategoryManagementScreen()),
+              );
+            },
+          ),
+          _buildSettingsTile(
+            icon: Icons.receipt_long_outlined,
+            title: 'মানি রিসিট ও ভাউচার লেআউট',
+            subtitle: 'প্রিন্ট রশিদ ফরম্যাট ও ফুটনোট বার্তা',
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.slate100,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: const Text('ডিফল্ট', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
             ),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.category_outlined, color: Color(0xFF4F46E5), size: 22),
-                  title: const Text(
-                    'কাজের ধরন ও খরচের খাত',
-                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text(
-                    'সেবার ধরন ও খরচের তালিকা পরিচালনা',
-                    style: AppTypography.bodySmall,
-                  ),
-                  trailing: const Icon(Icons.chevron_right, size: 20, color: AppColors.slate400),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (ctx) => const CategoryManagementScreen()),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.backup_outlined, color: Color(0xFF0284C7), size: 22),
-                  title: const Text(
-                    'ডেটা ব্যাকআপ ও রিস্টোর',
-                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text(
-                    'ফোনে ব্যাকআপ ফাইল ডাউনলোড ও আপলোড',
-                    style: AppTypography.bodySmall,
-                  ),
-                  trailing: const Icon(Icons.chevron_right, size: 20, color: AppColors.slate400),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (ctx) => const BackupRestoreScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('পরবর্তী আপডেটে এই ফিচারটি সক্রিয় হবে')),
+              );
+            },
           ),
 
-          const SizedBox(height: AppSpacing.base),
+          const SizedBox(height: AppSpacing.lg),
 
-          // 3. General Preferences
-          _buildSectionHeader('অ্যাপের সাধারণ পছন্দ'),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border),
+          // 3. Data & Privacy
+          _buildCategoryHeader('ডেটা ও নিরাপত্তা'),
+          const SizedBox(height: AppSpacing.xs),
+          _buildSettingsTile(
+            icon: Icons.cloud_sync_outlined,
+            title: 'ব্যাকআপ ও রিস্টোর',
+            subtitle: 'লোকাল ফাইল ও গুগল ড্রাইভ সংরক্ষণ',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (ctx) => const BackupRestoreScreen()),
+              );
+            },
+          ),
+          _buildSettingsTile(
+            icon: Icons.lock_outline,
+            title: 'অ্যাপ লক ও বায়োমেট্রিক',
+            subtitle: 'ফিঙ্গারপ্রিন্ট বা পিন নম্বর সুরক্ষা',
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.slate100,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: const Text('নিষ্ক্রিয়', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
             ),
-            child: SwitchListTile(
-              secondary: const Icon(Icons.translate_rounded, color: AppColors.primary, size: 22),
-              title: const Text(
-                'বাংলা সংখ্যা প্রদর্শন (১, ২, ৩)',
-                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-              ),
-              subtitle: const Text(
-                'টাকা ও হিসাবের সংখ্যা বাংলায় দেখানো হবে',
-                style: AppTypography.bodySmall,
-              ),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('বায়োমেট্রিক সুবিধা শিগগিরই যুক্ত হচ্ছে')),
+              );
+            },
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
+
+          // 4. App Preferences
+          _buildCategoryHeader('ব্যবহার ও পছন্দ'),
+          const SizedBox(height: AppSpacing.xs),
+          _buildSettingsTile(
+            icon: Icons.translate,
+            title: 'সংখ্যা প্রদর্শন পদ্ধতি',
+            subtitle: _useBengaliDigits ? 'বাংলা সংখ্যায় (১২৩৪৫)' : 'ইংরেজি সংখ্যায় (12345)',
+            trailing: Switch.adaptive(
               value: _useBengaliDigits,
-              activeThumbColor: AppColors.primary,
-              onChanged: (val) => setState(() => _useBengaliDigits = val),
+              activeColor: AppColors.primary,
+              onChanged: (val) {
+                setState(() => _useBengaliDigits = val);
+              },
             ),
+            onTap: () {
+              setState(() => _useBengaliDigits = !_useBengaliDigits);
+            },
           ),
-
-          const SizedBox(height: AppSpacing.base),
-
-          // 4. Help & About Info
-          _buildSectionHeader('সহায়তা ও তথ্য'),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.headset_mic_outlined, color: AppColors.emerald, size: 22),
-                  title: const Text(
-                    'সহায়তা কেন্দ্র ও হেল্পলাইন',
-                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text(
-                    'যেকোনো প্রয়োজনে আমাদের সাথে যোগাযোগ করুন',
-                    style: AppTypography.bodySmall,
-                  ),
-                  trailing: const Icon(Icons.chevron_right, size: 20, color: AppColors.slate400),
-                  onTap: _showSupportDialog,
-                ),
-                const Divider(height: 1),
-                const ListTile(
-                  leading: Icon(Icons.info_outline, color: AppColors.slate600, size: 22),
-                  title: Text(
-                    'অ্যাপ সংস্করণ',
-                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-                  ),
-                  trailing: Text(
-                    '১.০.০',
-                    style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                  ),
-                ),
-              ],
-            ),
+          _buildSettingsTile(
+            icon: Icons.help_outline,
+            title: 'সহায়তা ও যোগাযোগ',
+            subtitle: 'সমস্যা ও পরামর্শ জানাতে কল বা মেসেজ করুন',
+            onTap: _showSupportDialog,
           ),
 
           const SizedBox(height: AppSpacing.xl),
 
-          // Reassuring footer note
-          const Center(
-            child: Text(
-              'রজব ভূমি সেবা ঘর • ১০০% অফলাইন ও নিরাপদ সলিউশন',
-              style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+          // Footer
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  'ভূমি কাজের হিসাব • সংস্করণ ১.০.০',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'কাস্টমাইজড সফটওয়্যার ফর ল্যান্ড সার্ভিস সেন্টার',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 10),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildCategoryHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Text(
         title,
-        style: AppTypography.titleMedium.copyWith(
-          color: AppColors.textMuted,
-          fontSize: 12.5,
-          fontWeight: FontWeight.w600,
+        style: AppTypography.labelMedium.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
         ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 2),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.slate100,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          child: Icon(icon, color: AppColors.slate700, size: 20),
+        ),
+        title: Text(
+          title,
+          style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 11.5),
+        ),
+        trailing: trailing ?? const Icon(Icons.chevron_right, color: AppColors.slate400, size: 20),
       ),
     );
   }

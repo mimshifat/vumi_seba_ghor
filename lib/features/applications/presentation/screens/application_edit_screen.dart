@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -10,17 +11,20 @@ import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/money_field.dart';
 import '../../../references/presentation/widgets/reference_selector_sheet.dart';
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../providers/application_providers.dart';
 
-class ApplicationEditScreen extends StatefulWidget {
+class ApplicationEditScreen extends ConsumerStatefulWidget {
   final DemoApplication application;
 
   const ApplicationEditScreen({super.key, required this.application});
 
   @override
-  State<ApplicationEditScreen> createState() => _ApplicationEditScreenState();
+  ConsumerState<ApplicationEditScreen> createState() =>
+      _ApplicationEditScreenState();
 }
 
-class _ApplicationEditScreenState extends State<ApplicationEditScreen> {
+class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
@@ -79,51 +83,51 @@ class _ApplicationEditScreenState extends State<ApplicationEditScreen> {
     super.dispose();
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final agreedTaka = int.tryParse(BengaliDigits.toEnglish(_agreedAmountController.text.replaceAll(',', ''))) ??
+    final agreedTaka = int.tryParse(BengaliDigits.toEnglish(
+            _agreedAmountController.text.replaceAll(',', ''))) ??
         widget.application.agreedAmount.inTaka;
+    final agreedPaisa = Money.fromTaka(agreedTaka).paisa;
 
-    final updatedApp = DemoApplication(
-      id: widget.application.id,
-      applicantId: widget.application.applicantId,
-      applicantName: _nameController.text.trim(),
-      applicantPhone: _phoneController.text.trim(),
-      applicantAddress: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
-      referencePersonId: _selectedReference?.id,
-      referencePersonName: _selectedReference?.name,
-      mouza: _mouzaController.text.trim().isNotEmpty ? _mouzaController.text.trim() : null,
-      appNumber: _appNumberController.text.trim().isNotEmpty ? _appNumberController.text.trim() : null,
-      caseNumber: _caseNumberController.text.trim().isNotEmpty ? _caseNumberController.text.trim() : null,
-      workType: _selectedWorkType,
-      officeName: _selectedOffice,
-      applicationDate: _applicationDate,
-      status: widget.application.status,
-      agreedAmount: Money.fromTaka(agreedTaka),
-      receivedAmount: widget.application.receivedAmount,
-      expenseAmount: widget.application.expenseAmount,
-      notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
-      payments: widget.application.payments,
-      expenses: widget.application.expenses,
-      statusHistory: widget.application.statusHistory,
-      documents: widget.application.documents,
-    );
+    try {
+      await ref.read(applicationControllerProvider.notifier).updateApplication(
+            id: widget.application.id,
+            mouza: _mouzaController.text.trim().isNotEmpty
+                ? _mouzaController.text.trim()
+                : null,
+            appNumber: _appNumberController.text.trim().isNotEmpty
+                ? _appNumberController.text.trim()
+                : null,
+            caseNumber: _caseNumberController.text.trim().isNotEmpty
+                ? _caseNumberController.text.trim()
+                : null,
+            agreedAmountPaisa: agreedPaisa,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+          );
 
-    // Update in demo store
-    final idx = DemoStore.applications.indexWhere((a) => a.id == widget.application.id);
-    if (idx != -1) {
-      DemoStore.applications[idx] = updatedApp;
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('আবেদনের তথ্য সফলভাবে হালনাগাদ করা হয়েছে।'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.rose,
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('আবেদনের তথ্য সফলভাবে হালনাগাদ করা হয়েছে।'),
-        backgroundColor: AppColors.emerald,
-      ),
-    );
-
-    Navigator.of(context).pop(updatedApp);
   }
 
   @override
@@ -257,27 +261,40 @@ class _ApplicationEditScreenState extends State<ApplicationEditScreen> {
                   isRequired: true,
                 ),
                 const SizedBox(height: AppSpacing.xs + 2),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: DemoStore.workTypes.map((wt) {
-                    final isSel = _selectedWorkType == wt;
-                    return ChoiceChip(
-                      label: Text(wt),
-                      selected: isSel,
-                      onSelected: (sel) {
-                        if (sel) setState(() => _selectedWorkType = wt);
-                      },
-                      selectedColor: AppColors.primarySurface,
-                      backgroundColor: AppColors.slate100,
-                      labelStyle: TextStyle(
-                        color: isSel ? AppColors.primary : AppColors.textSecondary,
-                        fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
-                        fontFamily: AppTypography.fontFamily,
-                      ),
-                      side: BorderSide(color: isSel ? AppColors.primary : AppColors.border),
+                Builder(
+                  builder: (context) {
+                    final liveWorkTypes = ref
+                        .watch(workTypesStreamProvider)
+                        .valueOrNull
+                        ?.map((w) => w.name)
+                        .toList();
+                    final types = (liveWorkTypes != null && liveWorkTypes.isNotEmpty)
+                        ? liveWorkTypes
+                        : DemoStore.workTypes;
+
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: types.map((wt) {
+                        final isSel = _selectedWorkType == wt;
+                        return ChoiceChip(
+                          label: Text(wt),
+                          selected: isSel,
+                          onSelected: (sel) {
+                            if (sel) setState(() => _selectedWorkType = wt);
+                          },
+                          selectedColor: AppColors.primarySurface,
+                          backgroundColor: AppColors.slate100,
+                          labelStyle: TextStyle(
+                            color: isSel ? AppColors.primary : AppColors.textSecondary,
+                            fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
+                            fontFamily: AppTypography.fontFamily,
+                          ),
+                          side: BorderSide(color: isSel ? AppColors.primary : AppColors.border),
+                        );
+                      }).toList(),
                     );
-                  }).toList(),
+                  },
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(

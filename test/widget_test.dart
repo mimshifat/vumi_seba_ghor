@@ -1,12 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bhumi_kajer_hisab/app.dart';
+import 'package:bhumi_kajer_hisab/features/applications/presentation/providers/application_providers.dart';
+import 'package:bhumi_kajer_hisab/features/tasks/presentation/providers/task_providers.dart';
+import 'package:bhumi_kajer_hisab/features/settings/presentation/providers/settings_providers.dart';
+import 'package:bhumi_kajer_hisab/features/finance/presentation/providers/finance_providers.dart';
 
 void main() {
   testWidgets('App renders main operational dashboard without exposing money on open', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: BhumiKajerHisabApp(),
+      ProviderScope(
+        overrides: [
+          applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
+          todayTasksCountProvider.overrideWith((ref) => Future.value(0)),
+          shopSettingsStreamProvider.overrideWith((ref) => Stream.value({})),
+          unifiedTransactionsStreamProvider.overrideWith((ref) => Stream.value([])),
+        ],
+        child: const BhumiKajerHisabApp(),
       ),
     );
 

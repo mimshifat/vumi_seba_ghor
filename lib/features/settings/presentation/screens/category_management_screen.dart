@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../../../core/demo/demo_data.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
+import '../providers/settings_providers.dart';
 
-class CategoryManagementScreen extends StatefulWidget {
+class CategoryManagementScreen extends ConsumerStatefulWidget {
   const CategoryManagementScreen({super.key});
 
   @override
-  State<CategoryManagementScreen> createState() => _CategoryManagementScreenState();
+  ConsumerState<CategoryManagementScreen> createState() =>
+      _CategoryManagementScreenState();
 }
 
-class _CategoryManagementScreenState extends State<CategoryManagementScreen>
+class _CategoryManagementScreenState
+    extends ConsumerState<CategoryManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
@@ -42,14 +48,15 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
   }
 
   // --- Work Types Actions ---
-  void _showAddEditWorkTypeDialog({String? existingType}) {
-    final controller = TextEditingController(text: existingType ?? '');
+  void _showAddEditWorkTypeDialog({WorkType? existingType}) {
+    final controller = TextEditingController(text: existingType?.name ?? '');
     final isEditing = existingType != null;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
         title: Text(isEditing ? 'কাজের ধরন পরিবর্তন' : 'নতুন কাজের ধরন যোগ করুন'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -57,7 +64,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
           children: [
             Text(
               'আবেদন নিবন্ধনের সময় এই কাজের ধরনটি নির্বাচন তালিকায় যুক্ত থাকবে।',
-              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
@@ -70,33 +78,45 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
             ),
           ],
         ),
-        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        actionsPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         actions: [
           AppDialogActionRow(
             confirmText: isEditing ? 'সংরক্ষণ করুন' : 'যোগ করুন',
-            onConfirm: () {
+            onConfirm: () async {
               final text = controller.text.trim();
               if (text.isEmpty) return;
 
-              setState(() {
+              try {
                 if (isEditing) {
-                  final index = DemoStore.workTypes.indexOf(existingType);
-                  if (index != -1) {
-                    DemoStore.workTypes[index] = text;
-                  }
+                  await ref
+                      .read(categoryControllerProvider.notifier)
+                      .updateWorkType(id: existingType.id, name: text);
                 } else {
-                  if (!DemoStore.workTypes.contains(text)) {
-                    DemoStore.workTypes.add(text);
-                  }
+                  await ref
+                      .read(categoryControllerProvider.notifier)
+                      .createWorkType(name: text);
                 }
-              });
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(isEditing ? 'কাজের ধরন সফলভাবে হালনাগাদ হয়েছে' : 'নতুন কাজের ধরন যুক্ত করা হয়েছে'),
-                  backgroundColor: AppColors.emerald,
-                ),
-              );
+
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isEditing
+                        ? 'কাজের ধরন সফলভাবে হালনাগাদ হয়েছে'
+                        : 'নতুন কাজের ধরন যুক্ত করা হয়েছে'),
+                    backgroundColor: AppColors.emerald,
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                final msg = e is AppFailure
+                    ? e.message
+                    : 'কাজের ধরন সংরক্ষণ করা যায়নি।';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
+                );
+              }
             },
           ),
         ],
@@ -104,11 +124,15 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     );
   }
 
-  void _deleteWorkType(String type) async {
-    final count = DemoStore.applications.where((a) => a.workType == type).length;
+  void _deleteWorkType(WorkType type) async {
+    final allAppsAsync = ref.read(applicationsWithFinancialsStreamProvider);
+    final count = (allAppsAsync.valueOrNull ?? [])
+        .where((a) => a.application.workType == type.name)
+        .length;
+
     final message = count > 0
-        ? 'এই ধরনের অধীনে ${BengaliDigits.toBengali(count)} টি আবেদন সংরক্ষিত রয়েছে। আপনি কি নিশ্চিত যে এটি তালিকা থেকে মুছতে চান?'
-        : 'আপনি কি নিশ্চিত যে "$type" কাজের ধরনটি তালিকা থেকে মুছে ফেলতে চান?';
+        ? 'এই ধরনের অধীনে ${BengaliDigits.toBengali(count.toString())} টি আবেদন সংরক্ষিত রয়েছে। আপনি কি নিশ্চিত যে এটি তালিকা থেকে মুছতে চান?'
+        : 'আপনি কি নিশ্চিত যে "${type.name}" কাজের ধরনটি তালিকা থেকে মুছে ফেলতে চান?';
 
     final confirmed = await ConfirmDialog.show(
       context,
@@ -119,33 +143,51 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     );
 
     if (confirmed == true && mounted) {
-      setState(() {
-        DemoStore.workTypes.remove(type);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('কাজের ধরন তালিকা থেকে মুছে ফেলা হয়েছে'),
-          backgroundColor: AppColors.rose,
-        ),
-      );
+      try {
+        final wasDeleted = await ref
+            .read(categoryControllerProvider.notifier)
+            .deleteWorkType(type.id);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(wasDeleted == true
+                ? 'কাজের ধরন তালিকা থেকে মুছে ফেলা হয়েছে'
+                : 'কাজের ধরন নিষ্ক্রিয় করা হয়েছে'),
+            backgroundColor: AppColors.rose,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        final msg = e is AppFailure ? e.message : 'কাজের ধরন মোছা যায়নি।';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
+        );
+      }
     }
   }
 
   // --- Expense Categories Actions ---
   void _showAddEditExpenseCategoryDialog({
-    String? existingCategory,
+    ExpenseCategory? existingCategory,
     bool isGeneral = false,
   }) {
-    final controller = TextEditingController(text: existingCategory ?? '');
+    final controller =
+        TextEditingController(text: existingCategory?.name ?? '');
     final isEditing = existingCategory != null;
-    bool targetIsGeneral = isGeneral;
+    bool targetIsGeneral = existingCategory != null
+        ? existingCategory.isGeneral == 1
+        : isGeneral;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-          title: Text(isEditing ? 'খরচের খাত পরিবর্তন' : 'নতুন খরচের খাত যোগ করুন'),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+          title: Text(isEditing
+              ? 'খরচের খাত পরিবর্তন'
+              : 'নতুন খরচের খাত যোগ করুন'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -153,13 +195,15 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
               children: [
                 Text(
                   'দৈনিক খরচের হিসাব রাখার সময় এই খাত থেকে বাছাই করা যাবে।',
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (!isEditing) ...[
                   Text(
                     'খাতের শ্রেণি নির্বাচন করুন',
-                    style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, fontSize: 13.5),
+                    style: AppTypography.labelMedium
+                        .copyWith(fontWeight: FontWeight.w600, fontSize: 13.5),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -191,54 +235,59 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                   controller: controller,
                   autofocus: true,
                   decoration: const InputDecoration(
-                    label: AppFieldLabel.inline(label: 'খাতের নাম', isRequired: true),
+                    label:
+                        AppFieldLabel.inline(label: 'খাতের নাম', isRequired: true),
                     hintText: 'যেমন: আপ্যায়ন বা কম্পিউটার কালি',
                   ),
                 ),
               ],
             ),
           ),
-          actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+          actionsPadding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
           actions: [
             AppDialogActionRow(
               confirmText: isEditing ? 'সংরক্ষণ করুন' : 'যোগ করুন',
-              onConfirm: () {
+              onConfirm: () async {
                 final text = controller.text.trim();
                 if (text.isEmpty) return;
 
-                setState(() {
+                try {
                   if (isEditing) {
-                    if (isGeneral) {
-                      final idx = DemoStore.generalExpenseCategories.indexOf(existingCategory);
-                      if (idx != -1) DemoStore.generalExpenseCategories[idx] = text;
-                    } else {
-                      final idx = DemoStore.applicationExpenseCategories.indexOf(existingCategory);
-                      if (idx != -1) DemoStore.applicationExpenseCategories[idx] = text;
-                    }
+                    await ref
+                        .read(categoryControllerProvider.notifier)
+                        .updateExpenseCategory(
+                          id: existingCategory.id,
+                          name: text,
+                        );
                   } else {
-                    if (targetIsGeneral) {
-                      if (!DemoStore.generalExpenseCategories.contains(text)) {
-                        DemoStore.generalExpenseCategories.add(text);
-                      }
-                    } else {
-                      if (!DemoStore.applicationExpenseCategories.contains(text)) {
-                        DemoStore.applicationExpenseCategories.add(text);
-                      }
-                    }
+                    await ref
+                        .read(categoryControllerProvider.notifier)
+                        .createExpenseCategory(
+                          name: text,
+                          isGeneral: targetIsGeneral,
+                        );
                   }
-                  // Keep general list in sync
-                  if (!DemoStore.expenseCategories.contains(text)) {
-                    DemoStore.expenseCategories.add(text);
-                  }
-                });
 
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isEditing ? 'খরচের খাত হালনাগাদ হয়েছে' : 'নতুন খরচের খাত যুক্ত করা হয়েছে'),
-                    backgroundColor: AppColors.emerald,
-                  ),
-                );
+                  if (!mounted) return;
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isEditing
+                          ? 'খরচের খাত হালনাগাদ হয়েছে'
+                          : 'নতুন খরচের খাত যুক্ত করা হয়েছে'),
+                      backgroundColor: AppColors.emerald,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  final msg = e is AppFailure
+                      ? e.message
+                      : 'খরচের খাত সংরক্ষণ করা যায়নি।';
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
+                  );
+                }
               },
             ),
           ],
@@ -247,35 +296,49 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     );
   }
 
-  void _deleteExpenseCategory(String cat, bool isGeneral) async {
+  void _deleteExpenseCategory(ExpenseCategory cat) async {
     final confirmed = await ConfirmDialog.show(
       context,
       title: 'খরচের খাত মুছবেন?',
-      message: 'আপনি কি নিশ্চিত যে "$cat" খাতটি তালিকা থেকে মুছে ফেলতে চান?',
+      message: 'আপনি কি নিশ্চিত যে "${cat.name}" খাতটি তালিকা থেকে মুছে ফেলতে চান?',
       confirmText: 'হ্যাঁ, মুছুন',
       isDestructive: true,
     );
 
     if (confirmed == true && mounted) {
-      setState(() {
-        if (isGeneral) {
-          DemoStore.generalExpenseCategories.remove(cat);
-        } else {
-          DemoStore.applicationExpenseCategories.remove(cat);
-        }
-        DemoStore.expenseCategories.remove(cat);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('খরচের খাত মুছে ফেলা হয়েছে'),
-          backgroundColor: AppColors.rose,
-        ),
-      );
+      try {
+        final wasDeleted = await ref
+            .read(categoryControllerProvider.notifier)
+            .deleteExpenseCategory(cat.id);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(wasDeleted == true
+                ? 'খরচের খাত মুছে ফেলা হয়েছে'
+                : 'খরচের খাত নিষ্ক্রিয় করা হয়েছে'),
+            backgroundColor: AppColors.rose,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        final msg = e is AppFailure ? e.message : 'খরচের খাত মোছা যায়নি।';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final workTypesAsync = ref.watch(workTypesStreamProvider);
+    final workTypes = workTypesAsync.valueOrNull ?? [];
+
+    final expenseCategoriesAsync =
+        ref.watch(expenseCategoriesStreamProvider(null));
+    final expenseCategories = expenseCategoriesAsync.valueOrNull ?? [];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -286,15 +349,16 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
           unselectedLabelColor: AppColors.textMuted,
           indicatorColor: AppColors.primary,
           indicatorWeight: 3,
-          labelStyle: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, fontSize: 13.5),
+          labelStyle: AppTypography.labelMedium
+              .copyWith(fontWeight: FontWeight.w700, fontSize: 13.5),
           tabs: [
             Tab(
               icon: const Icon(Icons.work_outline, size: 20),
-              text: 'কাজের ধরন (${BengaliDigits.toBengali(DemoStore.workTypes.length)})',
+              text: 'কাজের ধরন (${BengaliDigits.toBengali(workTypes.length.toString())})',
             ),
             Tab(
               icon: const Icon(Icons.receipt_long_outlined, size: 20),
-              text: 'খরচের খাত (${BengaliDigits.toBengali(DemoStore.applicationExpenseCategories.length + DemoStore.generalExpenseCategories.length)})',
+              text: 'খরচের খাত (${BengaliDigits.toBengali(expenseCategories.length.toString())})',
             ),
           ],
         ),
@@ -304,13 +368,18 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
           // Search & Filter Box
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.base, vertical: AppSpacing.sm),
             child: TextField(
               controller: _searchController,
-              onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.trim().toLowerCase()),
               decoration: InputDecoration(
-                hintText: _tabController.index == 0 ? 'কাজের ধরন খুঁজুন...' : 'খরচের খাত খুঁজুন...',
-                prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textMuted),
+                hintText: _tabController.index == 0
+                    ? 'কাজের ধরন খুঁজুন...'
+                    : 'খরচের খাত খুঁজুন...',
+                prefixIcon: const Icon(Icons.search,
+                    size: 20, color: AppColors.textMuted),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 18),
@@ -327,7 +396,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
           ),
@@ -337,8 +407,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildWorkTypesTab(),
-                _buildExpenseCategoriesTab(),
+                _buildWorkTypesTab(workTypes),
+                _buildExpenseCategoriesTab(expenseCategories),
               ],
             ),
           ),
@@ -349,7 +419,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
         icon: const Icon(Icons.add, color: Colors.white),
         label: Text(
           _tabController.index == 0 ? 'নতুন কাজের ধরন' : 'নতুন খরচের খাত',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         onPressed: () {
           if (_tabController.index == 0) {
@@ -364,11 +435,14 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     );
   }
 
-  Widget _buildWorkTypesTab() {
-    final filtered = DemoStore.workTypes.where((wt) {
+  Widget _buildWorkTypesTab(List<WorkType> workTypes) {
+    final filtered = workTypes.where((wt) {
       if (_searchQuery.isEmpty) return true;
-      return wt.toLowerCase().contains(_searchQuery);
+      return wt.name.toLowerCase().contains(_searchQuery);
     }).toList();
+
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? [];
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.base),
@@ -414,7 +488,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
           ...filtered.asMap().entries.map((entry) {
             final idx = entry.key;
             final wt = entry.value;
-            final count = DemoStore.applications.where((a) => a.workType == wt).length;
+            final count =
+                allApps.where((a) => a.application.workType == wt.name).length;
 
             return Container(
               margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -424,7 +499,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                 border: Border.all(color: AppColors.border),
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.base, vertical: 4),
                 leading: Container(
                   width: 36,
                   height: 36,
@@ -434,7 +510,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                   ),
                   child: Center(
                     child: Text(
-                      BengaliDigits.toBengali(idx + 1),
+                      BengaliDigits.toBengali((idx + 1).toString()),
                       style: AppTypography.labelMedium.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,
@@ -443,25 +519,32 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                   ),
                 ),
                 title: Text(
-                  wt,
-                  style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+                  wt.name,
+                  style: AppTypography.headingSmall
+                      .copyWith(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
-                  count > 0 ? '$count টি আবেদনে ব্যবহৃত' : 'এখনও কোনো আবেদনে ব্যবহার হয়নি',
+                  count > 0
+                      ? '${BengaliDigits.toBengali(count.toString())} টি আবেদনে ব্যবহৃত'
+                      : 'এখনও কোনো আবেদনে ব্যবহার হয়নি',
                   style: AppTypography.bodySmall.copyWith(
-                    color: count > 0 ? AppColors.emeraldDark : AppColors.textMuted,
+                    color:
+                        count > 0 ? AppColors.emeraldDark : AppColors.textMuted,
                   ),
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.slate600),
+                      icon: const Icon(Icons.edit_outlined,
+                          size: 20, color: AppColors.slate600),
                       tooltip: 'সম্পাদনা',
-                      onPressed: () => _showAddEditWorkTypeDialog(existingType: wt),
+                      onPressed: () =>
+                          _showAddEditWorkTypeDialog(existingType: wt),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.rose),
+                      icon: const Icon(Icons.delete_outline,
+                          size: 20, color: AppColors.rose),
                       tooltip: 'মুছুন',
                       onPressed: () => _deleteWorkType(wt),
                     ),
@@ -475,15 +558,18 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     );
   }
 
-  Widget _buildExpenseCategoriesTab() {
-    final filteredAppCats = DemoStore.applicationExpenseCategories.where((c) {
+  Widget _buildExpenseCategoriesTab(List<ExpenseCategory> categories) {
+    final appCats = categories.where((c) => c.isGeneral == 0).toList();
+    final genCats = categories.where((c) => c.isGeneral == 1).toList();
+
+    final filteredAppCats = appCats.where((c) {
       if (_searchQuery.isEmpty) return true;
-      return c.toLowerCase().contains(_searchQuery);
+      return c.name.toLowerCase().contains(_searchQuery);
     }).toList();
 
-    final filteredGenCats = DemoStore.generalExpenseCategories.where((c) {
+    final filteredGenCats = genCats.where((c) {
       if (_searchQuery.isEmpty) return true;
-      return c.toLowerCase().contains(_searchQuery);
+      return c.name.toLowerCase().contains(_searchQuery);
     }).toList();
 
     return ListView(
@@ -494,9 +580,13 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
           children: [
             _buildFilterPill('সকল খাত', 0),
             const SizedBox(width: 8),
-            _buildFilterPill('আবেদনের খরচ (${BengaliDigits.toBengali(DemoStore.applicationExpenseCategories.length)})', 1),
+            _buildFilterPill(
+                'আবেদনের খরচ (${BengaliDigits.toBengali(appCats.length.toString())})',
+                1),
             const SizedBox(width: 8),
-            _buildFilterPill('দোকান খরচ (${BengaliDigits.toBengali(DemoStore.generalExpenseCategories.length)})', 2),
+            _buildFilterPill(
+                'দোকান খরচ (${BengaliDigits.toBengali(genCats.length.toString())})',
+                2),
           ],
         ),
 
@@ -518,8 +608,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                   ),
                 ),
                 Text(
-                  '${BengaliDigits.toBengali(filteredAppCats.length)} টি খাত',
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+                  '${BengaliDigits.toBengali(filteredAppCats.length.toString())} টি খাত',
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -534,11 +625,12 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                 border: Border.all(color: AppColors.border),
               ),
               child: const Center(
-                child: Text('এই বিভাগে কোনো খরচের খাত পাওয়া যায়নি', style: AppTypography.bodySmall),
+                child: Text('এই বিভাগে কোনো খরচের খাত পাওয়া যায়নি',
+                    style: AppTypography.bodySmall),
               ),
             )
           else
-            ...filteredAppCats.map((cat) => _buildExpenseCard(cat, isGeneral: false)),
+            ...filteredAppCats.map((cat) => _buildExpenseCard(cat)),
           const SizedBox(height: AppSpacing.md),
         ],
 
@@ -558,8 +650,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                   ),
                 ),
                 Text(
-                  '${BengaliDigits.toBengali(filteredGenCats.length)} টি খাত',
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+                  '${BengaliDigits.toBengali(filteredGenCats.length.toString())} টি খাত',
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -574,13 +667,13 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                 border: Border.all(color: AppColors.border),
               ),
               child: const Center(
-                child: Text('এই বিভাগে কোনো খরচের খাত পাওয়া যায়নি', style: AppTypography.bodySmall),
+                child: Text('এই বিভাগে কোনো খরচের খাত পাওয়া যায়নি',
+                    style: AppTypography.bodySmall),
               ),
             )
           else
-            ...filteredGenCats.map((cat) => _buildExpenseCard(cat, isGeneral: true)),
+            ...filteredGenCats.map((cat) => _buildExpenseCard(cat)),
         ],
-
         const SizedBox(height: 80),
       ],
     );
@@ -589,25 +682,25 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
   Widget _buildFilterPill(String label, int index) {
     final isSelected = _expenseFilterIndex == index;
     return Expanded(
-      child: GestureDetector(
+      child: InkWell(
         onTap: () => setState(() => _expenseFilterIndex = index),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primary : Colors.white,
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(
-              color: isSelected ? AppColors.primary : AppColors.border,
-            ),
+                color: isSelected ? AppColors.primary : AppColors.border),
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: AppTypography.bodySmall.copyWith(
-                color: isSelected ? Colors.white : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 11.5,
-              ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : AppColors.textSecondary,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 11.5,
+              fontFamily: AppTypography.fontFamily,
             ),
           ),
         ),
@@ -615,7 +708,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     );
   }
 
-  Widget _buildExpenseCard(String cat, {required bool isGeneral}) {
+  Widget _buildExpenseCard(ExpenseCategory cat) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
@@ -624,43 +717,48 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
         border: Border.all(color: AppColors.border),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 4),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 2),
         leading: Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: isGeneral ? const Color(0xFFFFFBEB) : const Color(0xFFFEF2F2),
+            color: cat.isGeneral == 1
+                ? AppColors.roseSurface
+                : AppColors.primarySurface,
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           ),
           child: Icon(
-            isGeneral ? Icons.storefront_outlined : Icons.description_outlined,
+            cat.isGeneral == 1 ? Icons.store_outlined : Icons.description_outlined,
+            color: cat.isGeneral == 1 ? AppColors.rose : AppColors.primary,
             size: 20,
-            color: isGeneral ? const Color(0xFFD97706) : AppColors.rose,
           ),
         ),
         title: Text(
-          cat,
-          style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600),
+          cat.name,
+          style: AppTypography.headingSmall
+              .copyWith(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
-          isGeneral ? 'দোকানের ওভারহেড বা মাসিক খরচ' : 'আবেদনের ফাইল সংক্রান্ত কাজের খরচ',
-          style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 12),
+          cat.isGeneral == 1 ? 'দোকানের সাধারণ ব্যয়' : 'আবেদন বা কাজের ফাইল ব্যয়',
+          style: AppTypography.bodySmall
+              .copyWith(color: AppColors.textSecondary, fontSize: 11.5),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.slate600),
+              icon: const Icon(Icons.edit_outlined,
+                  size: 20, color: AppColors.slate600),
               tooltip: 'সম্পাদনা',
-              onPressed: () => _showAddEditExpenseCategoryDialog(
-                existingCategory: cat,
-                isGeneral: isGeneral,
-              ),
+              onPressed: () =>
+                  _showAddEditExpenseCategoryDialog(existingCategory: cat),
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.rose),
+              icon: const Icon(Icons.delete_outline,
+                  size: 20, color: AppColors.rose),
               tooltip: 'মুছুন',
-              onPressed: () => _deleteExpenseCategory(cat, isGeneral),
+              onPressed: () => _deleteExpenseCategory(cat),
             ),
           ],
         ),

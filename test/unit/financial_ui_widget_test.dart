@@ -1,13 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bhumi_kajer_hisab/core/demo/demo_data.dart';
+import 'package:bhumi_kajer_hisab/core/theme/app_theme.dart';
 import 'package:bhumi_kajer_hisab/core/widgets/app_floating_button.dart';
+import 'package:bhumi_kajer_hisab/features/applications/presentation/providers/application_providers.dart';
+import 'package:bhumi_kajer_hisab/features/applications/presentation/screens/application_detail_screen.dart';
+import 'package:bhumi_kajer_hisab/features/finance/presentation/providers/finance_providers.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/financial_overview_screen.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/income_form_screen.dart';
-import 'package:bhumi_kajer_hisab/features/applications/presentation/screens/application_detail_screen.dart';
+import 'package:bhumi_kajer_hisab/features/offices/presentation/providers/office_providers.dart';
+import 'package:bhumi_kajer_hisab/features/persons/presentation/providers/person_providers.dart';
+import 'package:bhumi_kajer_hisab/features/references/presentation/providers/reference_providers.dart';
+import 'package:bhumi_kajer_hisab/features/settings/presentation/providers/settings_providers.dart';
+import 'package:bhumi_kajer_hisab/features/tasks/presentation/providers/task_providers.dart';
 import 'package:bhumi_kajer_hisab/core/utils/money.dart';
 
 void main() {
+  Widget buildTestScope(Widget screen) {
+    return ProviderScope(
+      overrides: [
+        applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
+        unifiedTransactionsStreamProvider.overrideWith((ref) => Stream.value([])),
+        personsStreamProvider.overrideWith((ref) => Stream.value([])),
+        referencesStreamProvider.overrideWith((ref) => Stream.value([])),
+        officesStreamProvider.overrideWith((ref) => Stream.value([])),
+        workTypesStreamProvider.overrideWith((ref) => Stream.value([])),
+        expenseCategoriesStreamProvider.overrideWith((ref, isApp) => Stream.value([])),
+        tasksStreamProvider.overrideWith((ref) => Stream.value([])),
+        applicationPaymentsProvider.overrideWith((ref, id) => const Stream.empty()),
+        applicationExpensesProvider.overrideWith((ref, id) => const Stream.empty()),
+        applicationStatusHistoryProvider.overrideWith((ref, id) => const Stream.empty()),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: screen,
+      ),
+    );
+  }
+
   group('Financial UI & UX Corrections Tests', () {
     testWidgets('FinancialOverviewScreen renders two floating buttons (আয় & খরচ) and NO shortcut card', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
@@ -15,9 +46,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: FinancialOverviewScreen(),
-        ),
+        buildTestScope(const FinancialOverviewScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -71,9 +100,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: IncomeFormScreen(),
-        ),
+        buildTestScope(const IncomeFormScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -108,9 +135,7 @@ void main() {
       final app = DemoStore.applications.first;
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: ApplicationDetailScreen(application: app),
-        ),
+        buildTestScope(ApplicationDetailScreen(application: app)),
       );
       await tester.pumpAndSettle();
 
@@ -148,9 +173,7 @@ void main() {
       final app = DemoStore.applications.first;
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: ApplicationDetailScreen(application: app),
-        ),
+        buildTestScope(ApplicationDetailScreen(application: app)),
       );
       await tester.pumpAndSettle();
 

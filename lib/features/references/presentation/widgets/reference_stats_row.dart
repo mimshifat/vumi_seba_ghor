@@ -3,7 +3,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/bengali_digits.dart';
-import '../../data/demo_reference_store.dart';
+import '../../domain/models/reference_stats.dart';
 
 class ReferenceStatsRow extends StatelessWidget {
   final ReferenceStats stats;

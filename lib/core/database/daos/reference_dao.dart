@@ -80,9 +80,7 @@ class ReferenceDao extends DatabaseAccessor<AppDatabase>
           tbl.phone.contains(rawTerm),
         ];
 
-        if (tbl.address != null) {
-          searchPredicates.add(tbl.address.contains(rawTerm));
-        }
+        searchPredicates.add(tbl.address.contains(rawTerm));
 
         Expression<bool>? combined;
         for (final p in searchPredicates) {

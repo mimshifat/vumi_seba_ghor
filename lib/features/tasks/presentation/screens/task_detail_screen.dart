@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -6,39 +7,51 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/screens/application_detail_screen.dart';
+import '../providers/task_providers.dart';
 import 'task_create_edit_screen.dart';
 
-class TaskDetailScreen extends StatefulWidget {
-  final DemoTask task;
+class TaskDetailScreen extends ConsumerStatefulWidget {
+  final DemoTask? task;
+  final String? taskId;
 
-  const TaskDetailScreen({super.key, required this.task});
+  const TaskDetailScreen({
+    super.key,
+    this.task,
+    this.taskId,
+  }) : assert(task != null || taskId != null, 'Provide either task or taskId');
 
   @override
-  State<TaskDetailScreen> createState() => _TaskDetailScreenState();
+  ConsumerState<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
-class _TaskDetailScreenState extends State<TaskDetailScreen> {
-  late DemoTask _task;
+class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
+  String get _id => widget.taskId ?? widget.task!.id;
 
-  @override
-  void initState() {
-    super.initState();
-    _task = widget.task;
-  }
+  Future<void> _setStatus(String newStatus, DemoTask currentTask) async {
+    if (currentTask.status == newStatus) return;
 
-  void _setStatus(String newStatus) {
-    if (_task.status == newStatus) return;
-
-    final updated = _task.copyWith(
-      status: newStatus,
-      completedAt: newStatus == 'সম্পন্ন' ? DateTime.now() : null,
-    );
-
-    final idx = DemoStore.tasks.indexWhere((t) => t.id == _task.id);
-    if (idx != -1) DemoStore.tasks[idx] = updated;
-
-    setState(() => _task = updated);
+    if (newStatus == 'সম্পন্ন') {
+      await ref.read(taskControllerProvider.notifier).markCompleted(_id, true);
+    } else {
+      await ref.read(taskControllerProvider.notifier).updateTask(
+            id: _id,
+            title: currentTask.title,
+            description: currentTask.description,
+            dueDate: currentTask.dueDate,
+            dueTime: currentTask.dueTime,
+            priority: currentTask.priority,
+            status: newStatus,
+            category: currentTask.category,
+            applicationId: currentTask.relatedApplicationId,
+          );
+      if (currentTask.status == 'সম্পন্ন') {
+        await ref
+            .read(taskControllerProvider.notifier)
+            .markCompleted(_id, false);
+      }
+    }
 
     Color bg;
     if (newStatus == 'সম্পন্ন') {
@@ -49,6 +62,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       bg = AppColors.amberDark;
     }
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('কাজের অবস্থা পরিবর্তিত হয়ে "$newStatus" হয়েছে।'),
@@ -58,28 +72,70 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  void _advanceStatus() {
-    if (_task.status == 'করতে হবে') {
-      _setStatus('চলমান');
-    } else if (_task.status == 'চলমান') {
-      _setStatus('সম্পন্ন');
+  void _advanceStatus(DemoTask currentTask) {
+    if (currentTask.status == 'করতে হবে') {
+      _setStatus('চলমান', currentTask);
+    } else if (currentTask.status == 'চলমান') {
+      _setStatus('সম্পন্ন', currentTask);
     } else {
-      _setStatus('করতে হবে');
+      _setStatus('করতে হবে', currentTask);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDone = _task.status == 'সম্পন্ন';
-    final isUrgent = _task.priority == 'জরুরি';
-    final isToday = _task.isToday;
-    final isOverdue = _task.isOverdue;
+    final liveTask = ref.watch(taskDetailProvider(_id)).valueOrNull;
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? const [];
+
+    DemoTask task;
+    if (liveTask != null) {
+      String? appName;
+      if (liveTask.applicationId != null) {
+        final match = allApps
+            .where((a) => a.application.id == liveTask.applicationId)
+            .firstOrNull;
+        appName = match?.application.applicantName;
+      }
+      task = DemoTask(
+        id: liveTask.id,
+        title: liveTask.title,
+        description: liveTask.description,
+        dueDate: DateTime.fromMillisecondsSinceEpoch(liveTask.dueDate),
+        dueTime: liveTask.dueTime,
+        priority: liveTask.priority,
+        status: liveTask.status,
+        category: liveTask.category,
+        relatedApplicationId: liveTask.applicationId,
+        relatedApplicantName: appName,
+        completedAt: liveTask.completedAt != null
+            ? DateTime.fromMillisecondsSinceEpoch(liveTask.completedAt!)
+            : null,
+      );
+    } else if (widget.task != null) {
+      task = widget.task!;
+    } else {
+      task = DemoTask(
+        id: _id,
+        title: 'লোড হচ্ছে...',
+        dueDate: DateTime.now(),
+        priority: 'সাধারণ',
+        status: 'করতে হবে',
+        category: 'সাধারণ',
+      );
+    }
+
+    final isDone = task.status == 'সম্পন্ন';
+    final isUrgent = task.priority == 'জরুরি';
+    final isToday = task.isToday;
+    final isOverdue = task.isOverdue;
 
     DemoApplication? relApp;
-    if (_task.relatedApplicationId != null) {
-      try {
-        relApp = DemoStore.applications.firstWhere((a) => a.id == _task.relatedApplicationId);
-      } catch (_) {}
+    if (task.relatedApplicationId != null) {
+      final match = allApps
+          .where((a) => a.application.id == task.relatedApplicationId)
+          .firstOrNull;
+      relApp = match?.toDemoApplication();
     }
 
     return Scaffold(
@@ -93,11 +149,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (ctx) => TaskCreateEditScreen(task: _task),
+                  builder: (ctx) => TaskCreateEditScreen(task: task),
                 ),
-              ).then((updated) {
-                if (updated is DemoTask) setState(() => _task = updated);
-              });
+              );
             },
           ),
           IconButton(
@@ -112,7 +166,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 isDestructive: true,
               );
               if (ok == true) {
-                DemoStore.tasks.removeWhere((t) => t.id == _task.id);
+                await ref
+                    .read(taskControllerProvider.notifier)
+                    .deleteTask(task.id);
                 if (!context.mounted) return;
                 Navigator.pop(context);
               }
@@ -123,166 +179,165 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.base),
         children: [
-          // 3-Stage Interactive Status Stepper
-          _buildStatusStepper(),
-
-          const SizedBox(height: AppSpacing.base),
-
-          // Main Task Card
+          // Header Status Card
           Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.base),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDone ? const Color(0xFFF0FDF4) : Colors.white,
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border),
-              boxShadow: const [
+              border: Border.all(
+                color: isDone ? const Color(0xFFBBF7D0) : AppColors.border,
+              ),
+              boxShadow: [
                 BoxShadow(
-                  color: Color.fromRGBO(15, 23, 42, 0.04),
-                  blurRadius: 10,
-                  offset: Offset(0, 3),
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Tags
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Priority
+                    // Priority Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isUrgent ? AppColors.roseSurface : AppColors.slate100,
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-                        border: Border.all(color: isUrgent ? AppColors.roseLight : AppColors.border),
+                        color: isUrgent
+                            ? const Color(0xFFFFF1F2)
+                            : (task.priority == 'মাঝারি'
+                                ? const Color(0xFFFEF3C7)
+                                : AppColors.slate100),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusPill),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isUrgent ? Icons.priority_high : Icons.flag_outlined,
-                            size: 13,
-                            color: isUrgent ? AppColors.rose : AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _task.priority,
-                            style: AppTypography.labelMedium.copyWith(
-                              color: isUrgent ? AppColors.rose : AppColors.textSecondary,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        task.priority,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isUrgent
+                              ? AppColors.rose
+                              : (task.priority == 'মাঝারি'
+                                  ? const Color(0xFFB45309)
+                                  : AppColors.slate700),
+                        ),
                       ),
                     ),
 
                     // Status Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: isDone
                             ? AppColors.emeraldSurface
-                            : (_task.status == 'চলমান' ? AppColors.primarySurface : AppColors.amberSurface),
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-                        border: Border.all(
-                          color: isDone
-                              ? AppColors.emeraldLight
-                              : (_task.status == 'চলমান' ? AppColors.primaryLight : AppColors.amberLight),
-                        ),
+                            : (task.status == 'চলমান'
+                                ? const Color(0xFFEEF2FF)
+                                : AppColors.slate100),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusPill),
                       ),
                       child: Text(
-                        _task.status,
-                        style: AppTypography.labelMedium.copyWith(
+                        task.status,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                           color: isDone
-                              ? AppColors.emeraldDark
-                              : (_task.status == 'চলমান' ? AppColors.primary : AppColors.amberDark),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                              ? AppColors.emerald
+                              : (task.status == 'চলমান'
+                                  ? const Color(0xFF4338CA)
+                                  : AppColors.textSecondary),
                         ),
                       ),
                     ),
-
-                    // Today / Overdue Alert
-                    if (isToday)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySurface,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-                        ),
-                        child: Text(
-                          'আজকের কাজ',
-                          style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      )
-                    else if (isOverdue)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.roseSurface,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-                        ),
-                        child: Text(
-                          'মেয়াদোত্তীর্ণ',
-                          style: AppTypography.labelMedium.copyWith(color: AppColors.rose, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ),
                   ],
                 ),
-
                 const SizedBox(height: AppSpacing.md),
 
                 // Title
                 Text(
-                  _task.title,
+                  task.title,
                   style: AppTypography.headingMedium.copyWith(
-                    fontWeight: FontWeight.w700,
                     fontSize: 18,
+                    fontWeight: FontWeight.w800,
                     decoration: isDone ? TextDecoration.lineThrough : null,
-                    color: isDone ? AppColors.textMuted : AppColors.textPrimary,
+                    color: isDone ? AppColors.slate400 : AppColors.textPrimary,
                   ),
                 ),
 
-                if (_task.description != null && _task.description!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.slate50,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Text(
-                      _task.description!,
-                      style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary, height: 1.5),
+                if (task.description != null &&
+                    task.description!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    task.description!,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color:
+                          isDone ? AppColors.slate400 : AppColors.slate700,
+                      height: 1.5,
                     ),
                   ),
                 ],
 
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.base),
                 const Divider(),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
 
-                // Due Date & Time Strip
+                // Date & Time Row
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      BengaliDigits.toBengali('${_task.dueDate.day}/${_task.dueDate.month}/${_task.dueDate.year}'),
-                      style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: isOverdue && !isDone
+                          ? AppColors.rose
+                          : AppColors.slate500,
                     ),
-                    if (_task.dueTime != null) ...[
-                      const SizedBox(width: 14),
-                      const Icon(Icons.access_time_rounded, size: 16, color: AppColors.slate500),
-                      const SizedBox(width: 4),
+                    const SizedBox(width: 8),
+                    Text(
+                      'তারিখ: ${BengaliDigits.toBengali('${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year}')}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isOverdue && !isDone
+                            ? AppColors.rose
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    if (isToday) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusXs),
+                        ),
+                        child: const Text(
+                          'আজ',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              color: Color(0xFFB45309),
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                    if (task.dueTime != null && task.dueTime!.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      const Icon(Icons.access_time,
+                          size: 16, color: AppColors.slate500),
+                      const SizedBox(width: 6),
                       Text(
-                        _task.dueTime!,
-                        style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                        task.dueTime!,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary),
                       ),
                     ],
                   ],
@@ -293,8 +348,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
           const SizedBox(height: AppSpacing.base),
 
-          // Linked Application or Personal Task Card
-          if (relApp != null) ...[
+          // Linked Application (if any)
+          if (relApp != null)
             Container(
               padding: const EdgeInsets.all(AppSpacing.base),
               decoration: BoxDecoration(
@@ -305,189 +360,179 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.link, size: 16, color: AppColors.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        'সংশ্লিষ্ট আবেদন ফাইল',
-                        style: AppTypography.titleMedium.copyWith(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySurface,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                        ),
-                        child: const Icon(Icons.description_outlined, color: AppColors.primary, size: 22),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              relApp.applicantName,
-                              style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              '${relApp.workType} • মৌজা: ${relApp.mouza}',
-                              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 12),
-                            ),
-                            Text(
-                              'কেস: ${relApp.caseNumber ?? relApp.appNumber ?? 'নির্ধারিত নয়'}',
-                              style: AppTypography.bodySmall.copyWith(color: AppColors.slate400, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.arrow_forward, size: 14),
-                        label: const Text('ফাইল দেখুন'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(0, 34),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          backgroundColor: AppColors.primarySurface,
-                          foregroundColor: AppColors.primary,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (ctx) => ApplicationDetailScreen(application: relApp!)),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.base),
-          ] else ...[
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.slate100,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  const Text(
+                    'সংশ্লিষ্ট আবেদন ফাইল',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.slate500,
                     ),
-                    child: const Icon(Icons.person_outline, color: AppColors.slate600, size: 22),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ব্যক্তিগত কাজ',
-                          style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (ctx) =>
+                              ApplicationDetailScreen(application: relApp!),
                         ),
-                        Text(
-                          'নির্দিষ্ট কোনো আবেদন ফাইলের সাথে যুক্ত নয়',
-                          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 11.5),
-                        ),
-                      ],
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySurface,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusMd),
+                        border: Border.all(color: const Color(0xFFC7D2FE)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.folder_open_rounded,
+                                color: AppColors.primary, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  relApp.applicantName,
+                                  style: AppTypography.titleMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${relApp.workType} • ${relApp.officeName}',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios,
+                              size: 14, color: AppColors.primary),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.base),
-          ],
 
-          // Primary Status Transition Action
+          const SizedBox(height: AppSpacing.base),
+
+          // Status Action Buttons
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.base),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'অবস্থা দ্রুত পরিবর্তন করুন',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.slate500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatusBtn(
+                        label: 'করতে হবে',
+                        isSelected: task.status == 'করতে হবে',
+                        color: AppColors.textSecondary,
+                        onTap: () => _setStatus('করতে হবে', task),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatusBtn(
+                        label: 'চলমান',
+                        isSelected: task.status == 'চলমান',
+                        color: const Color(0xFF4338CA),
+                        onTap: () => _setStatus('চলমান', task),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatusBtn(
+                        label: 'সম্পন্ন',
+                        isSelected: task.status == 'সম্পন্ন',
+                        color: AppColors.emerald,
+                        onTap: () => _setStatus('সম্পন্ন', task),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          // Big Advance Action Button
           AppButton(
             text: isDone
-                ? 'পুনরায় কাজ শুরু করুন (করতে হবে)'
-                : (_task.status == 'চলমান' ? 'কাজ সম্পন্ন চিহ্নিত করুন ✓' : 'কাজ শুরু করুন (চলমান চিহ্নিত করুন) ➔'),
-            icon: isDone ? Icons.refresh : ( _task.status == 'চলমান' ? Icons.check_circle : Icons.play_arrow),
-            variant: isDone ? ButtonVariant.outline : ButtonVariant.primary,
-            onPressed: _advanceStatus,
+                ? 'কাজটি পুনরায় সক্রিয় করুন'
+                : (task.status == 'করতে হবে'
+                    ? 'কাজটি চলমান করুন'
+                    : 'কাজটি সম্পন্ন চিহ্নিত করুন'),
+            icon: isDone ? Icons.refresh : Icons.check_circle_outline,
+            variant: isDone ? ButtonVariant.secondary : ButtonVariant.primary,
+            onPressed: () => _advanceStatus(task),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatusStepper() {
-    final stages = [
-      {'key': 'করতে হবে', 'label': 'করতে হবে', 'icon': Icons.schedule},
-      {'key': 'চলমান', 'label': 'চলমান', 'icon': Icons.autorenew},
-      {'key': 'সম্পন্ন', 'label': 'সম্পন্ন', 'icon': Icons.check_circle},
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: stages.map((st) {
-          final isCurrent = _task.status == st['key'];
-          Color chipColor;
-          if (st['key'] == 'সম্পন্ন') {
-            chipColor = AppColors.emerald;
-          } else if (st['key'] == 'চলমান') {
-            chipColor = AppColors.primary;
-          } else {
-            chipColor = AppColors.amberDark;
-          }
-
-          return Expanded(
-            child: InkWell(
-              onTap: () => _setStatus(st['key'] as String),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isCurrent ? chipColor.withValues(alpha: 0.12) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  border: Border.all(
-                    color: isCurrent ? chipColor : Colors.transparent,
-                    width: 1.5,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      st['icon'] as IconData,
-                      size: 18,
-                      color: isCurrent ? chipColor : AppColors.slate400,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      st['label'] as String,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                        color: isCurrent ? chipColor : AppColors.textSecondary,
-                        fontFamily: AppTypography.fontFamily,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+  Widget _buildStatusBtn({
+    required String label,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.12) : AppColors.slate50,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: isSelected ? color : AppColors.border,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? color : AppColors.textPrimary,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 12,
+          ),
+        ),
       ),
     );
   }

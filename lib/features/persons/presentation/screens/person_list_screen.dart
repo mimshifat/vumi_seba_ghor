@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../../../core/demo/demo_data.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
+import '../providers/person_providers.dart';
 import 'person_create_edit_screen.dart';
 import 'person_detail_screen.dart';
 
-class PersonListScreen extends StatefulWidget {
+class PersonListScreen extends ConsumerStatefulWidget {
   const PersonListScreen({super.key});
 
   @override
-  State<PersonListScreen> createState() => _PersonListScreenState();
+  ConsumerState<PersonListScreen> createState() => _PersonListScreenState();
 }
 
-class _PersonListScreenState extends State<PersonListScreen> {
+class _PersonListScreenState extends ConsumerState<PersonListScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -26,17 +30,22 @@ class _PersonListScreenState extends State<PersonListScreen> {
     super.dispose();
   }
 
-  List<DemoPerson> get _filteredPersons {
-    if (_searchQuery.isEmpty) return DemoStore.persons;
-    final q = _searchQuery.toLowerCase();
-    return DemoStore.persons.where((p) {
-      return p.name.toLowerCase().contains(q) || p.phone.contains(q);
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final list = _filteredPersons;
+    final livePersonsAsync = ref.watch(personsStreamProvider);
+    final livePersons = livePersonsAsync.valueOrNull;
+
+    // Use live database persons if available; otherwise fallback to DemoStore
+    final List<Person> dbPersons = livePersons ?? [];
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? [];
+
+    // Filter persons by search query
+    final filteredPersons = dbPersons.where((p) {
+      if (_searchQuery.isEmpty) return true;
+      final q = _searchQuery.toLowerCase();
+      return p.name.toLowerCase().contains(q) || p.phone.contains(q);
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -49,7 +58,7 @@ class _PersonListScreenState extends State<PersonListScreen> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (ctx) => const PersonCreateEditScreen()),
-              ).then((_) => setState(() {}));
+              );
             },
           ),
         ],
@@ -60,7 +69,7 @@ class _PersonListScreenState extends State<PersonListScreen> {
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (ctx) => const PersonCreateEditScreen()),
-          ).then((_) => setState(() {}));
+          );
         },
       ),
       body: Column(
@@ -96,7 +105,7 @@ class _PersonListScreenState extends State<PersonListScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'মোট সংরক্ষিত ব্যক্তি: ${BengaliDigits.toBengali(list.length)} জন',
+                'মোট সংরক্ষিত ব্যক্তি: ${BengaliDigits.toBengali(filteredPersons.length)} জন',
                 style: AppTypography.bodySmall.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary,
@@ -107,7 +116,7 @@ class _PersonListScreenState extends State<PersonListScreen> {
 
           // List
           Expanded(
-            child: list.isEmpty
+            child: filteredPersons.isEmpty
                 ? const EmptyState(
                     icon: Icons.person_off_outlined,
                     title: 'কোনো ব্যক্তি পাওয়া যায়নি',
@@ -115,11 +124,26 @@ class _PersonListScreenState extends State<PersonListScreen> {
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.base, 0, AppSpacing.base, 80),
-                    itemCount: list.length,
+                    itemCount: filteredPersons.length,
                     separatorBuilder: (ctx, i) => const SizedBox(height: AppSpacing.sm),
                     itemBuilder: (ctx, i) {
-                      final p = list[i];
-                      final hasDue = p.totalDue.isPositive;
+                      final p = filteredPersons[i];
+
+                      // Calculate person stats from live applications
+                      final personApps = allApps.where((appWithFin) {
+                        final a = appWithFin.application;
+                        return a.applicantId == p.id ||
+                            a.applicantPhone == p.phone ||
+                            a.applicantName == p.name;
+                      }).toList();
+
+                      final appCount = personApps.length;
+                      int totalDuePaisa = 0;
+                      for (final a in personApps) {
+                        totalDuePaisa += a.effectiveDue.paisa;
+                      }
+                      final totalDue = Money.fromPaisa(totalDuePaisa);
+                      final hasDue = totalDue.isPositive;
 
                       return Material(
                         color: Colors.transparent,
@@ -127,9 +151,12 @@ class _PersonListScreenState extends State<PersonListScreen> {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (ctx) => PersonDetailScreen(person: p),
+                                builder: (ctx) => PersonDetailScreen(
+                                  person: p,
+                                  personId: p.id,
+                                ),
                               ),
-                            ).then((_) => setState(() {}));
+                            );
                           },
                           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                           child: Container(
@@ -145,7 +172,7 @@ class _PersonListScreenState extends State<PersonListScreen> {
                                   radius: 22,
                                   backgroundColor: AppColors.primarySurface,
                                   child: Text(
-                                    p.name.substring(0, 1),
+                                    p.name.isNotEmpty ? p.name.substring(0, 1) : 'গ',
                                     style: const TextStyle(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.bold,
@@ -179,7 +206,7 @@ class _PersonListScreenState extends State<PersonListScreen> {
                                               borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
                                             ),
                                             child: Text(
-                                              'আবেদন: ${BengaliDigits.toBengali(p.applicationCount)} টি',
+                                              'আবেদন: ${BengaliDigits.toBengali(appCount)} টি',
                                               style: AppTypography.bodySmall.copyWith(fontSize: 11),
                                             ),
                                           ),
@@ -192,7 +219,7 @@ class _PersonListScreenState extends State<PersonListScreen> {
                                                 borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
                                               ),
                                               child: Text(
-                                                'বকেয়া: ${p.totalDue.formatBengali()}',
+                                                'বকেয়া: ${totalDue.formatBengali()}',
                                                 style: AppTypography.bodySmall.copyWith(
                                                   color: AppColors.rose,
                                                   fontSize: 11,
@@ -228,4 +255,3 @@ class _PersonListScreenState extends State<PersonListScreen> {
     );
   }
 }
-

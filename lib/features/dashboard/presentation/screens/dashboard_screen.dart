@@ -1,38 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/screens/application_create_screen.dart';
 import '../../../applications/presentation/screens/application_list_screen.dart';
 import '../../../applications/presentation/widgets/application_card.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
 import '../../../offices/presentation/screens/office_management_screen.dart';
 import '../../../persons/presentation/screens/person_list_screen.dart';
+import '../../../tasks/presentation/providers/task_providers.dart';
 import '../../../tasks/presentation/screens/task_create_edit_screen.dart';
 import '../../../tasks/presentation/screens/task_list_screen.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   final void Function(int tabIndex)? onNavigateTab;
 
   const DashboardScreen({super.key, this.onNavigateTab});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  int get _ongoingCount => DemoStore.applications
-      .where((a) => a.status != 'সম্পন্ন' && a.status != 'নামঞ্জুর' && a.status != 'বাতিল')
-      .length;
-  int get _hearingCount => DemoStore.applications.where((a) => a.status == 'শুনানি').length;
-  int get _passedCount => DemoStore.applications
-      .where((a) => a.status == 'মঞ্জুর' || a.status == 'ডিসিআর প্রস্তুত' || a.status == 'পাশ' || a.status == 'PER')
-      .length;
-  int get _completedCount => DemoStore.applications.where((a) => a.status == 'সম্পন্ন').length;
-
-  List<DemoApplication> get _recentApplications => DemoStore.applications.take(4).toList();
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isNavigatingToTasks = false;
 
   void _openTasks() async {
@@ -42,11 +35,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(builder: (ctx) => const TaskListScreen()),
     );
     _isNavigatingToTasks = false;
-    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final appsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final todayTasksAsync = ref.watch(todayTasksCountProvider);
+    final todayTasksCount = todayTasksAsync.valueOrNull ?? 0;
+
+    final apps = appsAsync.valueOrNull ?? const [];
+    final totalCount = apps.length;
+
+    final ongoingCount = apps
+        .where((a) =>
+            a.application.status != 'সম্পন্ন' &&
+            a.application.status != 'নামঞ্জুর' &&
+            a.application.status != 'বাতিল')
+        .length;
+    final hearingCount =
+        apps.where((a) => a.application.status == 'শুনানি').length;
+    final passedCount = apps
+        .where((a) =>
+            a.application.status == 'মঞ্জুর' ||
+            a.application.status == 'ডিসিআর প্রস্তুত' ||
+            a.application.status == 'পাশ' ||
+            a.application.status == 'PER')
+        .length;
+    final completedCount =
+        apps.where((a) => a.application.status == 'সম্পন্ন').length;
+
+    final recentApplications =
+        apps.take(4).map((a) => a.toDemoApplication()).toList();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -101,23 +121,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.cloud_done_outlined, color: AppColors.emerald, size: 22),
+            icon: const Icon(Icons.cloud_done_outlined,
+                color: AppColors.emerald, size: 22),
             tooltip: 'ব্যাকআপ স্ট্যাটাস',
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const BackupRestoreScreen()),
+                MaterialPageRoute(
+                    builder: (ctx) => const BackupRestoreScreen()),
               );
             },
           ),
           Padding(
             padding: const EdgeInsets.only(right: 6),
             child: IconButton(
-              tooltip: 'আজকের কাজ (${BengaliDigits.toBengali(DemoStore.todayTasksCount)})',
+              tooltip:
+                  'আজকের কাজ (${BengaliDigits.toBengali(todayTasksCount)})',
               onPressed: _openTasks,
               icon: Badge(
-                isLabelVisible: DemoStore.todayTasksCount > 0,
+                isLabelVisible: todayTasksCount > 0,
                 label: Text(
-                  BengaliDigits.toBengali(DemoStore.todayTasksCount),
+                  BengaliDigits.toBengali(todayTasksCount),
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -133,10 +156,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() {});
+          ref.invalidate(applicationsWithFinancialsStreamProvider);
+          ref.invalidate(todayTasksCountProvider);
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.xl),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.xl),
           children: [
             // Instant Search Box - Jump to file directly
             _buildInstantSearchBar(),
@@ -149,12 +174,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: AppSpacing.base),
 
             // Application Pipeline Status (Counts ONLY - Zero Money)
-            _buildApplicationStatusGrid(),
+            _buildApplicationStatusGrid(
+              totalCount: totalCount,
+              ongoingCount: ongoingCount,
+              hearingCount: hearingCount,
+              passedCount: passedCount,
+              completedCount: completedCount,
+            ),
 
             const SizedBox(height: AppSpacing.base),
 
             // Recent Applications Section (Zero Money displayed)
-            _buildRecentApplicationsSection(),
+            _buildRecentApplicationsSection(
+              recentApplications: recentApplications,
+              totalCount: totalCount,
+            ),
           ],
         ),
       ),
@@ -190,7 +224,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: Text(
                   'গ্রাহক নাম, মোবাইল বা কেস নম্বর দিয়ে ফাইল খুঁজুন...',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.slate400),
+                  style:
+                      AppTypography.bodyMedium.copyWith(color: AppColors.slate400),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -203,7 +238,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: Text(
                   'খুঁজুন',
-                  style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontSize: 11),
+                  style: AppTypography.labelMedium
+                      .copyWith(color: AppColors.primary, fontSize: 11),
                 ),
               ),
             ],
@@ -215,7 +251,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildQuickActions() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.md, horizontal: AppSpacing.sm),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
@@ -230,8 +267,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: AppColors.primary,
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const ApplicationCreateScreen()),
-              ).then((_) => setState(() {}));
+                MaterialPageRoute(
+                    builder: (ctx) => const ApplicationCreateScreen()),
+              );
             },
           ),
           _buildQuickActionBtn(
@@ -240,8 +278,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: const Color(0xFF8B5CF6),
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const TaskCreateEditScreen()),
-              ).then((_) => setState(() {}));
+                MaterialPageRoute(
+                    builder: (ctx) => const TaskCreateEditScreen()),
+              );
             },
           ),
           _buildQuickActionBtn(
@@ -251,7 +290,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (ctx) => const PersonListScreen()),
-              ).then((_) => setState(() {}));
+              );
             },
           ),
           _buildQuickActionBtn(
@@ -260,8 +299,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: AppColors.slate600,
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const OfficeManagementScreen()),
-              ).then((_) => setState(() {}));
+                MaterialPageRoute(
+                    builder: (ctx) => const OfficeManagementScreen()),
+              );
             },
           ),
         ],
@@ -305,7 +345,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildApplicationStatusGrid() {
+  Widget _buildApplicationStatusGrid({
+    required int totalCount,
+    required int ongoingCount,
+    required int hearingCount,
+    required int passedCount,
+    required int completedCount,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
@@ -321,11 +367,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Text(
                 'ফাইলের বর্তমান অবস্থা',
-                style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
+                style: AppTypography.headingSmall
+                    .copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
               ),
               Text(
-                'মোট ${BengaliDigits.toBengali(DemoStore.applications.length)} টি ফাইল',
-                style: AppTypography.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                'মোট ${BengaliDigits.toBengali(totalCount)} টি ফাইল',
+                style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -334,28 +382,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               _buildPipelineStatusItem(
                 label: 'চলমান',
-                count: _ongoingCount,
+                count: ongoingCount,
                 color: AppColors.primary,
                 status: null,
               ),
               const SizedBox(width: AppSpacing.sm),
               _buildPipelineStatusItem(
                 label: 'শুনানি',
-                count: _hearingCount,
+                count: hearingCount,
                 color: const Color(0xFF8B5CF6),
                 status: 'শুনানি',
               ),
               const SizedBox(width: AppSpacing.sm),
               _buildPipelineStatusItem(
                 label: 'অনুমোদিত',
-                count: _passedCount,
+                count: passedCount,
                 color: AppColors.emerald,
                 status: 'মঞ্জুর',
               ),
               const SizedBox(width: AppSpacing.sm),
               _buildPipelineStatusItem(
                 label: 'সম্পন্ন',
-                count: _completedCount,
+                count: completedCount,
                 color: const Color(0xFF16A34A),
                 status: 'সম্পন্ন',
               ),
@@ -377,7 +425,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (ctx) => ApplicationListScreen(initialStatusFilter: status),
+              builder: (ctx) =>
+                  ApplicationListScreen(initialStatusFilter: status),
             ),
           );
         },
@@ -417,9 +466,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRecentApplicationsSection() {
-    final apps = _recentApplications;
-
+  Widget _buildRecentApplicationsSection({
+    required List<DemoApplication> recentApplications,
+    required int totalCount,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -428,25 +478,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Text(
               'সাম্প্রতিক ফাইলের অগ্রগতি',
-              style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+              style: AppTypography.headingSmall
+                  .copyWith(fontSize: 15, fontWeight: FontWeight.w700),
             ),
             InkWell(
               onTap: () => widget.onNavigateTab?.call(1),
               child: Text(
-                'সকল আবেদন (${BengaliDigits.toBengali(DemoStore.applications.length)})',
-                style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                'সকল আবেদন (${BengaliDigits.toBengali(totalCount)})',
+                style: AppTypography.labelMedium
+                    .copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
               ),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
         // Render with showFinancials: false -> Zero Money on Home!
-        ...apps.map((app) => Padding(
+        ...recentApplications.map((app) => Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.base),
               child: ApplicationCard(
                 application: app,
                 showFinancials: false,
-                onRefresh: () => setState(() {}),
+                onRefresh: () {
+                  ref.invalidate(applicationsWithFinancialsStreamProvider);
+                },
               ),
             )),
       ],

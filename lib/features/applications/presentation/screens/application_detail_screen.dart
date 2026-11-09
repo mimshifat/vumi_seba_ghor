@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -12,20 +13,25 @@ import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../documents/presentation/screens/document_viewer_screen.dart';
+import '../../../finance/presentation/providers/finance_providers.dart';
 import '../../../finance/presentation/screens/payment_form_screen.dart';
+import '../../../references/presentation/providers/reference_providers.dart';
 import '../../../references/presentation/screens/reference_detail_screen.dart';
+import '../providers/application_providers.dart';
 import 'application_edit_screen.dart';
 
-class ApplicationDetailScreen extends StatefulWidget {
+class ApplicationDetailScreen extends ConsumerStatefulWidget {
   final DemoApplication application;
 
   const ApplicationDetailScreen({super.key, required this.application});
 
   @override
-  State<ApplicationDetailScreen> createState() => _ApplicationDetailScreenState();
+  ConsumerState<ApplicationDetailScreen> createState() =>
+      _ApplicationDetailScreenState();
 }
 
-class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
+class _ApplicationDetailScreenState
+    extends ConsumerState<ApplicationDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late DemoApplication _app;
@@ -459,12 +465,13 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                           child: AppButton(
                             text: 'অবস্থা হালনাগাদ',
                             height: 42,
-                            onPressed: () {
+                            onPressed: () async {
                               final rawAmount = amountController.text
                                   .replaceAll(',', '')
                                   .replaceAll('৳', '')
                                   .trim();
                               final taka = int.tryParse(BengaliDigits.toEnglish(rawAmount)) ?? 0;
+                              final expensePaisa = taka > 0 ? Money.fromTaka(taka).paisa : null;
                               final userNote = noteController.text.trim();
 
                               final statusChanged = selectedStatus != _app.status;
@@ -475,123 +482,51 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                                 return;
                               }
 
-                              final shId = 'sh-${DateTime.now().millisecondsSinceEpoch}';
-                              String? historyNote;
-                              if (userNote.isNotEmpty) {
-                                historyNote = userNote;
-                              }
-
-                              // Hearing task integration
+                              DateTime? hDueDate;
+                              String? hTaskTitle;
                               if (selectedStatus == 'শুনানি' && createHearingTask) {
-                                final hTimeStr = '${BengaliDigits.toBengali(hearingTime.hourOfPeriod == 0 ? 12 : hearingTime.hourOfPeriod)}:${BengaliDigits.toBengali(hearingTime.minute.toString().padLeft(2, '0'))} ${hearingTime.period == DayPeriod.am ? 'সকাল' : 'বিকাল'}';
-                                final hDateFormatted = '${BengaliDigits.toBengali(hearingDate.day)}/${BengaliDigits.toBengali(hearingDate.month)}/${BengaliDigits.toBengali(hearingDate.year)}';
+                                hDueDate = DateTime(
+                                  hearingDate.year,
+                                  hearingDate.month,
+                                  hearingDate.day,
+                                  hearingTime.hour,
+                                  hearingTime.minute,
+                                );
+                                hTaskTitle = '${_app.applicantName} - শুনানিতে উপস্থিতি';
+                              }
 
-                                DemoStore.tasks.insert(
-                                  0,
-                                  DemoTask(
-                                    id: 'tsk-h-${DateTime.now().millisecondsSinceEpoch}',
-                                    title: '${_app.applicantName} - শুনানিতে উপস্থিতি',
-                                    description: 'মৌজা: ${_app.mouza}, কেস: ${_app.caseNumber ?? _app.appNumber}। মূল দলিল ও প্রয়োজনীয় কাগজপত্রসহ শুনানিতে উপস্থিত থাকতে হবে।',
-                                    dueDate: hearingDate,
-                                    dueTime: hTimeStr,
-                                    priority: 'জরুরি',
-                                    status: 'করতে হবে',
-                                    category: 'শুনানি',
-                                    relatedApplicationId: _app.id,
-                                    relatedApplicantName: _app.applicantName,
+                              try {
+                                await ref
+                                    .read(applicationControllerProvider.notifier)
+                                    .transitionStatus(
+                                      applicationId: _app.id,
+                                      newStatus: selectedStatus,
+                                      note: userNote.isNotEmpty ? userNote : null,
+                                      feeExpensePaisa: expensePaisa,
+                                      feeExpenseCategory: 'কাজের খরচ',
+                                      hearingTaskTitle: hTaskTitle,
+                                      hearingTaskDueDate: hDueDate,
+                                      hearingTaskPriority: 'জরুরি',
+                                    );
+
+                                if (!ctx.mounted) return;
+                                Navigator.pop(ctx);
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('ফাইলের অবস্থা সফলভাবে "$selectedStatus" এ হালনাগাদ হয়েছে।'),
+                                    backgroundColor: AppColors.emerald,
                                   ),
                                 );
-
-                                historyNote ??= 'শুনানির তারিখ নির্ধারণ: $hDateFormatted ($hTimeStr)';
-                              }
-
-                              List<DemoExpense> updatedExpenses = List<DemoExpense>.from(_app.expenses);
-                              Money newExpense = _app.expenseAmount;
-
-                              if (hasExpense) {
-                                final newExp = DemoExpense(
-                                  id: 'exp-sh-${DateTime.now().millisecondsSinceEpoch}',
-                                  applicationId: _app.id,
-                                  applicationTitle: '${_app.workType} - ${_app.applicantName}',
-                                  amount: Money.fromTaka(taka),
-                                  category: 'কাজের খরচ',
-                                  date: DateTime.now(),
-                                  isGeneral: false,
-                                  note: userNote.isNotEmpty
-                                      ? '$userNote ($selectedStatus)'
-                                      : '$selectedStatus - কাজের খরচ',
-                                  statusHistoryId: shId,
-                                  statusName: selectedStatus,
-                                  isStatusExpense: true,
-                                );
-                                updatedExpenses.insert(0, newExp);
-                                newExpense = _app.expenseAmount + Money.fromTaka(taka);
-
-                                historyNote = [
-                                  if (historyNote != null) historyNote,
-                                  'কাজের খরচ: ৳${BengaliDigits.toBengali(taka)}',
-                                ].join(' • ');
-                              }
-
-                              final updatedHistory = List<DemoStatusHistory>.from(_app.statusHistory)
-                                ..insert(
-                                  0,
-                                  DemoStatusHistory(
-                                    id: shId,
-                                    prevStatus: _app.status,
-                                    newStatus: selectedStatus,
-                                    changedAt: DateTime.now(),
-                                    note: historyNote,
+                              } catch (e) {
+                                if (!ctx.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e.toString()),
+                                    backgroundColor: AppColors.rose,
                                   ),
                                 );
-
-                              final updatedApp = DemoApplication(
-                                id: _app.id,
-                                applicantId: _app.applicantId,
-                                applicantName: _app.applicantName,
-                                applicantPhone: _app.applicantPhone,
-                                applicantAddress: _app.applicantAddress,
-                                referencePersonId: _app.referencePersonId,
-                                referencePersonName: _app.referencePersonName,
-                                mouza: _app.mouza,
-                                appNumber: _app.appNumber,
-                                caseNumber: _app.caseNumber,
-                                workType: _app.workType,
-                                officeName: _app.officeName,
-                                applicationDate: _app.applicationDate,
-                                status: selectedStatus,
-                                agreedAmount: _app.agreedAmount,
-                                receivedAmount: _app.receivedAmount,
-                                expenseAmount: newExpense,
-                                notes: _app.notes,
-                                payments: _app.payments,
-                                expenses: updatedExpenses,
-                                statusHistory: updatedHistory,
-                                documents: _app.documents,
-                              );
-
-                              final idx = DemoStore.applications.indexWhere((a) => a.id == _app.id);
-                              if (idx != -1) {
-                                DemoStore.applications[idx] = updatedApp;
                               }
-
-                              setState(() {
-                                _app = updatedApp;
-                              });
-
-                              Navigator.pop(ctx);
-
-                              String msg = 'অবস্থা পরিবর্তন করে "$selectedStatus" করা হয়েছে।';
-                              if (hasExpense) {
-                                msg += ' (৳${BengaliDigits.toBengali(taka)} খরচ সংরক্ষিত)';
-                              }
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(msg),
-                                  backgroundColor: AppColors.emerald,
-                                ),
-                              );
                             },
                           ),
                         ),
@@ -703,21 +638,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                       onPressed: () {
-                        final userNote = noteCtrl.text.trim();
-                        final updatedApp = _app.copyWith(
-                          isMarkedAsPaid: true,
-                          notes: _app.notes != null && _app.notes!.isNotEmpty
-                              ? '${_app.notes}\n• $userNote (${_app.rawDueAmount.formatBengali()})'
-                              : '• $userNote (${_app.rawDueAmount.formatBengali()})',
-                        );
-
-                        final idx = DemoStore.applications.indexWhere((a) => a.id == _app.id);
-                        if (idx != -1) {
-                          DemoStore.applications[idx] = updatedApp;
-                        }
+                        ref
+                            .read(applicationControllerProvider.notifier)
+                            .markAsPaid(_app.id, true);
 
                         setState(() {
-                          _app = updatedApp;
+                          _app = _app.copyWith(isMarkedAsPaid: true);
                         });
 
                         Navigator.pop(ctx);
@@ -749,13 +675,11 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   void _unmarkAsPaid() {
-    final updatedApp = _app.copyWith(isMarkedAsPaid: false);
-    final idx = DemoStore.applications.indexWhere((a) => a.id == _app.id);
-    if (idx != -1) {
-      DemoStore.applications[idx] = updatedApp;
-    }
+    ref
+        .read(applicationControllerProvider.notifier)
+        .markAsPaid(_app.id, false);
     setState(() {
-      _app = updatedApp;
+      _app = _app.copyWith(isMarkedAsPaid: false);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -767,6 +691,73 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final appsWithFin =
+        ref.watch(applicationsWithFinancialsStreamProvider).valueOrNull;
+    final matched = appsWithFin
+        ?.where((a) => a.application.id == _app.id)
+        .firstOrNull;
+    if (matched != null) {
+      _app = matched.toDemoApplication();
+    }
+
+    final livePayments =
+        ref.watch(applicationPaymentsProvider(_app.id)).valueOrNull;
+    final liveExpenses =
+        ref.watch(applicationExpensesProvider(_app.id)).valueOrNull;
+    final liveHistory =
+        ref.watch(applicationStatusHistoryProvider(_app.id)).valueOrNull;
+
+    if (livePayments != null) {
+      _app = _app.copyWith(
+        payments: livePayments
+            .map((p) => DemoPayment(
+                  id: p.id,
+                  applicationId: p.applicationId,
+                  amount: Money.fromPaisa(p.amount),
+                  date: DateTime.fromMillisecondsSinceEpoch(p.date),
+                  method: p.method,
+                  note: p.note,
+                  statusHistoryId: p.statusHistoryId,
+                  statusName: p.statusName,
+                  isStatusFee: p.isStatusFee == 1,
+                ))
+            .toList(),
+      );
+    }
+
+    if (liveExpenses != null) {
+      _app = _app.copyWith(
+        expenses: liveExpenses
+            .map((e) => DemoExpense(
+                  id: e.id,
+                  applicationId: e.applicationId,
+                  applicationTitle: '${_app.workType} - ${_app.applicantName}',
+                  amount: Money.fromPaisa(e.amount),
+                  category: e.category,
+                  date: DateTime.fromMillisecondsSinceEpoch(e.date),
+                  isGeneral: e.isGeneral == 1,
+                  note: e.note,
+                  statusHistoryId: e.statusHistoryId,
+                  statusName: e.statusName,
+                  isStatusExpense: e.isStatusExp == 1,
+                ))
+            .toList(),
+      );
+    }
+
+    if (liveHistory != null) {
+      _app = _app.copyWith(
+        statusHistory: liveHistory
+            .map((h) => DemoStatusHistory(
+                  id: h.id,
+                  prevStatus: h.prevStatus ?? '',
+                  newStatus: h.newStatus,
+                  changedAt: DateTime.fromMillisecondsSinceEpoch(h.changedAt),
+                  note: h.note,
+                ))
+            .toList(),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -837,6 +828,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                 icon: Icons.delete_forever_rounded,
               );
               if (confirmed == true) {
+                if (!context.mounted) return;
+                await ref
+                    .read(applicationControllerProvider.notifier)
+                    .deleteApplication(_app.id);
                 if (!context.mounted) return;
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -991,12 +986,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                       dueAmount: _app.dueAmount,
                     ),
                   ),
-                ).then((_) {
-                  final idx = DemoStore.applications.indexWhere((a) => a.id == _app.id);
-                  if (idx != -1) {
-                    setState(() => _app = DemoStore.applications[idx]);
-                  }
-                });
+                );
               },
             ),
           ],
@@ -1044,14 +1034,21 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                 trailing: InkWell(
                   onTap: () {
                     DemoReference? ref;
-                    if (_app.referencePersonId != null) {
-                      ref = DemoStore.references.cast<DemoReference?>().firstWhere(
-                            (r) => r?.id == _app.referencePersonId,
-                            orElse: () => null,
-                          );
+                    final liveRefs = this.ref.read(referencesStreamProvider).valueOrNull;
+                    if (_app.referencePersonId != null && liveRefs != null) {
+                      final found = liveRefs.where((r) => r.id == _app.referencePersonId).firstOrNull;
+                      if (found != null) {
+                        ref = DemoReference(id: found.id, name: found.name, phone: found.phone, address: found.address);
+                      }
+                    }
+                    if (ref == null && liveRefs != null) {
+                      final found = liveRefs.where((r) => r.name == _app.referencePersonName).firstOrNull;
+                      if (found != null) {
+                        ref = DemoReference(id: found.id, name: found.name, phone: found.phone, address: found.address);
+                      }
                     }
                     ref ??= DemoStore.references.cast<DemoReference?>().firstWhere(
-                          (r) => r?.name == _app.referencePersonName,
+                          (r) => r?.id == _app.referencePersonId || r?.name == _app.referencePersonName,
                           orElse: () => null,
                         );
                     if (ref != null) {
@@ -1653,12 +1650,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                       dueAmount: _app.dueAmount,
                     ),
                   ),
-                ).then((_) {
-                  final idx = DemoStore.applications.indexWhere((a) => a.id == _app.id);
-                  if (idx != -1) {
-                    setState(() => _app = DemoStore.applications[idx]);
-                  }
-                });
+                );
               },
             ),
           ],

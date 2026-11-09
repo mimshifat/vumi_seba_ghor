@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
@@ -9,7 +10,9 @@ import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/summary_card.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/screens/application_detail_screen.dart';
+import '../providers/finance_providers.dart';
 import 'due_management_screen.dart';
 import 'expense_form_screen.dart';
 import 'income_form_screen.dart';
@@ -25,14 +28,16 @@ enum FinancialFilterType {
   customRange,
 }
 
-class FinancialOverviewScreen extends StatefulWidget {
+class FinancialOverviewScreen extends ConsumerStatefulWidget {
   const FinancialOverviewScreen({super.key});
 
   @override
-  State<FinancialOverviewScreen> createState() => _FinancialOverviewScreenState();
+  ConsumerState<FinancialOverviewScreen> createState() =>
+      _FinancialOverviewScreenState();
 }
 
-class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
+class _FinancialOverviewScreenState
+    extends ConsumerState<FinancialOverviewScreen> {
   static const List<String> _bengaliMonths = [
     'জানুয়ারি',
     'ফেব্রুয়ারি',
@@ -346,8 +351,53 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
     );
   }
 
+  TransactionSource _parseSource(String source) {
+    switch (source) {
+      case 'applicationPayment':
+        return TransactionSource.applicationPayment;
+      case 'applicationExpense':
+        return TransactionSource.applicationExpense;
+      case 'independentIncome':
+        return TransactionSource.independentIncome;
+      case 'generalExpense':
+        return TransactionSource.generalExpense;
+      case 'statusFee':
+        return TransactionSource.statusIncome;
+      case 'statusExpense':
+        return TransactionSource.statusExpense;
+      default:
+        return TransactionSource.generalExpense;
+    }
+  }
+
+  List<DemoTransaction> _getAllTransactions() {
+    final liveTx = ref.watch(unifiedTransactionsStreamProvider).valueOrNull;
+    if (liveTx != null) {
+      return liveTx.map((tx) {
+        return DemoTransaction(
+          id: tx.id ?? '',
+          type: tx.type == 'income'
+              ? TransactionType.income
+              : TransactionType.expense,
+          source: _parseSource(tx.source),
+          amount: Money.fromPaisa(tx.amount),
+          date: DateTime.fromMillisecondsSinceEpoch(tx.date),
+          category: tx.category,
+          applicationId: tx.applicationId,
+          applicantName: tx.applicantName,
+          customerName: tx.customerName,
+          paymentMethod: tx.paymentMethod,
+          statusHistoryId: tx.statusHistoryId,
+          statusName: tx.statusName,
+          note: tx.note,
+        );
+      }).toList();
+    }
+    return const [];
+  }
+
   List<DemoTransaction> _getFilteredTransactions() {
-    final all = DemoStore.getAllTransactions();
+    final all = _getAllTransactions();
     switch (_filterType) {
       case FinancialFilterType.thisMonth:
       case FinancialFilterType.lastMonth:
@@ -431,7 +481,12 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dueApps = DemoStore.getDueApplications();
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? const [];
+    final dueApps = allApps
+        .where((a) => a.effectiveDue.isPositive)
+        .map((a) => a.toDemoApplication())
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -726,7 +781,12 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
     final netIncome = _filteredNetIncome;
     final totalIncome = _filteredIncome;
     final totalExpense = _filteredExpense;
-    final totalDue = DemoStore.totalOutstandingDue;
+    final allApps = ref.watch(applicationsWithFinancialsStreamProvider).valueOrNull ?? [];
+    int totalDuePaisa = 0;
+    for (final a in allApps) {
+      totalDuePaisa += a.effectiveDue.paisa;
+    }
+    final totalDue = Money.fromPaisa(totalDuePaisa);
     final filteredTxs = _getFilteredTransactions();
 
     final isPositiveIncome = !netIncome.isNegative;
@@ -888,8 +948,20 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
 
   /// 3. Daily Summary Cards (Shows today's snapshot when viewing current month)
   Widget _buildTodaySummary() {
-    final todayIncome = DemoStore.todayIncome;
-    final todayExpense = DemoStore.todayExpense;
+    final now = DateTime.now();
+    int todayIncomePaisa = 0;
+    int todayExpensePaisa = 0;
+    for (final t in _getAllTransactions()) {
+      if (t.date.year == now.year && t.date.month == now.month && t.date.day == now.day) {
+        if (t.type == TransactionType.income) {
+          todayIncomePaisa += t.amount.paisa;
+        } else {
+          todayExpensePaisa += t.amount.paisa;
+        }
+      }
+    }
+    final todayIncome = Money.fromPaisa(todayIncomePaisa);
+    final todayExpense = Money.fromPaisa(todayExpensePaisa);
 
     return Row(
       children: [
@@ -1162,7 +1234,12 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
 
   /// 5. Outstanding Dues Section (বকেয়া তালিকা)
   Widget _buildOutstandingDuesSection(List<DemoApplication> dueApps) {
-    final totalDue = DemoStore.totalOutstandingDue;
+    final allApps = ref.watch(applicationsWithFinancialsStreamProvider).valueOrNull ?? [];
+    int totalDuePaisa = 0;
+    for (final a in allApps) {
+      totalDuePaisa += a.effectiveDue.paisa;
+    }
+    final totalDue = Money.fromPaisa(totalDuePaisa);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),

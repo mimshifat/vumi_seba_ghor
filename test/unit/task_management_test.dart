@@ -1,14 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bhumi_kajer_hisab/core/demo/demo_data.dart';
 import 'package:bhumi_kajer_hisab/core/theme/app_theme.dart';
 import 'package:bhumi_kajer_hisab/core/utils/bengali_digits.dart';
+import 'package:bhumi_kajer_hisab/features/applications/presentation/providers/application_providers.dart';
 import 'package:bhumi_kajer_hisab/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:bhumi_kajer_hisab/features/settings/presentation/providers/settings_providers.dart';
+import 'package:bhumi_kajer_hisab/features/tasks/presentation/providers/task_providers.dart';
 import 'package:bhumi_kajer_hisab/features/tasks/presentation/screens/task_create_edit_screen.dart';
 import 'package:bhumi_kajer_hisab/features/tasks/presentation/screens/task_detail_screen.dart';
 import 'package:bhumi_kajer_hisab/features/tasks/presentation/screens/task_list_screen.dart';
 
 void main() {
+  Widget buildTestScope(Widget screen, {int? todayCount}) {
+    return ProviderScope(
+      overrides: [
+        applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
+        todayTasksCountProvider.overrideWith((ref) => Future.value(todayCount ?? DemoStore.todayTasksCount)),
+        tasksStreamProvider.overrideWith((ref) => Stream.value([])),
+        taskDetailProvider.overrideWith((ref, id) => const Stream.empty()),
+        shopSettingsStreamProvider.overrideWith((ref) => Stream.value({})),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: screen,
+      ),
+    );
+  }
+
   group('Task Management & Architecture Tests', () {
     test('DemoTask model detects isToday, isOverdue, and isCompleted properly', () {
       final now = DateTime.now();
@@ -54,10 +74,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const DashboardScreen(),
-        ),
+        buildTestScope(const DashboardScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -74,10 +91,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const TaskListScreen(),
-        ),
+        buildTestScope(const TaskListScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -106,10 +120,7 @@ void main() {
       final initialTitle = task.title;
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const TaskListScreen(),
-        ),
+        buildTestScope(const TaskListScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -131,10 +142,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const TaskCreateEditScreen(),
-        ),
+        buildTestScope(const TaskCreateEditScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -165,10 +173,7 @@ void main() {
 
       final sampleTask = DemoStore.tasks.first;
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: TaskDetailScreen(task: sampleTask),
-        ),
+        buildTestScope(TaskDetailScreen(task: sampleTask)),
       );
       await tester.pumpAndSettle();
 
@@ -178,4 +183,3 @@ void main() {
     });
   });
 }
-

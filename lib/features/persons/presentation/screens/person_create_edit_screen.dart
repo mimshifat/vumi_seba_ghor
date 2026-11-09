@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
-import '../../../../core/utils/money.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../providers/person_providers.dart';
 
-class PersonCreateEditScreen extends StatefulWidget {
-  final DemoPerson? person;
+class PersonCreateEditScreen extends ConsumerStatefulWidget {
+  final dynamic person; // accepts Person or DemoPerson
 
   const PersonCreateEditScreen({super.key, this.person});
 
   @override
-  State<PersonCreateEditScreen> createState() => _PersonCreateEditScreenState();
+  ConsumerState<PersonCreateEditScreen> createState() =>
+      _PersonCreateEditScreenState();
 }
 
-class _PersonCreateEditScreenState extends State<PersonCreateEditScreen> {
+class _PersonCreateEditScreenState
+    extends ConsumerState<PersonCreateEditScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
@@ -24,13 +29,38 @@ class _PersonCreateEditScreenState extends State<PersonCreateEditScreen> {
 
   bool get _isEditing => widget.person != null;
 
+  String? get _personId => widget.person is Person
+      ? (widget.person as Person).id
+      : widget.person is DemoPerson
+          ? (widget.person as DemoPerson).id
+          : null;
+
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.person?.name ?? '');
-    _phoneController = TextEditingController(text: widget.person?.phone ?? '');
-    _addressController = TextEditingController(text: widget.person?.address ?? '');
-    _notesController = TextEditingController(text: widget.person?.notes ?? '');
+    String initName = '';
+    String initPhone = '';
+    String initAddress = '';
+    String initNotes = '';
+
+    if (widget.person is Person) {
+      final p = widget.person as Person;
+      initName = p.name;
+      initPhone = p.phone;
+      initAddress = p.address ?? '';
+      initNotes = p.notes ?? '';
+    } else if (widget.person is DemoPerson) {
+      final p = widget.person as DemoPerson;
+      initName = p.name;
+      initPhone = p.phone;
+      initAddress = p.address ?? '';
+      initNotes = p.notes ?? '';
+    }
+
+    _nameController = TextEditingController(text: initName);
+    _phoneController = TextEditingController(text: initPhone);
+    _addressController = TextEditingController(text: initAddress);
+    _notesController = TextEditingController(text: initNotes);
   }
 
   @override
@@ -42,51 +72,81 @@ class _PersonCreateEditScreenState extends State<PersonCreateEditScreen> {
     super.dispose();
   }
 
-  void _savePerson() {
+  Future<void> _savePerson() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_isEditing) {
-      final updated = DemoPerson(
-        id: widget.person!.id,
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
-        notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
-        applicationCount: widget.person!.applicationCount,
-        totalAgreed: widget.person!.totalAgreed,
-        totalDue: widget.person!.totalDue,
-      );
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final address = _addressController.text.trim().isNotEmpty
+        ? _addressController.text.trim()
+        : null;
+    final notes = _notesController.text.trim().isNotEmpty
+        ? _notesController.text.trim()
+        : null;
 
-      final idx = DemoStore.persons.indexWhere((p) => p.id == widget.person!.id);
-      if (idx != -1) DemoStore.persons[idx] = updated;
+    try {
+      if (_isEditing && _personId != null) {
+        await ref.read(personControllerProvider.notifier).updatePerson(
+              id: _personId!,
+              name: name,
+              phone: phone,
+              address: address,
+              notes: notes,
+            );
 
+        // Also update DemoStore if present for backwards compatibility
+        final idx = DemoStore.persons.indexWhere((p) => p.id == _personId);
+        if (idx != -1) {
+          DemoStore.persons[idx] = DemoPerson(
+            id: _personId!,
+            name: name,
+            phone: phone,
+            address: address,
+            notes: notes,
+            totalAgreed: DemoStore.persons[idx].totalAgreed,
+            totalDue: DemoStore.persons[idx].totalDue,
+          );
+        }
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ব্যক্তির তথ্য সফলভাবে হালনাগাদ করা হয়েছে।'),
+            backgroundColor: AppColors.emerald,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        final created = await ref.read(personControllerProvider.notifier).createPerson(
+              name: name,
+              phone: phone,
+              address: address,
+              notes: notes,
+            );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('নতুন ব্যক্তি "$name" সফলভাবে সংরক্ষিত হয়েছে।'),
+            backgroundColor: AppColors.emerald,
+          ),
+        );
+        Navigator.pop(context, created ?? true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is AppFailure ? e.message : 'ব্যক্তির তথ্য সংরক্ষণ করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ব্যক্তির তথ্য হালনাগাদ করা হয়েছে।'), backgroundColor: AppColors.emerald),
+        SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
       );
-      Navigator.pop(context, updated);
-    } else {
-      final newPerson = DemoPerson(
-        id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
-        notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
-        applicationCount: 0,
-        totalAgreed: Money.zero,
-        totalDue: Money.zero,
-      );
-
-      DemoStore.persons.insert(0, newPerson);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('নতুন ব্যক্তি "${newPerson.name}" সংরক্ষিত হয়েছে।'), backgroundColor: AppColors.emerald),
-      );
-      Navigator.pop(context, newPerson);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final mutationState = ref.watch(personControllerProvider);
+    final isLoading = mutationState.isLoading;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -106,7 +166,6 @@ class _PersonCreateEditScreenState extends State<PersonCreateEditScreen> {
               ),
               child: Column(
                 children: [
-                  // Photo Avatar Mockup
                   Center(
                     child: Stack(
                       children: [
@@ -136,7 +195,8 @@ class _PersonCreateEditScreenState extends State<PersonCreateEditScreen> {
                     hint: 'যেমন: মো: রহিম উদ্দিন',
                     controller: _nameController,
                     isRequired: true,
-                    validator: (v) => v == null || v.trim().isEmpty ? 'নাম আবশ্যক' : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'নাম আবশ্যক' : null,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AppTextField(
@@ -145,7 +205,9 @@ class _PersonCreateEditScreenState extends State<PersonCreateEditScreen> {
                     controller: _phoneController,
                     isRequired: true,
                     keyboardType: TextInputType.phone,
-                    validator: (v) => v == null || v.trim().isEmpty ? 'মোবাইল নম্বর আবশ্যক' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'মোবাইল নম্বর আবশ্যক'
+                        : null,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AppTextField(
@@ -167,7 +229,8 @@ class _PersonCreateEditScreenState extends State<PersonCreateEditScreen> {
             AppButton(
               text: _isEditing ? 'পরিবর্তন সংরক্ষণ করুন' : 'সংরক্ষণ করুন',
               icon: Icons.check,
-              onPressed: _savePerson,
+              isLoading: isLoading,
+              onPressed: isLoading ? null : _savePerson,
             ),
           ],
         ),

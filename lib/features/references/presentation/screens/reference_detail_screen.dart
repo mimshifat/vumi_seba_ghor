@@ -1,42 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_field_label.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/widgets/application_card.dart';
-import '../../data/demo_reference_store.dart';
+import '../../domain/models/reference_stats.dart';
+import '../providers/reference_providers.dart';
 import '../widgets/reference_stats_row.dart';
 
-class ReferenceDetailScreen extends StatefulWidget {
-  final DemoReference reference;
+class ReferenceDetailScreen extends ConsumerStatefulWidget {
+  final dynamic reference; // Reference or DemoReference
+  final String? referenceId;
 
-  const ReferenceDetailScreen({super.key, required this.reference});
+  const ReferenceDetailScreen({
+    super.key,
+    this.reference,
+    this.referenceId,
+  });
 
   @override
-  State<ReferenceDetailScreen> createState() => _ReferenceDetailScreenState();
+  ConsumerState<ReferenceDetailScreen> createState() =>
+      _ReferenceDetailScreenState();
 }
 
-class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
-  late DemoReference _reference;
-
-  @override
-  void initState() {
-    super.initState();
-    _reference = widget.reference;
+class _ReferenceDetailScreenState
+    extends ConsumerState<ReferenceDetailScreen> {
+  String get _referenceId {
+    if (widget.referenceId != null) return widget.referenceId!;
+    if (widget.reference is Reference) return (widget.reference as Reference).id;
+    if (widget.reference is DemoReference) {
+      return (widget.reference as DemoReference).id;
+    }
+    return '';
   }
 
-  List<DemoApplication> get _referredApplications {
-    return ReferenceHelper.getApplicationsForReference(_reference.id, _reference.name);
-  }
-
-  void _showEditReferenceDialog() {
-    final nameController = TextEditingController(text: _reference.name);
-    final phoneController = TextEditingController(text: _reference.phone);
-    final addressController = TextEditingController(text: _reference.address ?? '');
-    final notesController = TextEditingController(text: _reference.notes ?? '');
+  void _showEditReferenceDialog(Reference current) {
+    final nameController = TextEditingController(text: current.name);
+    final phoneController = TextEditingController(text: current.phone);
+    final addressController =
+        TextEditingController(text: current.address ?? '');
+    final notesController = TextEditingController(text: current.notes ?? '');
 
     showModalBottomSheet(
       context: context,
@@ -70,13 +81,15 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 'রেফারেন্স তথ্য সম্পাদনা',
-                style: AppTypography.headingSmall.copyWith(fontWeight: FontWeight.w700),
+                style: AppTypography.headingSmall
+                    .copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: AppSpacing.base),
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(
-                  label: AppFieldLabel.inline(label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
+                  label: AppFieldLabel.inline(
+                      label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
                   hintText: 'যেমন: করিম মিয়া',
                 ),
               ),
@@ -85,7 +98,8 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  label: AppFieldLabel.inline(label: 'মোবাইল নম্বর', isRequired: true),
+                  label: AppFieldLabel.inline(
+                      label: 'মোবাইল নম্বর', isRequired: true),
                   hintText: '০১৭১১২২৩৩৪8',
                 ),
               ),
@@ -122,37 +136,46 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         final newName = nameController.text.trim();
                         final newPhone = phoneController.text.trim();
                         if (newName.isEmpty || newPhone.isEmpty) return;
 
-                        final updated = DemoReference(
-                          id: _reference.id,
-                          name: newName,
-                          phone: newPhone,
-                          address: addressController.text.trim().isNotEmpty
-                              ? addressController.text.trim()
-                              : null,
-                          notes: notesController.text.trim().isNotEmpty
-                              ? notesController.text.trim()
-                              : null,
-                          photo: _reference.photo,
-                        );
+                        try {
+                          await ref
+                              .read(referenceControllerProvider.notifier)
+                              .updateReference(
+                                id: _referenceId,
+                                name: newName,
+                                phone: newPhone,
+                                address:
+                                    addressController.text.trim().isNotEmpty
+                                        ? addressController.text.trim()
+                                        : null,
+                                notes: notesController.text.trim().isNotEmpty
+                                    ? notesController.text.trim()
+                                    : null,
+                              );
 
-                        final idx = DemoStore.references.indexWhere((r) => r.id == _reference.id);
-                        if (idx != -1) {
-                          DemoStore.references[idx] = updated;
+                          if (!mounted) return;
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('রেফারেন্স তথ্য আপডেট করা হয়েছে'),
+                              backgroundColor: AppColors.emerald,
+                            ),
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          final msg = e is AppFailure
+                              ? e.message
+                              : 'রেফারেন্স আপডেট করা যায়নি।';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(msg),
+                                backgroundColor: AppColors.rose),
+                          );
                         }
-
-                        setState(() => _reference = updated);
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('রেফারেন্স তথ্য আপডেট করা হয়েছে'),
-                            backgroundColor: AppColors.emerald,
-                          ),
-                        );
                       },
                       child: const Text('সংরক্ষণ করুন'),
                     ),
@@ -166,27 +189,125 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
     );
   }
 
+  Future<void> _confirmDelete(String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => const ConfirmDialog(
+        title: 'রেফারেন্স ব্যক্তি মুছে ফেলা',
+        message:
+            'আপনি কি নিশ্চিত এই রেফারেন্স ব্যক্তির তথ্য মুছে ফেলতে চান? অতীতে যুক্ত ফাইলের রেফারেন্স নাম সংরক্ষিত থাকবে।',
+        confirmText: 'হ্যাঁ, মুছুন',
+        isDestructive: true,
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final wasDeleted = await ref
+          .read(referenceControllerProvider.notifier)
+          .deleteReference(_referenceId);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(wasDeleted == true
+              ? '$name এর তথ্য মুছে ফেলা হয়েছে।'
+              : '$name এর তথ্য নিষ্ক্রিয় করা হয়েছে।'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is AppFailure
+          ? e.message
+          : 'রেফারেন্স ব্যক্তি মুছতে সমস্যা হয়েছে।';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final apps = _referredApplications;
-    final stats = ReferenceHelper.getStats(_reference.id, _reference.name);
+    final refAsync = ref.watch(referenceDetailProvider(_referenceId));
+    final liveRef = refAsync.valueOrNull;
+
+    final name = liveRef?.name ??
+        (widget.reference is Reference
+            ? (widget.reference as Reference).name
+            : (widget.reference is DemoReference
+                ? (widget.reference as DemoReference).name
+                : 'রেফারেন্স'));
+    final phone = liveRef?.phone ??
+        (widget.reference is Reference
+            ? (widget.reference as Reference).phone
+            : (widget.reference is DemoReference
+                ? (widget.reference as DemoReference).phone
+                : ''));
+    final address = liveRef?.address ??
+        (widget.reference is Reference
+            ? (widget.reference as Reference).address
+            : (widget.reference is DemoReference
+                ? (widget.reference as DemoReference).address
+                : null));
+    final notes = liveRef?.notes ??
+        (widget.reference is Reference
+            ? (widget.reference as Reference).notes
+            : (widget.reference is DemoReference
+                ? (widget.reference as DemoReference).notes
+                : null));
+
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? [];
+
+    final matchingApps = allApps.where((a) {
+      final app = a.application;
+      return (app.referenceId != null &&
+              app.referenceId == _referenceId) ||
+          (name.isNotEmpty &&
+              app.referenceName != null &&
+              app.referenceName!.trim() == name.trim());
+    }).toList();
+
+    final stats = ReferenceStats.fromApplications(matchingApps);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(_reference.name),
+        title: Text(name),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
             tooltip: 'সম্পাদনা',
-            onPressed: _showEditReferenceDialog,
+            onPressed: () {
+              if (liveRef != null) {
+                _showEditReferenceDialog(liveRef);
+              } else {
+                _showEditReferenceDialog(Reference(
+                  id: _referenceId,
+                  name: name,
+                  phone: phone,
+                  address: address,
+                  notes: notes,
+                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                  updatedAt: DateTime.now().millisecondsSinceEpoch,
+                ));
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: AppColors.rose),
+            tooltip: 'মুছে ফেলুন',
+            onPressed: () => _confirmDelete(name),
           ),
           IconButton(
             icon: const Icon(Icons.phone_in_talk, color: AppColors.emerald),
             tooltip: 'কল করুন',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${_reference.name} (${_reference.phone})-এ কল করা হচ্ছে...')),
+                SnackBar(content: Text('$name ($phone)-এ কল করা হচ্ছে...')),
               );
             },
           ),
@@ -196,7 +317,7 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
         padding: const EdgeInsets.all(AppSpacing.base),
         children: [
           // Profile Card
-          _buildProfileCard(),
+          _buildProfileCard(name: name, phone: phone, address: address, notes: notes),
 
           const SizedBox(height: AppSpacing.base),
 
@@ -217,10 +338,10 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildSectionHeader(
-                'যুক্ত আবেদনসমূহ (${BengaliDigits.toBengali(apps.length.toString())})',
+                'যুক্ত আবেদনসমূহ (${BengaliDigits.toBengali(matchingApps.length.toString())})',
                 Icons.folder_shared_outlined,
               ),
-              if (apps.isNotEmpty)
+              if (matchingApps.isNotEmpty)
                 Text(
                   'রেফারেন্সের হিস্টোরি',
                   style: AppTypography.bodySmall.copyWith(
@@ -233,18 +354,19 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
           const SizedBox(height: AppSpacing.sm),
 
           // Applications List
-          if (apps.isEmpty)
+          if (matchingApps.isEmpty)
             const EmptyState(
               icon: Icons.folder_open_outlined,
               title: 'কোনো আবেদন নেই',
-              message: 'এই রেফারেন্স ব্যক্তির মাধ্যমে এখনও কোনো আবেদন এন্ট্রি করা হয়নি।',
+              message:
+                  'এই রেফারেন্স ব্যক্তির মাধ্যমে এখনও কোনো আবেদন এন্ট্রি করা হয়নি।',
             )
           else
-            ...apps.map(
-              (app) => Padding(
+            ...matchingApps.map(
+              (appWithFin) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.md),
                 child: ApplicationCard(
-                  application: app,
+                  application: appWithFin.toDemoApplication(),
                   onRefresh: () => setState(() {}),
                 ),
               ),
@@ -254,7 +376,12 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
     );
   }
 
-  Widget _buildProfileCard() {
+  Widget _buildProfileCard({
+    required String name,
+    required String phone,
+    String? address,
+    String? notes,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
@@ -272,10 +399,8 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar / Photo
           _buildLargeAvatar(),
           const SizedBox(width: AppSpacing.base),
-          // Info Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,15 +409,18 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        _reference.name,
-                        style: AppTypography.headingMedium.copyWith(fontWeight: FontWeight.w700),
+                        name,
+                        style: AppTypography.headingMedium
+                            .copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusPill),
                       ),
                       child: Text(
                         'রেফারেন্স',
@@ -308,10 +436,11 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.phone_android, size: 15, color: AppColors.emerald),
+                    const Icon(Icons.phone_android,
+                        size: 15, color: AppColors.emerald),
                     const SizedBox(width: 6),
                     Text(
-                      BengaliDigits.toBengali(_reference.phone),
+                      BengaliDigits.toBengali(phone),
                       style: AppTypography.bodyMedium.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
@@ -319,34 +448,39 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
                     ),
                   ],
                 ),
-                if (_reference.address != null && _reference.address!.trim().isNotEmpty) ...[
+                if (address != null && address.trim().isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 15, color: AppColors.slate400),
+                      const Icon(Icons.location_on_outlined,
+                          size: 15, color: AppColors.slate400),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          _reference.address!,
-                          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                          address,
+                          style: AppTypography.bodySmall
+                              .copyWith(color: AppColors.textSecondary),
                         ),
                       ),
                     ],
                   ),
                 ],
-                if (_reference.notes != null && _reference.notes!.trim().isNotEmpty) ...[
+                if (notes != null && notes.trim().isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.slate50,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                      border: Border.all(color: AppColors.slate200, width: 0.8),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
+                      border:
+                          Border.all(color: AppColors.slate200, width: 0.8),
                     ),
                     child: Text(
-                      _reference.notes!,
+                      notes,
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textSecondary,
                         fontStyle: FontStyle.italic,
@@ -364,17 +498,6 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
   }
 
   Widget _buildLargeAvatar() {
-    if (_reference.photo != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Image.memory(
-          _reference.photo!,
-          width: 64,
-          height: 64,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
     return Container(
       width: 64,
       height: 64,
@@ -406,11 +529,13 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.account_balance_wallet_outlined, size: 16, color: AppColors.primary),
+              const Icon(Icons.account_balance_wallet_outlined,
+                  size: 16, color: AppColors.primary),
               const SizedBox(width: 6),
               Text(
                 'রেফারেন্সভিত্তিক আর্থিক সারসংক্ষেপ',
-                style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600, fontSize: 13.5),
+                style: AppTypography.titleMedium
+                    .copyWith(fontWeight: FontWeight.w600, fontSize: 13.5),
               ),
             ],
           ),
@@ -439,8 +564,12 @@ class _ReferenceDetailScreenState extends State<ReferenceDetailScreen> {
                 child: _buildFinancialTile(
                   label: 'মোট বকেয়া',
                   amount: stats.totalDue.formatBengali(),
-                  color: stats.totalDue.isPositive ? AppColors.rose : AppColors.slate600,
-                  bgColor: stats.totalDue.isPositive ? const Color(0xFFFFF1F2) : AppColors.slate100,
+                  color: stats.totalDue.isPositive
+                      ? AppColors.rose
+                      : AppColors.slate600,
+                  bgColor: stats.totalDue.isPositive
+                      ? const Color(0xFFFFF1F2)
+                      : AppColors.slate100,
                 ),
               ),
             ],

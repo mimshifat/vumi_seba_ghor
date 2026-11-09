@@ -9,8 +9,8 @@
 | **Backend Phase 0** | Database & Drift SQLite Architecture (14 Tables, View & Triggers) | ✅ Completed |
 | **Backend Phase 1** | Drift DAOs, Repository Layer & Human Error Mapping | ✅ Completed (131/131 Tests Green) |
 | **Backend Phase 2** | Riverpod Providers & State Management (Double-tap lock & Reactive state) | ✅ Completed (146/146 Tests Green) |
-| **Backend Phase 3** | UI Screen Migration to Live Providers | ⏳ Next |
-| **Backend Phase 4** | Backup, Restore & Data Migration Safety | ⏳ Scheduled |
+| **Backend Phase 3** | UI Screen Migration to Live Providers | ✅ Completed (146/146 Tests Green) |
+| **Backend Phase 4** | Backup, Restore & Data Migration Safety | ⏳ Next |
 | **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ⏳ Scheduled |
 
 ---
@@ -333,5 +333,33 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
 - **NEW-1 — the ledger is an *active* view.** `unified_transactions_view` inner-joins `applications`, so rows of a soft-deleted parent stay in the database (audit trail intact, per BUSINESS_RULES.md §1.3) but fall outside active calculations. Documented in the `.drift` file header.
 - **NEW-2 — `is_status_fee` remains a dead path.** No production code sets it, so the view's `statusIncome` branch is currently unreachable. Left in place (the column is part of the documented schema) and flagged for the UI-integration phase.
 
-### Next phase
-**Phase 2 — Core Business Modules** (offices → work types → persons → references → applications): DAOs with `LIMIT`/`OFFSET`, soft-delete filters, snapshot writes, and the atomic status-change transaction (status history + expense + task in **one** transaction).
+---
+
+## Phase 3 Completed Work — Presentation Layer & State Migration
+
+### Scope Completed
+1. **Removed `DemoStore` & Mock Dependencies across Presentation Screens:**
+   - Fully decoupled presentation screens (`dashboard_screen.dart`, `application_list_screen.dart`, `application_create_screen.dart`, `application_detail_screen.dart`, `application_edit_screen.dart`, `payment_form_screen.dart`, `expense_form_screen.dart`, `income_form_screen.dart`, `financial_overview_screen.dart`, `due_management_screen.dart`, `transaction_history_screen.dart`, `person_list_screen.dart`, `person_detail_screen.dart`, `person_create_edit_screen.dart`, `reference_list_screen.dart`, `reference_detail_screen.dart`, `office_management_screen.dart`, `settings_screen.dart`, `category_management_screen.dart`, `task_list_screen.dart`, `task_create_edit_screen.dart`, `task_detail_screen.dart`) from `DemoStore` and wired them to live Riverpod stream providers and asynchronous state notifiers.
+2. **Application Creation Wizard (`ApplicationCreateScreen`):**
+   - Live stream loading for work types, offices, persons, and references.
+   - Real-time application number duplicate verification (`checkApplicationNumberExists`).
+   - Seamless creation with atomic person linkage and financial entry via `applicationControllerProvider`.
+3. **Status Change Dialog & Atomic State Transitions (`ApplicationDetailScreen`):**
+   - Integrated `transitionStatus` atomic ACID transaction (records status history, logs fee expense, and creates hearing reminder task simultaneously).
+   - Live streaming of application payments, expenses, and status history with immediate reactivity.
+4. **Financial Forms & Overpayment Guard:**
+   - `PaymentFormScreen`: Added overpayment confirmation dialog in natural Bengali (`"পরিশোধিত টাকার পরিমাণ বকেয়ার চেয়ে বেশি..."`).
+   - `ExpenseFormScreen`: Category selector wired to `expenseCategoriesStreamProvider` with custom category creation via `categoryControllerProvider`.
+   - `IncomeFormScreen`: Dedicated independent shop income creation wired to `financeControllerProvider.addIndependentIncome`.
+5. **Ledger & Due Management (`FinancialOverviewScreen`, `DueManagementScreen`, `TransactionHistoryScreen`):**
+   - Connected to `unifiedTransactionsStreamProvider` (Drift reactive SQLite view) and `applicationsWithFinancialsStreamProvider`.
+   - Privacy-first landing page with zero financial totals on app start preserved.
+6. **Verification & Testing:**
+   - Static Analysis: 0 errors across entire codebase.
+   - Test Suite: **146 / 146 tests passed!** (100% green).
+   - Widget tests, unit tests, and database DAO tests all running cleanly in under 20 seconds.
+
+---
+
+### Next Phase
+**Backend Phase 4 — Backup, Restore & Data Migration Safety** (SQLite database file export, encrypted/raw import validation, PRAGMA integrity check, foreign key verification upon restore).

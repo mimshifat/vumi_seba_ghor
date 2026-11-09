@@ -462,7 +462,7 @@ void main() {
       );
 
       // ২ টি ফাইল রেফার করলেন
-      final app1 = await appRepo.createApplication(
+      await appRepo.createApplication(
         applicantName: 'ক্লায়েন্ট ১',
         applicantPhone: '01711111111',
         referenceId: ref.id,
@@ -474,7 +474,7 @@ void main() {
         initialPaymentPaisa: 400000, // জমা ৳৪,০০০
       );
 
-      final app2 = await appRepo.createApplication(
+      await appRepo.createApplication(
         applicantName: 'ক্লায়েন্ট ২',
         applicantPhone: '01722222222',
         referenceId: ref.id,

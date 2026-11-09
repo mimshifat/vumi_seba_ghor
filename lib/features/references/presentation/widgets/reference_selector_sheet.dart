@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_field_label.dart';
+import '../providers/reference_providers.dart';
 
-class ReferenceSelectorSheet extends StatefulWidget {
+class ReferenceSelectorSheet extends ConsumerStatefulWidget {
   final DemoReference? initialReference;
   final ValueChanged<DemoReference?> onSelected;
 
@@ -35,10 +37,12 @@ class ReferenceSelectorSheet extends StatefulWidget {
   }
 
   @override
-  State<ReferenceSelectorSheet> createState() => _ReferenceSelectorSheetState();
+  ConsumerState<ReferenceSelectorSheet> createState() =>
+      _ReferenceSelectorSheetState();
 }
 
-class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
+class _ReferenceSelectorSheetState
+    extends ConsumerState<ReferenceSelectorSheet> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isCreatingNew = false;
@@ -56,17 +60,7 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
     super.dispose();
   }
 
-  List<DemoReference> get _filteredReferences {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return DemoStore.references;
-    return DemoStore.references.where((r) {
-      return r.name.toLowerCase().contains(query) ||
-          r.phone.contains(query) ||
-          (r.address?.toLowerCase().contains(query) ?? false);
-    }).toList();
-  }
-
-  void _saveAndSelectNewReference() {
+  Future<void> _saveAndSelectNewReference() async {
     final name = _newNameController.text.trim();
     final phone = _newPhoneController.text.trim();
     if (name.isEmpty || phone.isEmpty) {
@@ -79,19 +73,55 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
       return;
     }
 
-    final newRef = DemoReference(
-      id: 'ref-${DateTime.now().millisecondsSinceEpoch}',
-      name: name,
-      phone: phone,
-      address: _newAddressController.text.trim().isNotEmpty ? _newAddressController.text.trim() : null,
-    );
+    try {
+      final created = await ref
+          .read(referenceControllerProvider.notifier)
+          .createReference(
+            name: name,
+            phone: phone,
+            address: _newAddressController.text.trim().isNotEmpty
+                ? _newAddressController.text.trim()
+                : null,
+          );
 
-    DemoStore.references.insert(0, newRef);
-    widget.onSelected(newRef);
+      if (created != null) {
+        final demo = DemoReference(
+          id: created.id,
+          name: created.name,
+          phone: created.phone,
+          address: created.address,
+        );
+        widget.onSelected(demo);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final referencesAsync = ref.watch(referencesStreamProvider);
+    final allReferences = referencesAsync.valueOrNull ?? const [];
+
+    final query = _searchQuery.trim().toLowerCase();
+    final filtered = allReferences.where((r) {
+      if (query.isEmpty) return true;
+      return r.name.toLowerCase().contains(query) ||
+          r.phone.contains(query) ||
+          (r.address?.toLowerCase().contains(query) ?? false);
+    }).map((r) => DemoReference(
+          id: r.id,
+          name: r.name,
+          phone: r.phone,
+          address: r.address,
+          notes: r.notes,
+        )).toList();
+
     return Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.base,
@@ -121,8 +151,11 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _isCreatingNew ? 'নতুন রেফারেন্স যোগ করুন' : 'রেফারেন্স ব্যক্তি নির্বাচন',
-                style: AppTypography.headingSmall.copyWith(fontWeight: FontWeight.w700),
+                _isCreatingNew
+                    ? 'নতুন রেফারেন্স যোগ করুন'
+                    : 'রেফারেন্স ব্যক্তি নির্বাচন',
+                style: AppTypography.headingSmall
+                    .copyWith(fontWeight: FontWeight.w700),
               ),
               TextButton.icon(
                 icon: Icon(
@@ -132,7 +165,8 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
                 ),
                 label: Text(
                   _isCreatingNew ? 'তালিকা দেখুন' : '+ নতুন রেফারেন্স',
-                  style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
+                  style: AppTypography.labelMedium
+                      .copyWith(color: AppColors.primary),
                 ),
                 onPressed: () {
                   setState(() => _isCreatingNew = !_isCreatingNew);
@@ -152,8 +186,10 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'নাম, মোবাইল বা ঠিকানা দিয়ে খুঁজুন...',
-                prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.slate400),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                prefixIcon: const Icon(Icons.search,
+                    size: 20, color: AppColors.slate400),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 filled: true,
                 fillColor: AppColors.slate50,
                 border: OutlineInputBorder(
@@ -172,10 +208,12 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
                   onTap: () => widget.onSelected(null),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF1F2),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusMd),
                       border: Border.all(color: const Color(0xFFFECDD3)),
                     ),
                     child: Row(
@@ -184,7 +222,8 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
                         const SizedBox(width: 8),
                         Text(
                           'কোনো রেফারেন্স ব্যক্তি নেই (মুছে ফেলুন)',
-                          style: AppTypography.labelMedium.copyWith(color: AppColors.rose),
+                          style: AppTypography.labelMedium
+                              .copyWith(color: AppColors.rose),
                         ),
                       ],
                     ),
@@ -197,14 +236,15 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.45,
               ),
-              child: _filteredReferences.isEmpty
+              child: filtered.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.person_off_outlined, size: 36, color: AppColors.slate300),
+                            const Icon(Icons.person_off_outlined,
+                                size: 36, color: AppColors.slate300),
                             const SizedBox(height: 8),
                             const Text(
                               'কোনো রেফারেন্স পাওয়া যায়নি',
@@ -225,36 +265,40 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
                     )
                   : ListView.separated(
                       shrinkWrap: true,
-                      itemCount: _filteredReferences.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.slate100),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const Divider(
+                          height: 1, color: AppColors.slate100),
                       itemBuilder: (ctx, idx) {
-                        final ref = _filteredReferences[idx];
-                        final isSelected = widget.initialReference?.id == ref.id;
+                        final item = filtered[idx];
+                        final isSelected =
+                            widget.initialReference?.id == item.id;
 
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          leading: _buildAvatar(ref),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          leading: _buildAvatar(item),
                           title: Text(
-                            ref.name,
+                            item.name,
                             style: AppTypography.titleMedium.copyWith(
                               fontWeight: FontWeight.w600,
                               fontSize: 14.5,
-                              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
                             ),
                           ),
                           subtitle: Text(
-                            '${BengaliDigits.toBengali(ref.phone)}${ref.address != null ? ' • ${ref.address}' : ''}',
+                            '${BengaliDigits.toBengali(item.phone)}${item.address != null ? ' • ${item.address}' : ''}',
                             style: AppTypography.bodySmall.copyWith(
                               fontSize: 12,
                               color: AppColors.textSecondary,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                           trailing: isSelected
-                              ? const Icon(Icons.check_circle, color: AppColors.primary, size: 20)
-                              : const Icon(Icons.chevron_right, color: AppColors.slate400, size: 18),
-                          onTap: () => widget.onSelected(ref),
+                              ? const Icon(Icons.check_circle,
+                                  color: AppColors.primary, size: 20)
+                              : null,
+                          onTap: () => widget.onSelected(item),
                         );
                       },
                     ),
@@ -265,91 +309,65 @@ class _ReferenceSelectorSheetState extends State<ReferenceSelectorSheet> {
     );
   }
 
+  Widget _buildAvatar(DemoReference r) {
+    return CircleAvatar(
+      radius: 18,
+      backgroundColor: AppColors.primarySurface,
+      child: Text(
+        r.name.isNotEmpty ? r.name.characters.first : '?',
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
   Widget _buildCreateInlineForm() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
           controller: _newNameController,
+          autofocus: true,
           decoration: const InputDecoration(
-            label: AppFieldLabel.inline(label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
-            hintText: 'যেমন: করিম মিয়া',
-            prefixIcon: Icon(Icons.person_outline, size: 18),
+            label: AppFieldLabel.inline(
+                label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
+            hintText: 'যেমন: কামাল হোসেন মেম্বার',
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         TextField(
           controller: _newPhoneController,
           keyboardType: TextInputType.phone,
           decoration: const InputDecoration(
-            label: AppFieldLabel.inline(label: 'মোবাইল নম্বর', isRequired: true),
-            hintText: '০১৭১১২২৩৩৪8',
-            prefixIcon: Icon(Icons.phone_android, size: 18),
+            label: AppFieldLabel.inline(
+                label: 'মোবাইল নম্বর', isRequired: true),
+            hintText: '০১৮১২৩৪৫৬৭৮',
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         TextField(
           controller: _newAddressController,
           decoration: const InputDecoration(
-            labelText: 'ঠিকানা',
-            hintText: 'যেমন: জিনজিরা, কেরানীগঞ্জ',
-            prefixIcon: Icon(Icons.location_on_outlined, size: 18),
+            labelText: 'ঠিকানা / এলাকা (ঐচ্ছিক)',
+            hintText: 'যেমন: ভাটপাড়া, সাভার',
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => setState(() => _isCreatingNew = false),
-                child: const Text('বাতিল'),
-              ),
+        const SizedBox(height: AppSpacing.md),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(44),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: _saveAndSelectNewReference,
-                child: const Text('সেভ ও নির্বাচন করুন'),
-              ),
-            ),
-          ],
+          ),
+          onPressed: _saveAndSelectNewReference,
+          child: const Text('সংরক্ষণ ও নির্বাচন করুন'),
         ),
       ],
     );
   }
-
-  Widget _buildAvatar(DemoReference ref) {
-    if (ref.photo != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        child: Image.memory(
-          ref.photo!,
-          width: 38,
-          height: 38,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-    return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF3C7),
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFFDE68A)),
-      ),
-      child: const Center(
-        child: Icon(
-          Icons.handshake_outlined,
-          color: Color(0xFFD97706),
-          size: 18,
-        ),
-      ),
-    );
-  }
 }
-

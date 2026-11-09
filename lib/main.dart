@@ -6,8 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/constants/app_colors.dart';
+import 'core/database/app_database.dart';
+import 'core/database/database_provider.dart';
+import 'core/database/database_seeder.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // গ্লোবাল ক্র্যাশ শিল্ড — কোনো অপ্রত্যাশিত ত্রুটি অ্যাপ বন্ধ করবে না।
@@ -24,8 +27,21 @@ void main() {
   // রেন্ডারিং ত্রুটি হলে মৃত্যুর পর্দা না দেখিয়ে পুনরায় চেষ্টার কার্ড দেখানো।
   ErrorWidget.builder = buildErrorRecoveryWidget;
 
+  // ডেটাবেজ সংযোগ ও প্রাথমিক সিডিং (যদি নতুন/খালি হয়)
+  final db = AppDatabase.open();
+  try {
+    if (await DatabaseSeeder.isEmpty(db)) {
+      await DatabaseSeeder.seed(db);
+    }
+  } catch (e, s) {
+    _logCrash('DatabaseSeeder', e, s);
+  }
+
   runApp(
     ProviderScope(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+      ],
       child: _AppRoot(key: _rootKey),
     ),
   );

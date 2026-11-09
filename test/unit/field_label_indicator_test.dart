@@ -1,18 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bhumi_kajer_hisab/core/constants/app_colors.dart';
 import 'package:bhumi_kajer_hisab/core/theme/app_theme.dart';
 import 'package:bhumi_kajer_hisab/core/widgets/app_field_label.dart';
 import 'package:bhumi_kajer_hisab/core/widgets/app_text_field.dart';
 import 'package:bhumi_kajer_hisab/core/widgets/money_field.dart';
+import 'package:bhumi_kajer_hisab/features/applications/presentation/providers/application_providers.dart';
 import 'package:bhumi_kajer_hisab/features/applications/presentation/screens/application_create_screen.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/income_form_screen.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/expense_form_screen.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/payment_form_screen.dart';
+import 'package:bhumi_kajer_hisab/features/offices/presentation/providers/office_providers.dart';
+import 'package:bhumi_kajer_hisab/features/persons/presentation/providers/person_providers.dart';
 import 'package:bhumi_kajer_hisab/features/persons/presentation/screens/person_create_edit_screen.dart';
+import 'package:bhumi_kajer_hisab/features/references/presentation/providers/reference_providers.dart';
+import 'package:bhumi_kajer_hisab/features/settings/presentation/providers/settings_providers.dart';
 import 'package:bhumi_kajer_hisab/features/tasks/presentation/screens/task_create_edit_screen.dart';
 
 void main() {
+  Widget buildTestScope(Widget screen) {
+    return ProviderScope(
+      overrides: [
+        workTypesStreamProvider.overrideWith((ref) => Stream.value([])),
+        officesStreamProvider.overrideWith((ref) => Stream.value([])),
+        personsStreamProvider.overrideWith((ref) => Stream.value([])),
+        referencesStreamProvider.overrideWith((ref) => Stream.value([])),
+        expenseCategoriesStreamProvider.overrideWith((ref, isApp) => Stream.value([])),
+        incomeCategoriesStreamProvider.overrideWith((ref) => Stream.value([])),
+        applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: screen,
+      ),
+    );
+  }
   group('AppFieldLabel & Field Indicators Standard Tests', () {
     testWidgets('AppFieldLabel displays red * when isRequired is true', (tester) async {
       await tester.pumpWidget(
@@ -133,10 +156,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const ApplicationCreateScreen(),
-        ),
+        buildTestScope(const ApplicationCreateScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -186,10 +206,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const PersonCreateEditScreen(),
-        ),
+        buildTestScope(const PersonCreateEditScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -206,10 +223,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const IncomeFormScreen(),
-        ),
+        buildTestScope(const IncomeFormScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -228,10 +242,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const ExpenseFormScreen(),
-        ),
+        buildTestScope(const ExpenseFormScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -248,10 +259,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const PaymentFormScreen(),
-        ),
+        buildTestScope(const PaymentFormScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -268,10 +276,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const TaskCreateEditScreen(),
-        ),
+        buildTestScope(const TaskCreateEditScreen()),
       );
       await tester.pumpAndSettle();
 
