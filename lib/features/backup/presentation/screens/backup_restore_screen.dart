@@ -419,46 +419,131 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
           const SizedBox(height: AppSpacing.base),
 
           // ৩. টেলিগ্রাম ক্লাউড ব্যাকআপ
-          _buildSectionHeader('ক্লাউড ব্যাকআপ (ঐচ্ছিক)'),
+          _buildSectionHeader('টেলিগ্রাম ক্লাউড ব্যাকআপ'),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
               border: Border.all(color: AppColors.border),
             ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.base, vertical: 4),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            child: Column(
+              children: [
+                // প্রতিদিন স্বয়ংক্রিয় ব্যাকআপ টগল
+                Consumer(
+                  builder: (context, ref, child) {
+                    final isAutoBackup = ref
+                            .watch(autoBackupTelegramStreamProvider)
+                            .valueOrNull ??
+                        false;
+                    final lastAutoBackupDate = ref
+                        .watch(lastTelegramAutoBackupDateStreamProvider)
+                        .valueOrNull;
+
+                    return SwitchListTile.adaptive(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.base, vertical: 4),
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusSm),
+                        ),
+                        child: const Icon(Icons.autorenew_rounded,
+                            color: Color(0xFF2563EB), size: 22),
+                      ),
+                      title: const Text(
+                        'প্রতিদিন স্বয়ংক্রিয় ব্যাকআপ',
+                        style: TextStyle(
+                            fontSize: 14.5, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'সাইজ হালকা রাখতে দলিলের ভারী পিডিএফ বাদ দিয়ে শুধু আবেদন ও আর্থিক হিসাব ক্লাউডে পাঠানো হবে।',
+                            style: TextStyle(
+                                fontSize: 11.5, color: AppColors.textMuted),
+                          ),
+                          if (lastAutoBackupDate != null &&
+                              lastAutoBackupDate.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Text(
+                                'আজকের স্ট্যাটাস: ব্যাকআপ সম্পন্ন ($lastAutoBackupDate)',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.emeraldDark,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      value: isAutoBackup,
+                      activeColor: AppColors.primary,
+                      onChanged: (val) async {
+                        final token = ref
+                            .read(telegramBotTokenStreamProvider)
+                            .valueOrNull;
+                        final chatId = ref
+                            .read(telegramChatIdStreamProvider)
+                            .valueOrNull;
+
+                        if (val &&
+                            (token == null ||
+                                token.isEmpty ||
+                                chatId == null ||
+                                chatId.isEmpty)) {
+                          _showTelegramConfigDialog();
+                          return;
+                        }
+
+                        await ref
+                            .read(backupControllerProvider.notifier)
+                            .setAutoBackupTelegram(val);
+                      },
+                    );
+                  },
                 ),
-                child: const Icon(Icons.send_rounded,
-                    color: Color(0xFF0284C7), size: 22),
-              ),
-              title: const Text('টেলিগ্রাম ব্যাকআপ',
-                  style: TextStyle(
-                      fontSize: 14.5, fontWeight: FontWeight.w600)),
-              subtitle: GestureDetector(
-                onTap: _showTelegramConfigDialog,
-                child: const Text(
-                  'বট সেটিংস কনফিগার করুন ⚙️',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF0284C7),
-                      fontWeight: FontWeight.w500),
+                const Divider(height: 1),
+                // ম্যানুয়াল ব্যাকআপ পাঠান
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.base, vertical: 4),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F9FF),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: const Icon(Icons.send_rounded,
+                        color: Color(0xFF0284C7), size: 22),
+                  ),
+                  title: const Text('টেলিগ্রামে এখনই পাঠান',
+                      style: TextStyle(
+                          fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  subtitle: GestureDetector(
+                    onTap: _showTelegramConfigDialog,
+                    child: const Text(
+                      'বট সেটিংস কনফিগার করুন ⚙️',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF0284C7),
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  trailing: AppButton(
+                    text: 'পাঠান',
+                    variant: ButtonVariant.outline,
+                    width: 80,
+                    height: 36,
+                    isLoading: _isExportingTelegram,
+                    onPressed: _exportBackupToTelegram,
+                  ),
                 ),
-              ),
-              trailing: AppButton(
-                text: 'পাঠান',
-                variant: ButtonVariant.outline,
-                width: 80,
-                height: 36,
-                isLoading: _isExportingTelegram,
-                onPressed: _exportBackupToTelegram,
-              ),
+              ],
             ),
           ),
 

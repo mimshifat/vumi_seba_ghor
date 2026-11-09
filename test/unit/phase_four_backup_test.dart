@@ -223,5 +223,48 @@ void main() {
       expect(formatted, contains('২০২৬'));
       expect(formatted, contains('বিকাল ০৩:৩০'));
     });
+
+    test('stripPdfsAndCompact পিডিএফ বাইনারি ব্লব খালি করে কিন্তু অন্যান্য রেকর্ড অক্ষত রাখে', () async {
+      final exportDir = Directory('${tempDir.path}/strip_test');
+      final backupFile = await repo.exportBackup(customDestinationDir: exportDir.path);
+
+      // ব্যাকআপ ফাইলে একটি ডামি পিডিএফ ও ইমেজ ডকুমেন্ট ইনসার্ট করি
+      final sqlite = sqlite3.open(backupFile.path);
+      final appRow = sqlite.select('SELECT id FROM applications LIMIT 1;');
+      final appId = appRow.first['id'] as String;
+
+      sqlite.execute('''
+        INSERT INTO documents (id, application_id, file_name, file_type, file_data, file_size, created_at, updated_at)
+        VALUES ('doc-pdf-1', '$appId', 'porcha.pdf', 'pdf', zeroblob(1024 * 50), '50 KB', 1700000000, 1700000000),
+               ('doc-img-1', '$appId', 'photo.jpg', 'image', zeroblob(1024 * 10), '10 KB', 1700000000, 1700000000);
+      ''');
+      sqlite.close();
+
+      // stripPdfsAndCompact কল করি
+      BackupRepository.stripPdfsAndCompact(backupFile);
+
+      // ফাইল পুনরায় খুলে যাচাই করি
+      final verifyDb = sqlite3.open(backupFile.path, mode: OpenMode.readOnly);
+      final pdfDoc = verifyDb.select("SELECT file_data, file_name FROM documents WHERE id='doc-pdf-1';").first;
+      final pdfBytes = pdfDoc['file_data'] as List<int>;
+      expect(pdfBytes.length, 0); // পিডিএফ বাইনারি ০ বাইট হয়েছে
+      expect(pdfDoc['file_name'], 'porcha.pdf'); // ফাইলের নাম ও মেটাডেটা অক্ষত
+
+      final imgDoc = verifyDb.select("SELECT file_data FROM documents WHERE id='doc-img-1';").first;
+      final imgBytes = imgDoc['file_data'] as List<int>;
+      expect(imgBytes.length, 1024 * 10); // ইমেজ বাইনারি অক্ষত আছে
+
+      verifyDb.close();
+    });
+
+    test('দৈনিক অটো-ব্যাকআপ সেটিং ও চেকার সঠিকভাবে আচরণ করে', () async {
+      await repo.setAutoBackupTelegram(true);
+      final isEnabled = await db.shopSettingsDao.getSetting('auto_backup_telegram');
+      expect(isEnabled, 'true');
+
+      // বট টোকেন ছাড়া checkAndRunDailyTelegramBackup false রিটার্ন করে
+      final resultWithoutToken = await repo.checkAndRunDailyTelegramBackup();
+      expect(resultWithoutToken, isFalse);
+    });
   });
 }

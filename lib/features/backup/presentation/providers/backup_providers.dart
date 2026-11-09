@@ -32,6 +32,19 @@ final telegramChatIdStreamProvider = StreamProvider<String?>((ref) {
   return ref.watch(shopSettingProvider('telegram_chat_id').stream);
 });
 
+/// টেলিগ্রাম অটো-ব্যাকআপ সক্রিয়তা ওয়াচ
+final autoBackupTelegramStreamProvider = StreamProvider<bool>((ref) {
+  return ref
+      .watch(shopSettingProvider('auto_backup_telegram').stream)
+      .map((val) => val == 'true');
+});
+
+/// সর্বশেষ স্বয়ংক্রিয় ক্লাউড ব্যাকআপের তারিখ
+final lastTelegramAutoBackupDateStreamProvider = StreamProvider<String?>((ref) {
+  return ref
+      .watch(shopSettingProvider('last_telegram_auto_backup_date').stream);
+});
+
 /// ব্যাকআপ ও রিস্টোর মিউটেশন কন্ট্রোলার (Mutation Controller)
 ///
 /// এটি নিশ্চিত করে যে:
@@ -74,11 +87,23 @@ class BackupController extends MutationController {
   Future<void> exportToTelegram({
     required String botToken,
     required String chatId,
+    bool skipPdfs = true,
   }) {
     return execute(() => _repo.exportBackupToTelegram(
           botToken: botToken,
           chatId: chatId,
+          skipPdfs: skipPdfs,
         ));
+  }
+
+  /// দৈনিক স্বয়ংক্রিয় টেলিগ্রাম ব্যাকআপ চালু বা বন্ধ
+  Future<void> setAutoBackupTelegram(bool enabled) {
+    return execute(() => _repo.setAutoBackupTelegram(enabled));
+  }
+
+  /// দৈনিক স্বয়ংক্রিয় ব্যাকআপ চেক ও রান (অ্যাপ ওপেনিংয়ে ব্যাকগ্রাউন্ডে কল হয়)
+  Future<bool> checkAndRunDailyTelegramBackup() {
+    return _repo.checkAndRunDailyTelegramBackup();
   }
 
   /// টেলিগ্রাম সেটিংস সেভ

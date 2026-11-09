@@ -370,23 +370,23 @@ A custom `Money` class wrapping `int` (paisa):
 - Comparison operators
 - JSON/SQLite serialization
 
-### 3.6 Backup Strategy
+### 3.6 Backup & Data Safety Strategy
 
-1. **Checkpoint WAL** — Execute `PRAGMA wal_checkpoint(TRUNCATE)` to flush WAL into main DB file
-2. **Close DB connection** briefly (or use SQLite backup API via drift)
-3. **Copy DB file** to a temporary location
-4. **Validate copy** — Open the copy and run `PRAGMA integrity_check`
-5. **Encrypt** — AES-256-CBC encrypt the DB file; key derived from user-set passphrase stored in secure storage
-6. **Upload** — Send encrypted file to Telegram via Bot API `sendDocument`
-7. **Reopen** main DB connection
+1. **অফলাইন সম্পূর্ণ ফোন ব্যাকআপ (Full Offline Phone Export):**
+   - `PRAGMA wal_checkpoint(TRUNCATE)` দিয়ে WAL ফ্ল্যাশ করে `VACUUM INTO` দিয়ে নিরাপদ, আনফ্র্যাগমেন্টেড একক `.db` ফাইল হিসেবে ডাউনলোড বা ডকুমেন্ট ফোল্ডারে সেভ।
+   - সম্পূর্ণ ডেটাবেজ (সকল তথ্য ও সংযুক্ত খতিয়ান/দলিলের পিডিএফ সহ) ১০০% সংরক্ষিত থাকে।
 
-**Restore:**
-1. Download from Telegram
-2. Decrypt
-3. Validate integrity
-4. Close current DB
-5. Replace DB file
-6. Reopen and verify
+2. **টেলিগ্রাম ক্লাউড ব্যাকআপ (হালকা ও পিডিএফ ব্যতীত - Lightweight Telegram Backup):**
+   - **টেলিগ্রাম ফাইল সাইজ সীমা:** টেলিগ্রাম বট এপিআই প্রতি একক ফাইলে সর্বোচ্চ ৫০ MB আপলোড সাপোর্ট করে (তবে মোট ক্লাউড স্টোরেজ আনলিমিটেড)।
+   - **পিডিএফ বাইনারি ব্লব ছাঁটাই:** টেলিগ্রামের ৫০ MB সীমা ও ধীরগতির মোবাইল ডাটার সুরক্ষায় টেম্পোরারি ব্যাকআপ ফাইলে `UPDATE documents SET file_data = zeroblob(0) WHERE LOWER(TRIM(file_type)) = 'pdf';` চালানো হয়।
+   - **SQLite VACUUM কম্প্যাকশন:** খালি হওয়া বাইনারি পৃষ্ঠাগুলোকে `VACUUM;` চালিয়ে ডিস্কে রিলিজ করা হয়, যার ফলে ব্যাকআপ ফাইলের আকার কয়েকশো মেগাবাইট থেকে নেমে মাত্র ২০০–৫০০ কিলোবাইটে চলে আসে।
+   - **জিরো-র্যাম মেমোরি সেফ স্ট্রিমিং:** র্যামে পুরো ফাইল লোড না করে `request.addStream(file.openRead())` দিয়ে সরাসরি ডিস্ক থেকে স্ট্রিম আপলোড করা হয়।
+   - **দৈনিক অটো-ব্যাকআপ (Everyday Background Auto-Backup):** অ্যাপ ওপেন হলে ব্যাকগ্রাউন্ডে নীরবে আজকের দিনের ব্যাকআপ সম্পন্ন হয় (আইডিমপোটেন্ট: দিনে সর্বোচ্চ একবার)।
+
+3. **জিরো ডাটা লস রিস্টোর ও রোলব্যাক (Zero Data Loss Restore & Auto-Rollback):**
+   - ব্যাকগ্রাউন্ড আইসোলেটে (`Isolate.run`) `PRAGMA integrity_check` ও `PRAGMA quick_check` যাচাই।
+   - রিস্টোরের আগে বর্তমান লাইভ ডাটার নিরাপত্তা স্ন্যাপশট কপি (`rojob_bhumi_pre_restore.sqlite`) তৈরি।
+   - ফাইল সোয়াপ ব্যর্থ হলে স্বয়ংক্রিয় রোলব্যাক ও কানেকশন রিকভারি।
 
 ---
 

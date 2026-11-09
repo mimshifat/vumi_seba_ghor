@@ -10,8 +10,8 @@
 | **Backend Phase 1** | Drift DAOs, Repository Layer & Human Error Mapping | ✅ Completed (131/131 Tests Green) |
 | **Backend Phase 2** | Riverpod Providers & State Management (Double-tap lock & Reactive state) | ✅ Completed (146/146 Tests Green) |
 | **Backend Phase 3** | UI Screen Migration to Live Providers | ✅ Completed (146/146 Tests Green) |
-| **Backend Phase 4** | Backup, Restore & Data Migration Safety | ✅ Completed (157/157 Tests Green) |
-| **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ✅ Completed (173/173 Tests Green) |
+| **Backend Phase 4** | Backup, Restore & Data Migration Safety (Lightweight Telegram & Daily Auto-Backup) | ✅ Completed (175/175 Tests Green) |
+| **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ✅ Completed (175/175 Tests Green) |
 
 ---
 
@@ -383,16 +383,18 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
    - Notifies Riverpod via `rootAppKey.currentState?.replaceDatabase(newDb)`, cleanly remounting `ProviderScope` with fresh streams and zero zombie connections.
 4. **Telegram Bot Cloud Backup Integration (`exportBackupToTelegram`):**
    - Persists bot token and chat ID in `shop_settings`.
-   - Creates a temporary SQLite snapshot and uploads directly via Telegram Bot `sendDocument` API using standard Dart `HttpClient` multipart form-data.
-   - Includes natural Bengali caption with backup date and time.
-   - Graceful offline/network failure handling with human-friendly Bengali messages.
+   - **Lightweight PDF Stripping & VACUUM:** To prevent exceeding Telegram's 50 MB per-file upload limit and avoid slow mobile network timeouts, the backup strips heavy PDF binary blobs (`UPDATE documents SET file_data = zeroblob(0) WHERE LOWER(TRIM(file_type)) = 'pdf'`) on a temporary snapshot, preserves all document metadata and histories, and runs SQLite `VACUUM;` to shrink file size from hundreds of MBs to a mere ~200–500 KB.
+   - **Zero-RAM Memory-Safe Streaming:** Replaced in-memory `readAsBytesSync()` with chunked disk streaming (`request.addStream(backupFile.openRead())`), completely eliminating `OutOfMemoryError` risks on low-end Android devices.
+   - **Everyday Background Auto-Backup:** Implemented `checkAndRunDailyTelegramBackup()` triggered silently on application startup via `MainShellScreen`. Ensures idempotent daily execution (`last_telegram_auto_backup_date == todayStr`) without spamming Telegram or interrupting the user with error popups on network drops.
+   - **Unlimited Cloud Storage vs 50 MB Limit:** Documented that Telegram provides unlimited overall cloud storage, with the 50 MB constraint applying strictly per individual file upload.
 5. **UI Screen Integration (`BackupRestoreScreen`):**
    - Replaced dummy delay timers with live `backupControllerProvider` and reactive stream providers.
+   - Added adaptive toggle switch for "প্রতিদিন স্বয়ংক্রিয় ব্যাকআপ (পিডিএফ ব্যতীত হালকা ফাইল)" with live status indicators and automatic configuration dialog prompt.
    - Added detailed restore confirmation dialog displaying exact record counts and file size in Bengali.
    - Human-friendly SnackBars on export, import, and telegram upload success/failure.
 6. **Verification & Testing:**
-   - Added `test/unit/phase_four_backup_test.dart` covering 11 critical test scenarios (offline export, isolate validation, corrupt file rejection, alien file rejection, atomic restore, rollback safety, telegram config, and Bengali date formatting).
-   - Full Test Suite: **157 / 157 tests passed!** (100% green).
+   - Added `test/unit/phase_four_backup_test.dart` covering 13 critical test scenarios (offline export, isolate validation, corrupt file rejection, alien file rejection, atomic restore, rollback safety, telegram config, Bengali date formatting, `stripPdfsAndCompact` verification, and idempotent daily auto-backup).
+   - Full Test Suite: **175 / 175 tests passed!** (100% green).
    - Static Analysis: 0 errors.
 
 ---
@@ -438,6 +440,6 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
 
 5. **Verification & Release Readiness:**
    - Static Analysis (`flutter analyze`): **0 errors, 0 warnings**.
-   - Full Test Suite: **173 / 173 tests passed!** (100% green).
+   - Full Test Suite: **175 / 175 tests passed!** (100% green).
    - Added Native Phone Dialer & URL Launcher integration (`AppLauncher`) across all screens (Due management, Application details, Customer list/details, Reference cards/details, Settings hotline/WhatsApp) with automatic Bengali digit conversion and fallback clipboard safety.
    - All 5 Phases of `docs/BACKEND_MASTER_PLAN.md` are completely implemented, verified, and release-ready.

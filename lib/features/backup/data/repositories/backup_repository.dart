@@ -197,12 +197,14 @@ class BackupRepository {
 
   /// টেলিগ্রাম বটে অফলাইন ডেটাবেজের ক্লাউড ব্যাকআপ সেন্ড করে।
   ///
+  /// - `skipPdfs` সত্য হলে দলিলের ভারী পিডিএফ ব্লব বাদ দিয়ে ফাইলের আকার ন্যূনতম (হালকা) করা হয়।
   /// - `botToken` এবং `chatId` যাচাই ও `shop_settings` টেবিলে সংরক্ষণ।
-  /// - সাময়িক ডিফ্র্যাগমেন্টেড `.db` ফাইল তৈরি ও টেলিগ্রামের `sendDocument` এপিআই-এ আপলোড।
+  /// - সাময়িক ডিফ্র্যাগমেন্টেড `.db` ফাইল তৈরি ও মেমোরি-সেফ ফাইল স্ট্রিমিংয়ের মাধ্যমে টেলিগ্রামে আপলোড।
   /// - সফল হলে `last_backup_time` আপডেট ও সাময়িক ফাইল অপরাসণ।
   Future<void> exportBackupToTelegram({
     required String botToken,
     required String chatId,
+    bool skipPdfs = true,
   }) async {
     final cleanToken = botToken.trim();
     final cleanChatId = chatId.trim();
@@ -232,10 +234,15 @@ class BackupRepository {
     final escaped = backupFile.path.replaceAll("'", "''");
     await _db.customStatement("VACUUM INTO '$escaped';");
 
-    // ৩. টেলিগ্রাম বট এপিআই-এ আপলোড
+    // ২.১. হালকা ব্যাকআপ (পিডিএফ বাইনারি ব্লব বাদ দিয়ে কম্প্যাক্ট করা)
+    if (skipPdfs) {
+      stripPdfsAndCompact(backupFile);
+    }
+
+    // ৩. টেলিগ্রাম বট এপিআই-এ মেমোরি-সেফ স্ট্রিম আপলোড
     try {
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 25);
+      client.connectionTimeout = const Duration(seconds: 45);
 
       final uri =
           Uri.parse('https://api.telegram.org/bot$cleanToken/sendDocument');
@@ -248,38 +255,31 @@ class BackupRepository {
         'multipart/form-data; boundary=$boundary',
       );
 
-      final caption =
-          'রজব ভূমি সেবা ঘর — ক্লাউড ব্যাকআপ\nতারিখ: ${formatBanglaDateTime(now)}';
-      final fileName = p.basename(backupFile.path);
+      final caption = skipPdfs
+          ? 'রজব ভূমি সেবা ঘর — ক্লাউড ব্যাকআপ (হালকা/পিডিএফ ব্যতীত)\nতারিখ: ${formatBanglaDateTime(now)}'
+          : 'রজব ভূমি সেবা ঘর — ক্লাউড ব্যাকআপ\nতারিখ: ${formatBanglaDateTime(now)}';
+      final fileName = skipPdfs
+          ? 'rojob_backup_light_$timestamp.db'
+          : 'rojob_backup_$timestamp.db';
+      final fileSize = backupFile.lengthSync();
 
-      final bodyBytes = <int>[];
+      final part1 = utf8.encode(
+        '--$boundary\r\n'
+        'Content-Disposition: form-data; name="chat_id"\r\n\r\n'
+        '$cleanChatId\r\n'
+        '--$boundary\r\n'
+        'Content-Disposition: form-data; name="caption"\r\n\r\n'
+        '$caption\r\n'
+        '--$boundary\r\n'
+        'Content-Disposition: form-data; name="document"; filename="$fileName"\r\n'
+        'Content-Type: application/octet-stream\r\n\r\n',
+      );
+      final part2 = utf8.encode('\r\n--$boundary--\r\n');
 
-      // chat_id
-      bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
-      bodyBytes.addAll(utf8.encode(
-          'Content-Disposition: form-data; name="chat_id"\r\n\r\n'));
-      bodyBytes.addAll(utf8.encode('$cleanChatId\r\n'));
-
-      // caption
-      bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
-      bodyBytes.addAll(utf8.encode(
-          'Content-Disposition: form-data; name="caption"\r\n\r\n'));
-      bodyBytes.addAll(utf8.encode('$caption\r\n'));
-
-      // document
-      bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
-      bodyBytes.addAll(utf8.encode(
-          'Content-Disposition: form-data; name="document"; filename="$fileName"\r\n'));
-      bodyBytes.addAll(
-          utf8.encode('Content-Type: application/octet-stream\r\n\r\n'));
-      bodyBytes.addAll(backupFile.readAsBytesSync());
-      bodyBytes.addAll(utf8.encode('\r\n'));
-
-      // end boundary
-      bodyBytes.addAll(utf8.encode('--$boundary--\r\n'));
-
-      request.contentLength = bodyBytes.length;
-      request.add(bodyBytes);
+      request.contentLength = part1.length + fileSize + part2.length;
+      request.add(part1);
+      await request.addStream(backupFile.openRead());
+      request.add(part2);
 
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
@@ -314,6 +314,83 @@ class BackupRepository {
           backupFile.deleteSync();
         } catch (_) {}
       }
+    }
+  }
+
+  /// সাময়িক ব্যাকআপ ডাটাবেজ থেকে ভারী পিডিএফ বাইনারি ব্লব বাদ দিয়ে VACUUM করে ফাইলের সাইজ ন্যূনতম করে।
+  ///
+  /// ডকুমেন্টস টেবিলের মেটাডেটা অক্ষত রেখে শুধুমাত্র ভারী বাইনারি ব্লব (`file_data`) জিরো বাইট
+  /// (`zeroblob(0)`) করা হয়। এরপর `VACUUM` চালিয়ে স্থান কম্প্যাক্ট করা হয় যাতে ফাইল সাইজ
+  /// কয়েকশো মেগাবাইট থেকে নেমে মাত্র কয়েকশো কিলোবাইটে চলে আসে।
+  static void stripPdfsAndCompact(File dbFile) {
+    CommonDatabase? tempDb;
+    try {
+      tempDb = sqlite3.open(dbFile.path);
+      final tables = tempDb.select(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='documents';",
+      );
+      if (tables.isNotEmpty) {
+        tempDb.execute(
+          "UPDATE documents SET file_data = zeroblob(0) WHERE LOWER(TRIM(file_type)) = 'pdf';",
+        );
+        tempDb.execute('VACUUM;');
+      }
+    } catch (_) {
+      // টেম্প ফাইলের স্ট্রিপিংয়ে ব্যর্থ হলেও ব্যাকআপ প্রক্রিয়া আটকাবে না
+    } finally {
+      tempDb?.dispose();
+    }
+  }
+
+  /// স্বয়ংক্রিয় টেলিগ্রাম ব্যাকআপ চালু বা বন্ধ
+  Future<void> setAutoBackupTelegram(bool enabled) async {
+    await _db.shopSettingsDao
+        .setSetting('auto_backup_telegram', enabled ? 'true' : 'false');
+  }
+
+  /// দৈনিক স্বয়ংক্রিয় টেলিগ্রাম ক্লাউড ব্যাকআপ (পিডিএফ ব্যতীত হালকা ফাইল)
+  ///
+  /// - 'auto_backup_telegram' অন থাকলে এবং আজ ব্যাকআপ না গেলে ব্যাকগ্রাউন্ডে পাঠায়।
+  /// - আইডিইমপোটেন্ট: দিনে একবারের বেশি কল করা হলেও দ্বিতীয়বার ব্যাকআপ পাঠাবে না।
+  /// - সম্পূর্ণ ব্যাকগ্রাউন্ডে নীরবে চলে, কোনো এররে মূল অ্যাপ বা ব্যবহারকারী বিঘ্নিত হয় না।
+  Future<bool> checkAndRunDailyTelegramBackup() async {
+    try {
+      final isEnabled =
+          await _db.shopSettingsDao.getSetting('auto_backup_telegram');
+      if (isEnabled != 'true') return false;
+
+      final token =
+          await _db.shopSettingsDao.getSetting('telegram_bot_token');
+      final chatId =
+          await _db.shopSettingsDao.getSetting('telegram_chat_id');
+      if (token == null ||
+          token.trim().isEmpty ||
+          chatId == null ||
+          chatId.trim().isEmpty) {
+        return false;
+      }
+
+      final now = DateTime.now();
+      final todayStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final lastRunDate =
+          await _db.shopSettingsDao.getSetting('last_telegram_auto_backup_date');
+
+      if (lastRunDate == todayStr) {
+        return false; // আজকের ব্যাকআপ ইতোমধ্যে সফল
+      }
+
+      await exportBackupToTelegram(
+        botToken: token,
+        chatId: chatId,
+        skipPdfs: true,
+      );
+
+      await _db.shopSettingsDao
+          .setSetting('last_telegram_auto_backup_date', todayStr);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

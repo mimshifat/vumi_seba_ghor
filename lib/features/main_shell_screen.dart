@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_typography.dart';
 import 'applications/presentation/screens/application_list_screen.dart';
+import 'backup/presentation/providers/backup_providers.dart';
 import 'dashboard/presentation/screens/dashboard_screen.dart';
 import 'dashboard/presentation/screens/more_menu_screen.dart';
 import 'finance/presentation/screens/financial_overview_screen.dart';
 import 'reports/presentation/screens/reports_screen.dart';
 
-class MainShellScreen extends StatefulWidget {
+class MainShellScreen extends ConsumerStatefulWidget {
   const MainShellScreen({super.key});
 
   @override
-  State<MainShellScreen> createState() => _MainShellScreenState();
+  ConsumerState<MainShellScreen> createState() => _MainShellScreenState();
 }
 
-class _MainShellScreenState extends State<MainShellScreen> {
+class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // অ্যাপ চালু হলে ব্যাকগ্রাউন্ডে দৈনিক অটো ব্যাকআপ যাচাই ও সম্পাদন
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(backupControllerProvider.notifier).checkAndRunDailyTelegramBackup();
+    });
+  }
 
   void _onTabSelected(int index) {
     setState(() => _currentIndex = index);
