@@ -632,6 +632,29 @@ class DemoStore {
       totalAgreed: Money.fromTaka(7500),
       totalDue: Money.fromTaka(0),
     ),
+    // নিচের দুটি আবেদন (APP-2026-006, APP-2026-007) এই গ্রাহকদের সাথে
+    // যুক্ত — অতীতে এখানে রেকর্ড না থাকায় ডেটাবেজের বিদেশী কী
+    // (foreign key) অখণ্ড ছিল।
+    DemoPerson(
+      id: 'p-6',
+      name: 'আনোয়ার হোসেন',
+      phone: '01712998877',
+      address: 'বাগবাড়ী, সাভার, ঢাকা',
+      notes: 'হাজি সাহেবের মাধ্যমে আসা নিয়মিত গ্রাহক।',
+      applicationCount: 1,
+      totalAgreed: Money.fromTaka(8000),
+      totalDue: Money.fromTaka(0),
+    ),
+    DemoPerson(
+      id: 'p-7',
+      name: 'শাহ আলম',
+      phone: '01822334455',
+      address: 'ধামরাই বাজার, ঢাকা',
+      notes: 'জমাভাগ কাজের জন্য ফাইল জমা দিয়েছেন।',
+      applicationCount: 1,
+      totalAgreed: Money.fromTaka(6500),
+      totalDue: Money.fromTaka(1500),
+    ),
   ];
 
   static List<DemoApplication> applications = [

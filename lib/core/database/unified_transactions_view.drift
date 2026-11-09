@@ -1,0 +1,145 @@
+-- সেন্ট্রালাইজড লেনদেন ভিউ — সব আয় ও খরচের একক উৎস।
+--
+-- সেমান্টিক্স (Phase 1 সিদ্ধান্ত — "active calculation view"):
+--   ভিউ শুধু *সক্রিয়* লেনদেন দেখায়। সফট-ডিলিট হওয়া আবেদনের
+--   লেনদেনগুলো ডেটাবেজে অডিট ট্রেইল হিসেবে সংরক্ষিত থাকে, কিন্তু
+--   সক্রিয় হিসাবের বাইরে থাকে (BUSINESS_RULES.md §1.3)।
+--
+-- বিড ৪ ও ৬ সংশোধন (Phase 0 অডিট W-11):
+--   বিড ৪: `AND e.is_general = 0` যোগ — এখন আর বিড ৬ একই রোকে গণনা হবে না।
+--   বিড ৬: `AND e.application_id IS NULL` যোগ — সাধারণ খরচ কখনো
+--          আবেদনের সাথে যুক্ত হবে না।
+--
+-- টাইপ নোট:
+--   `CAST(... AS INTEGER)` স্পষ্টভাবে লেখা হয়েছে, কারণ SQLite-এর
+--   ইউনিয়ন কলামের টাইপ ইনফারেন্স অন্য ব্রাঞ্চের কলাম দ্বারা প্রভাবিত
+--   হয় — ফলে drift কলামটিকে টেক্সট হিসেবে চিনতে পারত। এখন `amount`
+--   ও `date` দুটোই পূর্ণসংখ্যা (পয়সা ও epoch মিলিসেকেন্ড)।
+CREATE VIEW unified_transactions_view AS
+-- ১. আবেদন কিস্তি জমা
+SELECT
+  p.id AS id,
+  'income' AS type,
+  'applicationPayment' AS source,
+  CAST(p.amount AS INTEGER) AS amount,
+  CAST(p.date AS INTEGER) AS date,
+  'আবেদন কিস্তি জমা' AS category,
+  p.application_id AS application_id,
+  a.work_type || ' - ' || a.applicant_name AS application_title,
+  a.applicant_name AS applicant_name,
+  NULL AS customer_name,
+  p.method AS payment_method,
+  p.status_history_id AS status_history_id,
+  p.status_name AS status_name,
+  p.note AS note
+FROM payments p
+JOIN applications a ON p.application_id = a.id
+WHERE p.deleted_at IS NULL AND a.deleted_at IS NULL AND p.is_status_fee = 0
+
+UNION ALL
+
+-- ২. অবস্থা পরিবর্তন ফি
+SELECT
+  p.id AS id,
+  'income' AS type,
+  'statusIncome' AS source,
+  CAST(p.amount AS INTEGER) AS amount,
+  CAST(p.date AS INTEGER) AS date,
+  'অবস্থা পরিবর্তন ফি' AS category,
+  p.application_id AS application_id,
+  a.work_type || ' - ' || a.applicant_name AS application_title,
+  a.applicant_name AS applicant_name,
+  NULL AS customer_name,
+  p.method AS payment_method,
+  p.status_history_id AS status_history_id,
+  p.status_name AS status_name,
+  p.note AS note
+FROM payments p
+JOIN applications a ON p.application_id = a.id
+WHERE p.deleted_at IS NULL AND a.deleted_at IS NULL AND p.is_status_fee = 1
+
+UNION ALL
+
+-- ৩. স্বতন্ত্র স্বাধীন আয়
+SELECT
+  i.id AS id,
+  'income' AS type,
+  'independentIncome' AS source,
+  CAST(i.amount AS INTEGER) AS amount,
+  CAST(i.date AS INTEGER) AS date,
+  i.category AS category,
+  NULL AS application_id,
+  NULL AS application_title,
+  NULL AS applicant_name,
+  i.customer_name AS customer_name,
+  i.payment_method AS payment_method,
+  NULL AS status_history_id,
+  NULL AS status_name,
+  i.note AS note
+FROM independent_incomes i
+WHERE i.deleted_at IS NULL
+
+UNION ALL
+
+-- ৪. অবস্থা পরিবর্তন খরচ (সংশোধিত: `is_general = 0` যোগ করা হয়েছে)
+SELECT
+  e.id AS id,
+  'expense' AS type,
+  'statusExpense' AS source,
+  CAST(e.amount AS INTEGER) AS amount,
+  CAST(e.date AS INTEGER) AS date,
+  e.category AS category,
+  e.application_id AS application_id,
+  a.work_type || ' - ' || a.applicant_name AS application_title,
+  a.applicant_name AS applicant_name,
+  NULL AS customer_name,
+  NULL AS payment_method,
+  e.status_history_id AS status_history_id,
+  e.status_name AS status_name,
+  e.note AS note
+FROM expenses e
+JOIN applications a ON e.application_id = a.id
+WHERE e.deleted_at IS NULL AND a.deleted_at IS NULL AND e.is_status_exp = 1 AND e.is_general = 0
+
+UNION ALL
+
+-- ৫. ফাইলের কাজের খরচ
+SELECT
+  e.id AS id,
+  'expense' AS type,
+  'applicationExpense' AS source,
+  CAST(e.amount AS INTEGER) AS amount,
+  CAST(e.date AS INTEGER) AS date,
+  e.category AS category,
+  e.application_id AS application_id,
+  a.work_type || ' - ' || a.applicant_name AS application_title,
+  a.applicant_name AS applicant_name,
+  NULL AS customer_name,
+  NULL AS payment_method,
+  e.status_history_id AS status_history_id,
+  e.status_name AS status_name,
+  e.note AS note
+FROM expenses e
+JOIN applications a ON e.application_id = a.id
+WHERE e.deleted_at IS NULL AND a.deleted_at IS NULL AND e.is_status_exp = 0 AND e.is_general = 0
+
+UNION ALL
+
+-- ৬. দোকানের সাধারণ খরচ (সংশোধিত: `application_id IS NULL` যোগ করা হয়েছে)
+SELECT
+  e.id AS id,
+  'expense' AS type,
+  'generalExpense' AS source,
+  CAST(e.amount AS INTEGER) AS amount,
+  CAST(e.date AS INTEGER) AS date,
+  e.category AS category,
+  NULL AS application_id,
+  NULL AS application_title,
+  NULL AS applicant_name,
+  NULL AS customer_name,
+  NULL AS payment_method,
+  NULL AS status_history_id,
+  NULL AS status_name,
+  e.note AS note
+FROM expenses e
+WHERE e.deleted_at IS NULL AND e.is_general = 1 AND e.application_id IS NULL;

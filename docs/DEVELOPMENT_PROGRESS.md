@@ -113,10 +113,10 @@
 - **টাকার হিসাব ট্যাব (`ApplicationDetailScreen` Tab 3):**
   - ৪টি স্ট্যাট একক সারিতে থাকায় স্ক্রিন অনুযায়ী ভেঙে পড়ার সমস্যা দূর করে মার্জিত **২-কলাম গ্রিড লেআউট** (`_buildFinanceTile`) যুক্ত করা হয়েছে।
   - প্রতিটি টাইল `Expanded` এবং অভ্যন্তরীণ মান `FittedBox(fit: BoxFit.scaleDown)` দিয়ে মোড়ানো হয়েছে, ফলে লাখ বা কোটি টাকার বড় অংকও কখনো স্ক্রিন ভাঙবে না বা ওভারফ্লো করবে না।
-  - অপ্রয়োজনীয়/অতিরিক্ত পুনরাবৃত্তি রোধে নিচের আনুমানিক লাভ ও নগদ লাভ টাইলস দুটি সরিয়ে ফেলা হয়েছে (যেহেতু উপরেই হিরো লাভ ব্যানারে স্পষ্ট ও বিস্তারিতভাবে অবশিষ্ট নিট লাভ প্রদর্শিত)। এখন সুষম ২x২ গ্রিডে প্রধান ৪টি মেট্রিক দৃশ্যমান:
+  - অপ্রয়োজনীয়/অতিরিক্ত পুনরাবৃত্তি রোধে নিচের আনুমানিক ইনকাম ও নগদ ইনকাম টাইলস দুটি সরিয়ে ফেলা হয়েছে (যেহেতু উপরেই হিরো ইনকাম ব্যানারে স্পষ্ট ও বিস্তারিতভাবে অবশিষ্ট নিট ইনকাম প্রদর্শিত)। এখন সুষম ২x২ গ্রিডে প্রধান ৪টি মেট্রিক দৃশ্যমান:
     - সারি ১: চুক্তিকৃত টাকা | মোট আদায়
     - সারি ২: কাজের মোট খরচ | বকেয়া (বা 'পরিশোধিত ✓')
-  - হিরো লাভ ব্যানারেও `FittedBox` ও `maxLines` কন্ট্রোল প্রয়োগ করা হয়েছে।
+  - হিরো ইনকাম ব্যানারেও `FittedBox` ও `maxLines` কন্ট্রোল প্রয়োগ করা হয়েছে।
 - **কুইক অ্যাকশন বার (`_buildQuickActionBar`):**
   - সব চুক্তিকৃত টাকা পরিশোধিত হয়ে গেলে (`!dueAmount.isPositive`) 'জমা নিন' বাটন স্বয়ংক্রিয়ভাবে অদৃশ্য হয়ে যায়।
   - স্ট্যাটাস ব্যাজ `Flexible` এবং বাটনগুলোতে স্লিম প্যাডিং ও `MaterialTapTargetSize.shrinkWrap` দেওয়ায় যেকোনো ছোট স্ক্রিনেও বারটি অক্ষত থাকে।
@@ -127,7 +127,7 @@
   - ডায়ালগে `ConstrainedBox(maxHeight: 88%)` ও `SingleChildScrollView` নিশ্চিত করে যেকোনো স্ক্রিন হাইট বা কিবোর্ড ওপেন থাকলেও ডায়ালগ স্ক্রলযোগ্য থাকবে।
   - `AppButton` উইজেটে অভ্যন্তরীণ টেক্সট `Flexible` ও `TextOverflow.ellipsis` সহ সুরক্ষিত করা হয়েছে।
 - **আবেদন কার্ড (`ApplicationCard`):**
-  - তালিকার কার্ডগুলো থেকে অতিরিক্ত খরচ/লাভ স্ট্রিপ (`কাজের মোট খরচ` ও `অবশিষ্ট লাভ`) সম্পূর্ণ সরিয়ে নেওয়া হয়েছে। কার্ডে এখন কেবলমাত্র আবশ্যকীয় আর্থিক তথ্য (চুক্তি, জমা ও বকেয়া ব্যাজ) পরিচ্ছন্নভাবে প্রদর্শিত হয়।
+  - তালিকার কার্ডগুলো থেকে অতিরিক্ত খরচ/ইনকাম স্ট্রিপ (`কাজের মোট খরচ` ও `অবশিষ্ট ইনকাম`) সম্পূর্ণ সরিয়ে নেওয়া হয়েছে। কার্ডে এখন কেবলমাত্র আবশ্যকীয় আর্থিক তথ্য (চুক্তি, জমা ও বকেয়া ব্যাজ) পরিচ্ছন্নভাবে প্রদর্শিত হয়।
 
 ### 8. 'Mark as Paid' / বকেয়া মওকুফ ও নিষ্পত্তি ফিচার (Completed)
 - **বাস্তবধর্মী লজিক:** ৭,০০০ টাকার চুক্তিতে ৬,৫০০ টাকা পাওয়ার পর ক্লায়েন্ট ৫০০ টাকা আর না দিলে তা মওকুফ/ডিসকাউন্ট হিসেবে 'Mark as Paid' করার সুবিধা যুক্ত হয়েছে।
@@ -232,3 +232,109 @@
 
 
 
+
+---
+
+## Phase 0 Audit — Complete Project Audit & Consolidated Engineering Plan
+
+> **Status:** ✅ Audit complete — ⏳ Awaiting Team Leader / user approval to begin Phase 1 (Database Foundation)
+> **Audit mode:** Read-only. No application source modified, no packages installed, no database schema changed, no commit or push.
+> **Full report:** [`docs/PHASE_0_PROJECT_AUDIT.md`](PHASE_0_PROJECT_AUDIT.md)
+
+### Verified baseline (live command output)
+| Check | Command | Result |
+|---|---|---|
+| Static analysis | `flutter analyze` | **No issues found** |
+| Test suite | `flutter test --reporter=expanded` | **110 / 110 passed** — 0 failed, 0 skipped |
+| Toolchain | `flutter --version` | Flutter 3.41.9 stable · Dart 3.11.5 |
+
+### Key audit outcomes
+- **No persistence layer exists.** No `lib/core/database/`, no Drift, no DAO, no repository. All business records live in mutable static lists (`demo_data.dart:416-1412`) and are lost on restart.
+- **No state-management layer exists.** The only Riverpod token in the whole tree is `ProviderScope` (`main.dart:8`) — zero `ConsumerWidget`, `ref.watch` or `ref.read`. `go_router` is declared but never imported.
+- **4 Critical defects** — total data loss; `isMarkedAsPaid` silently reset by two code paths (`application_detail_screen.dart:548-571`, `application_edit_screen.dart:88-111`); seeded `expenseAmount` disagreeing with child `expenses[]` lists; backup/restore reporting success while doing nothing (`backup_restore_screen.dart:35, 84, 112`).
+- **Schema is largely sound.** `unified_transactions_view` — all 6 UNION ALL branches select exactly 14 matching columns; `CREATE VIEW` will succeed. 8 structural defects catalogued, including a double-count risk in view branches 4 and 6.
+- **Seed data has dangling foreign keys.** Applications reference `p-6` and `p-7`; persons stop at `p-5`. With `PRAGMA foreign_keys = ON` the seed would be rejected — must be repaired before migration.
+- **Core financial formulas are correct.** Verified formula-by-formula against BACKEND_MASTER_PLAN.md §1.2. Three deviations matter: ID-prefix heuristics for status classification, full-list rebuild per frame, and duplicate expense totals.
+- **No shared validators exist.** `lib/core/utils/` holds only `money.dart` and `bengali_digits.dart`.
+- **Anti-hang audit: clean.** All 16 `SingleChildScrollView` sites classified. The performance risk is the data layer, not the widget tree.
+- **Testing:** 110 tests exist and pass.
+
+---
+
+## Phase 1 — Database Foundation · Implementation & Verification
+
+> **Status:** ✅ **COMPLETE** — schema builds, all 14 tables created, 110/110 tests pass, `flutter analyze` clean.
+> **Scope:** `lib/core/database/` (new) · `lib/core/utils/money.dart` · `lib/core/utils/validators.dart` (new) · `lib/main.dart` crash shield · `lib/core/demo/demo_data.dart` seed repair · `pubspec.yaml`.
+
+### Packages added
+`drift` · `drift_flutter` · `sqlite3` · `sqlite3_flutter_libs` · `path_provider` · `path` · dev: `drift_dev` · `build_runner`.
+Generated code lives at `lib/core/database/app_database.g.dart` (never edit by hand — regenerate with `dart run build_runner build`).
+
+### Files created
+| Path | Purpose |
+|---|---|
+| `lib/core/database/app_database.dart` | `AppDatabase` — 14 tables, `unified_transactions_view`, 3 integrity triggers, WAL + FK pragmas, migration strategy |
+| `lib/core/database/app_database.g.dart` | drift-generated code (regenerate, never hand-edit) |
+| `lib/core/database/tables/*.dart` | One file per table (14) + `application_statuses.dart` (single source of valid statuses) |
+| `lib/core/database/database_provider.dart` | Riverpod `appDatabaseProvider` singleton |
+| `lib/core/database/database_seeder.dart` | Atomic demo-seed loader (single transaction, UUID v4 mapping) |
+| `lib/core/database/unified_transactions_view.drift` | 6-branch unified ledger view (14 columns per branch) |
+| `lib/core/database/integrity_guards.drift` | Immutability triggers (snapshot columns, payments, expenses) |
+| `lib/core/utils/validators.dart` | `AppValidators` — phone/name/amount/category validation with BACKEND_MASTER_PLAN.md messages |
+| `test/unit/database_schema_test.dart` | 34 schema, pragma, FK, CHECK, soft-delete, trigger and seed tests |
+| `test/unit/validators_and_money_json_test.dart` | Validator + `Money` JSON codec + integer-safety tests |
+
+### Critical defects found and fixed
+
+**CR-001 — the schema could never be created (Critical).**
+drift's generator emits `allSchemaEntities` with the **3 triggers and the view listed before the 14 tables**, so `m.createAll()` executed `CREATE TRIGGER ... ON applications` before `applications` existed → `SqliteException(1): no such table: main.applications`. Every one of the 27 schema tests aborted here, so the whole schema was unverified.
+Fix: `app_database.dart` now owns creation order explicitly — tables → indexes → views → triggers — in a private `_createSchema(Migrator)` used by both `onCreate` and `onUpgrade`. SQLite does not require a referenced table to exist at `CREATE TABLE` time, but it does for `CREATE VIEW` and `CREATE TRIGGER`.
+
+**CR-002 — `Money.fromJson` silently swallowed garbage (High).**
+`fromJson` delegated `String` input to the permissive `Money.parse`, so `fromJson('garbage')` returned `Money.zero` — a wrong ledger entry rather than an error (BACKEND_MASTER_PLAN.md §1.2). Fix: a new private `_parseExactPaisa` performs **integer-only** paisa arithmetic (no `double` anywhere in the path) and throws `FormatException` on empty or malformed input. `Money.parse` keeps its permissive behaviour for UI callers but is now documented as unsafe.
+
+**CR-003 — an expense could be classified as neither (High).**
+The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. A row with `is_general = 0` and `application_id IS NULL` was legal yet appeared in **no** view branch and in **no** per-file total — invisible money. Fix: the constraint set is now a bijection — `CHECK (is_general = 0 OR application_id IS NULL)` **and** `CHECK (is_general = 1 OR application_id IS NOT NULL)`. The demo seed satisfies both (6 file expenses all carry an application; 9 general expenses carry none).
+
+**CR-004 — `onUpgrade` would have failed on the first real schema change (Medium).**
+`onUpgrade` called the same blind re-create as `onCreate`; on an existing database the indexes and triggers already exist, so `CREATE INDEX` / `CREATE TRIGGER` would fail with "already exists". Fix: `onUpgrade` is now explicitly version-aware and intentionally empty, with a documented pattern (`if (from < 2) { ... }`) for future versions. User data is never destroyed.
+
+**CR-005 — `double` on money in the live UI path (Medium).**
+`Money.inTakaDouble` fed the margin percentage and all three chart series, and `Money.operator*` took a `num` and rounded. Fix: `operator*` now accepts `int` only; the margin percentage is computed with integer paisa (`netIncome.paisa * 100 ~/ totalIncome.paisa`); chart series accumulate in integer paisa and convert to `double` only at the fl_chart render boundary (`toY`), which the library's API requires.
+
+### Test-side defects found and fixed
+- `LEFT JOIN references r` → `LEFT JOIN "references" r` — `references` is a SQLite keyword and broke the FK-integrity query with a syntax error.
+- The "খরচের অঙ্ক ও খাত অপরিবর্তনীয়" fixture inserted a file expense with no `application_id`, which the new CHECK correctly rejects — the fixture now inserts a parent application and links to it.
+- 3 lints cleared (`unnecessary_string_interpolations` ×2, `prefer_const_constructors` ×1).
+
+### Verified state (live command output)
+| Check | Command | Result |
+|---|---|---|
+| Static analysis | `flutter analyze` | **No issues found!** (5.7s) |
+| Test suite | `flutter test --reporter=expanded` | **110 / 110 passed** — 0 failed, 0 skipped |
+| Schema suite | `flutter test test/unit/database_schema_test.dart` | **34 / 34 passed** |
+| Code generation | `dart run build_runner build` | Built successfully, 96 outputs |
+| Toolchain | `flutter --version` | Flutter 3.41.9 stable · Dart 3.11.5 |
+
+### Phase 1 acceptance criteria (`docs/PHASE_0_PROJECT_AUDIT.md` §12)
+| # | Criterion | Status |
+|---|---|---|
+| 1 | All 14 tables created with correct schema | ✅ verified by test |
+| 2 | `PRAGMA journal_mode` returns `wal` | ✅ verified by test |
+| 3 | `PRAGMA foreign_keys` returns 1 (enforced) | ✅ verified by test |
+| 4 | `unified_transactions_view` creates (6 branches × 14 columns) | ✅ verified by test |
+| 5 | Branch 4 and 6 double-count predicates fixed | ✅ verified by test |
+| 6 | Seed FK integrity repaired (no dangling `p-6` / `p-7`) | ✅ persons `p-6`, `p-7` added; no orphans |
+| 7 | `Money.toJson` / `fromJson` present and unit tested | ✅ + strict string handling |
+| 8 | `lib/core/utils/validators.dart` created with §8.2 messages | ✅ |
+| 9 | `main.dart` registers all three crash handlers | ✅ |
+| 10 | All 43 pre-existing tests still pass | ✅ (now 110 total) |
+| 11 | New schema, migration and soft-delete tests pass | ✅ 34 schema tests |
+| 12 | `flutter analyze` reports zero issues | ✅ |
+
+### Deliberate decisions recorded
+- **NEW-1 — the ledger is an *active* view.** `unified_transactions_view` inner-joins `applications`, so rows of a soft-deleted parent stay in the database (audit trail intact, per BUSINESS_RULES.md §1.3) but fall outside active calculations. Documented in the `.drift` file header.
+- **NEW-2 — `is_status_fee` remains a dead path.** No production code sets it, so the view's `statusIncome` branch is currently unreachable. Left in place (the column is part of the documented schema) and flagged for the UI-integration phase.
+
+### Next phase
+**Phase 2 — Core Business Modules** (offices → work types → persons → references → applications): DAOs with `LIMIT`/`OFFSET`, soft-delete filters, snapshot writes, and the atomic status-change transaction (status history + expense + task in **one** transaction).

@@ -128,14 +128,6 @@ linux/flutter/ephemeral/
 *.sublime-project
 *.sublime-workspace
 
-# Puku Editor Runtime / Sessions (Agents in .puku/agents/ are tracked)
-.puku/sessions/
-.puku/history/
-.puku/logs/
-.puku/cache/
-.puku/*.log
-.puku/*.tmp
-
 # ==============================================================================
 # OS & SYSTEM ARTIFACTS
 # ==============================================================================

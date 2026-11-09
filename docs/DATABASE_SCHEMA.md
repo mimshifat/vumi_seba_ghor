@@ -4,7 +4,7 @@
 > **Engine:** SQLite 3 via `drift` (Dart ORM)  
 > **Currency Precision:** Integer-based Paisa (৳1 = 100 Paisa; ৳7,000 = 700000)  
 > **Primary Key Standard:** UUID v4 (String / TEXT) for conflict-free offline operation  
-> **Deletion Standard:** **Zero Hard Deletes (কখনও হার্ড ডিলিট হবে না)** — All deletions are Soft Deletes (`deleted_at INTEGER NULL`) with Frozen Historical Snapshots.
+> **Deletion Standard:** **Zero Hard Deletes (কখনো হার্ড ডিলিট হবে না)** — All deletions are Soft Deletes (`deleted_at INTEGER NULL`) with Frozen Historical Snapshots.
 
 ---
 
@@ -439,3 +439,51 @@ WHERE e.deleted_at IS NULL AND e.is_general = 1;
    ক্যাশ লেনদেনের ইতিহাস কখনো হার্ড ডিলিট হয় না। কোনো ভুল এন্ট্রি মুছে দিতে হলে তা সফট ডিলিট হবে এবং অডিটে সংরক্ষিত থাকবে।
 4. **সহজ ডেটা রিকভারি:**  
    ভুলবশত কিছু ডিলিট হলে ডেটাবেজের ব্যাকএন্ড থেকে তা যে কোনো সময় এক ক্লিকে রিস্টোর করা সম্ভব (`deleted_at = NULL`)।
+
+---
+
+## 6. Phase 1 Implementation Notes (resolved decisions)
+
+> Added after the Phase 1 implementation and an independent code review. These record the decisions taken where this document was silent or ambiguous. Where the implementation and this document differ, the notes below are the resolution.
+
+### 11.1 `deleted_at` — every table, including `status_history` and `shop_settings`
+Both tables **do** carry `deleted_at INTEGER NULL`, so the "every table has `deleted_at`" rule holds with **no exceptions**. `status_history` is an append-only audit log in practice, but the column is present for uniformity; `shop_settings` is a key-value store whose `deleted_at` is likewise always NULL.
+
+### 11.2 `shop_settings` primary key
+The primary key is the column **`key`** (`TEXT`), not a UUID. This is a **deliberate, documented exception** to the standard UUID primary keys rule — a key-value store needs the key itself to be the identifier. The column is emitted quoted in the generated DDL (`"key"`), so the SQLite keyword causes no problem. `setting_key` is the Dart-side name (`text().named('key')`).
+
+### 11.3 `expenses` — the file/general classification is now a bijection
+Two CHECK constraints together guarantee that **every** expense row is exactly one of the two kinds (BACKEND_MASTER_PLAN.md §1.2):
+
+```sql
+CHECK (is_general = 0 OR application_id IS NULL)    -- a general expense has no application
+CHECK (is_general = 1 OR application_id IS NOT NULL) -- a file expense must have an application
+```
+
+Without the second constraint, a row with `is_general = 0` and `application_id IS NULL` was legal but appeared in **no** `unified_transactions_view` branch and in **no** per-file total — invisible money. It is now rejected at the database level.
+
+### 11.4 `unified_transactions_view` — an *active* view, not an audit view
+The view inner-joins `applications`, so the transactions of a soft-deleted application stay **in the database** (audit trail preserved, BUSINESS_RULES.md §1.3) but fall outside **active calculations**. This resolves open question NEW-1 in favour of *active*.
+
+The double-count predicates are corrected:
+- **Branch 4** (`statusExpense`) adds `AND e.is_general = 0` — a row flagged both status-linked and general is no longer counted twice.
+- **Branch 6** (`generalExpense`) adds `AND e.application_id IS NULL` — a general expense is never attached to an application.
+
+### 11.5 Schema creation order is explicit, not generator order
+drift's generator emits the **triggers and the view before the tables** in `allSchemaEntities`, so `m.createAll()` fails with `no such table: main.applications`. `AppDatabase` therefore creates entities in an explicit order — **tables → indexes → views → triggers** — in both `onCreate` and `onUpgrade`.
+
+### 11.6 `onUpgrade` is version-aware and starts empty
+Phase 1 is schema version 1, so there is no upgrade path yet. `onUpgrade` is intentionally a no-op with a documented pattern (`if (from < 2) { ... }`) for future versions — each version needs its own step (`m.addColumn()`, `m.alterTable()`, `m.create()`). User data is never destroyed by a migration.
+
+### 11.7 Integrity triggers
+`lib/core/database/integrity_guards.drift` adds three `BEFORE UPDATE` triggers that `RAISE(ABORT)`:
+- `applications_snapshot_immutable` — the five snapshot columns may never change.
+- `payments_immutable` — a payment's amount, date, method, note, links and `created_at` may never change.
+- `expenses_immutable` — an expense's amount, category, date, classification, note, links and `created_at` may never change.
+
+Each trigger's comparison list **excludes** `deleted_at` and `updated_at`, so the legitimate soft-delete (`SET deleted_at = ?`) and the audit-timestamp update remain allowed. Corrections are made by soft-deleting the old row and inserting a new one.
+
+### 11.8 Money storage
+All monetary columns are `INTEGER` paisa. `Money.fromJson` parses string input with **integer-only** arithmetic and throws `FormatException` on malformed input rather than silently returning zero (BACKEND_MASTER_PLAN.md §1.2). `Money.operator*` accepts `int` only.
+
+---

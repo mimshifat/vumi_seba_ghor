@@ -730,8 +730,10 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
     final filteredTxs = _getFilteredTransactions();
 
     final isPositiveIncome = !netIncome.isNegative;
-    final marginPercent = totalIncome.inTakaDouble > 0
-        ? ((netIncome.inTakaDouble / totalIncome.inTakaDouble) * 100).clamp(-100, 100).round()
+    // মার্জিন শতকরা হিসাব — পয়সা (integer) থেকে, কোনো ভাসমান
+    // মাধ্যমিক ছাড়াই (BACKEND_MASTER_PLAN.md)।
+    final marginPercent = totalIncome.paisa > 0
+        ? ((netIncome.paisa * 100) ~/ totalIncome.paisa).clamp(-100, 100)
         : 0;
 
     return Container(
@@ -1064,12 +1066,13 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
       // 12 months
       final groups = <BarChartGroupData>[];
       for (int m = 1; m <= 12; m++) {
-        double inc = 0;
-        double exp = 0;
+        // পয়সা (integer) হিসেবে জমা হয় — ভাসমান মাধ্যমিক নেই (BACKEND_MASTER_PLAN.md)।
+        int inc = 0;
+        int exp = 0;
         for (final t in txs) {
           if (t.date.month == m) {
-            if (t.isIncome) inc += t.amount.inTakaDouble;
-            if (t.isExpense) exp += t.amount.inTakaDouble;
+            if (t.isIncome) inc += t.amount.paisa;
+            if (t.isExpense) exp += t.amount.paisa;
           }
         }
         groups.add(_makeGroup(m - 1, inc, exp, rodWidth: 7));
@@ -1081,12 +1084,12 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
       final groups = <BarChartGroupData>[];
       for (int i = 0; i < years.length; i++) {
         final yr = years[i];
-        double inc = 0;
-        double exp = 0;
+        int inc = 0;
+        int exp = 0;
         for (final t in txs) {
           if (t.date.year == yr) {
-            if (t.isIncome) inc += t.amount.inTakaDouble;
-            if (t.isExpense) exp += t.amount.inTakaDouble;
+            if (t.isIncome) inc += t.amount.paisa;
+            if (t.isExpense) exp += t.amount.paisa;
           }
         }
         groups.add(_makeGroup(i, inc, exp, rodWidth: 16));
@@ -1098,12 +1101,12 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
       for (int w = 0; w < 5; w++) {
         final startDay = w * 7 + 1;
         final endDay = (w + 1) * 7;
-        double inc = 0;
-        double exp = 0;
+        int inc = 0;
+        int exp = 0;
         for (final t in txs) {
           if (t.date.day >= startDay && t.date.day <= endDay) {
-            if (t.isIncome) inc += t.amount.inTakaDouble;
-            if (t.isExpense) exp += t.amount.inTakaDouble;
+            if (t.isIncome) inc += t.amount.paisa;
+            if (t.isExpense) exp += t.amount.paisa;
           }
         }
         groups.add(_makeGroup(w, inc, exp, rodWidth: 12));
@@ -1122,18 +1125,23 @@ class _FinancialOverviewScreenState extends State<FinancialOverviewScreen> {
     return maxVal * 1.25;
   }
 
-  BarChartGroupData _makeGroup(int x, double income, double expense, {double rodWidth = 12}) {
+  /// চার্টের একটি দণ্ড তৈরি করে।
+  ///
+  /// [income] ও [expense] পয়সা (integer) হিসেবে আসে — সব আর্থিক
+  /// হিসাব পূর্ণসংখ্যায় থাকে (BACKEND_MASTER_PLAN.md)। fl_chart-এর `toY` ফিল্ড
+  /// `double` চাই বলে শুধু প্রদর্শনের সময় টাকায় রূপান্তর হয়।
+  BarChartGroupData _makeGroup(int x, int income, int expense, {double rodWidth = 12}) {
     return BarChartGroupData(
       x: x,
       barRods: [
         BarChartRodData(
-          toY: income,
+          toY: income / 100.0,
           color: AppColors.emerald,
           width: rodWidth,
           borderRadius: BorderRadius.circular(3),
         ),
         BarChartRodData(
-          toY: expense,
+          toY: expense / 100.0,
           color: AppColors.rose,
           width: rodWidth,
           borderRadius: BorderRadius.circular(3),

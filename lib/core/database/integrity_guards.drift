@@ -1,0 +1,61 @@
+-- ডেটাবেজ স্তরে প্রয়োগ করা অখণ্ডতা বাধা (Integrity Guards)।
+--
+-- BACKEND_MASTER_PLAN.md §1.3 — স্ন্যাপশট কলাম অপরিবর্তনীয়:
+--   একবার লেখা `applicant_name`, `applicant_phone`, `applicant_address`,
+--   `reference_name` ও `office_name` আর কখনো বদলানো যাবে না — এমনকি
+--   সংশ্লিষ্ট ব্যক্তি বা অফিস মুছে গেলেও।
+--
+-- BACKEND_MASTER_PLAN.md §1.2 — আর্থিক রেকর্ড অপরিবর্তনীয়:
+--   `payments` ও `expenses` তৈরির পর আর কখনো পরিবর্তন করা যাবে না।
+--   ভুল লেখা শোধরাতে সফট ডিলিট করে নতুন রেকর্ড যোগ করতে হবে।
+--   শুধুমাত্র `deleted_at` ও `updated_at` পরিবর্তনের অনুমতি আছে।
+
+-- আবেদনের স্ন্যাপশট কলাম — কখনো বদলানো যাবে না।
+CREATE TRIGGER applications_snapshot_immutable
+BEFORE UPDATE ON applications
+FOR EACH ROW
+WHEN OLD.applicant_name IS NOT NEW.applicant_name
+  OR OLD.applicant_phone IS NOT NEW.applicant_phone
+  OR OLD.applicant_address IS NOT NEW.applicant_address
+  OR OLD.reference_name IS NOT NEW.reference_name
+  OR OLD.office_name IS NOT NEW.office_name
+BEGIN
+  SELECT RAISE(ABORT, 'application snapshot columns are immutable');
+END;
+
+-- পেমেন্ট — অঙ্ক, তারিখ ও সংযোগ অপরিবর্তনীয়।
+CREATE TRIGGER payments_immutable
+BEFORE UPDATE ON payments
+FOR EACH ROW
+WHEN OLD.id IS NOT NEW.id
+  OR OLD.application_id IS NOT NEW.application_id
+  OR OLD.amount IS NOT NEW.amount
+  OR OLD.date IS NOT NEW.date
+  OR OLD.method IS NOT NEW.method
+  OR OLD.note IS NOT NEW.note
+  OR OLD.status_history_id IS NOT NEW.status_history_id
+  OR OLD.status_name IS NOT NEW.status_name
+  OR OLD.is_status_fee IS NOT NEW.is_status_fee
+  OR OLD.created_at IS NOT NEW.created_at
+BEGIN
+  SELECT RAISE(ABORT, 'payments are immutable; use soft-delete and a new entry');
+END;
+
+-- খরচ — অঙ্ক, খাত, তারিখ ও সংযোগ অপরিবর্তনীয়।
+CREATE TRIGGER expenses_immutable
+BEFORE UPDATE ON expenses
+FOR EACH ROW
+WHEN OLD.id IS NOT NEW.id
+  OR OLD.application_id IS NOT NEW.application_id
+  OR OLD.amount IS NOT NEW.amount
+  OR OLD.category IS NOT NEW.category
+  OR OLD.date IS NOT NEW.date
+  OR OLD.is_general IS NOT NEW.is_general
+  OR OLD.note IS NOT NEW.note
+  OR OLD.status_history_id IS NOT NEW.status_history_id
+  OR OLD.status_name IS NOT NEW.status_name
+  OR OLD.is_status_exp IS NOT NEW.is_status_exp
+  OR OLD.created_at IS NOT NEW.created_at
+BEGIN
+  SELECT RAISE(ABORT, 'expenses are immutable; use soft-delete and a new entry');
+END;
