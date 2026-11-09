@@ -147,6 +147,12 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
 
       if (!mounted) return;
 
+      ref.invalidate(allUnifiedTransactionsStreamProvider);
+      ref.invalidate(applicationsWithFinancialsStreamProvider);
+      ref.invalidate(financialOverviewProvider);
+      ref.invalidate(todayFinancialSnapshotProvider);
+      ref.invalidate(thisMonthFinancialSnapshotProvider);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

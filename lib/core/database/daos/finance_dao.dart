@@ -283,15 +283,28 @@ class FinanceDao extends DatabaseAccessor<AppDatabase>
     String? type,
     String? source,
     String? search,
-  }) {
-    return _filterUnifiedTransactions(
-      db.select(db.unifiedTransactionsView),
+  }) async* {
+    yield await getUnifiedTransactions(
       startDate: startDate,
       endDate: endDate,
       type: type,
       source: source,
       search: search,
-    ).watch();
+    );
+    yield* db
+        .tableUpdates(TableUpdateQuery.onAllTables([
+          payments,
+          expenses,
+          independentIncomes,
+          applications,
+        ]))
+        .asyncMap((_) => getUnifiedTransactions(
+              startDate: startDate,
+              endDate: endDate,
+              type: type,
+              source: source,
+              search: search,
+            ));
   }
 
   /// ৬-সোর্স একীভূত লেনদেন সংগ্রহ (Future)
@@ -462,5 +475,27 @@ class FinanceDao extends DatabaseAccessor<AppDatabase>
       totalAgreedVolume: totalAgreed,
       totalEffectiveDue: totalEffectiveDue,
     );
+  }
+
+  /// নির্দিষ্ট সময়ের লাইভ আর্থিক হিসাব স্ট্রিম
+  Stream<ShopFinancialOverview> watchOverallFinancialStats({
+    int? startDate,
+    int? endDate,
+  }) async* {
+    yield await getOverallFinancialStats(
+      startDate: startDate,
+      endDate: endDate,
+    );
+    yield* db
+        .tableUpdates(TableUpdateQuery.onAllTables([
+          payments,
+          expenses,
+          independentIncomes,
+          applications,
+        ]))
+        .asyncMap((_) => getOverallFinancialStats(
+              startDate: startDate,
+              endDate: endDate,
+            ));
   }
 }

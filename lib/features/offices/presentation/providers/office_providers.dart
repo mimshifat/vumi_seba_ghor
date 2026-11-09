@@ -27,33 +27,51 @@ final officeApplicationCountProvider =
 /// ভূমি অফিস মিউটেশন কন্ট্রোলার (সেফটি লক সহ)
 class OfficeController extends MutationController {
   final OfficeRepository _repo;
+  final Ref? _ref;
 
-  OfficeController(this._repo);
+  OfficeController(this._repo, [this._ref]);
+
+  void _invalidateAll() {
+    if (_ref != null) {
+      _ref.invalidate(officesStreamProvider);
+    }
+  }
 
   /// নতুন ভূমি অফিস তৈরি
   Future<Office?> createOffice({
     String? id,
     required String name,
-  }) {
-    return execute(() => _repo.createOffice(id: id, name: name));
+  }) async {
+    final res = await execute(() => _repo.createOffice(id: id, name: name));
+    if (res != null) _invalidateAll();
+    return res;
   }
 
   /// ভূমি অফিসের নাম আপডেট
   Future<void> updateOffice({
     required String id,
     required String name,
-  }) {
-    return execute(() => _repo.updateOffice(id: id, name: name));
+  }) async {
+    await execute(() => _repo.updateOffice(id: id, name: name));
+    _invalidateAll();
+    _ref?.invalidate(officeDetailProvider(id));
   }
 
   /// স্মার্ট ডিলিট: কোনো ফাইল না থাকলে হার্ড ডিলিট; ফাইল থাকলে সফট ডিলিট
-  Future<bool?> deleteOffice(String id) {
-    return execute(() => _repo.deleteOffice(id));
+  Future<bool?> deleteOffice(String id) async {
+    final res = await execute(() => _repo.deleteOffice(id));
+    if (res == true) {
+      _invalidateAll();
+      _ref?.invalidate(officeDetailProvider(id));
+    }
+    return res;
   }
 
   /// সফট ডিলিট ভূমি অফিস পুনরুদ্ধার
-  Future<void> restoreOffice(String id) {
-    return execute(() => _repo.restoreOffice(id));
+  Future<void> restoreOffice(String id) async {
+    await execute(() => _repo.restoreOffice(id));
+    _invalidateAll();
+    _ref?.invalidate(officeDetailProvider(id));
   }
 }
 
@@ -61,6 +79,6 @@ class OfficeController extends MutationController {
 final officeControllerProvider =
     StateNotifierProvider<OfficeController, AsyncValue<void>>((ref) {
   final repo = ref.watch(officeRepositoryProvider);
-  return OfficeController(repo);
+  return OfficeController(repo, ref);
 });
 

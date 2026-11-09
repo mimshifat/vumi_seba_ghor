@@ -46,7 +46,7 @@ void main() {
     return ProviderScope(
       overrides: [
         applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
-        todayTasksCountProvider.overrideWith((ref) => Future.value(todayCount ?? defaultTasks.length)),
+        todayTasksCountProvider.overrideWith((ref) => Stream.value(todayCount ?? defaultTasks.length)),
         tasksStreamProvider.overrideWith((ref) => Stream.value(defaultTasks)),
         taskDetailProvider.overrideWith((ref, id) => const Stream.empty()),
         shopSettingsStreamProvider.overrideWith((ref) => Stream.value({})),

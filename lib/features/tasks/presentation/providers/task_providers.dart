@@ -51,9 +51,9 @@ final filteredTasksProvider = Provider<List<Task>>((ref) {
 });
 
 /// আজকের অথবা বকেয়া অবশিষ্ট অসমাপ্ত কাজের সংখ্যা (ড্যাশবোর্ড ব্যাজের জন্য)
-final todayTasksCountProvider = FutureProvider<int>((ref) {
+final todayTasksCountProvider = StreamProvider<int>((ref) {
   final repo = ref.watch(taskRepositoryProvider);
-  return repo.getTodayTasksCount();
+  return repo.watchTodayTasksCount();
 });
 
 /// নির্দিষ্ট একক কাজের রিয়েক্টিভ ওয়াচ
@@ -65,8 +65,16 @@ final taskDetailProvider = StreamProvider.family<Task?, String>((ref, id) {
 /// কাজ মিউটেশন কন্ট্রোলার (সেফটি লক সহ)
 class TaskController extends MutationController {
   final TaskRepository _repo;
+  final Ref? _ref;
 
-  TaskController(this._repo);
+  TaskController(this._repo, [this._ref]);
+
+  void _invalidateAll() {
+    if (_ref != null) {
+      _ref.invalidate(tasksStreamProvider);
+      _ref.invalidate(todayTasksCountProvider);
+    }
+  }
 
   /// নতুন কাজ সংযোজন
   Future<Task?> createTask({
@@ -79,8 +87,8 @@ class TaskController extends MutationController {
     String status = 'করতে হবে',
     String category = 'সাধারণ',
     String? applicationId,
-  }) {
-    return execute(() => _repo.createTask(
+  }) async {
+    final res = await execute(() => _repo.createTask(
           id: id,
           title: title,
           description: description,
@@ -91,6 +99,10 @@ class TaskController extends MutationController {
           category: category,
           applicationId: applicationId,
         ));
+    if (res != null) {
+      _invalidateAll();
+    }
+    return res;
   }
 
   /// কাজ আপডেট
@@ -104,8 +116,8 @@ class TaskController extends MutationController {
     required String status,
     required String category,
     String? applicationId,
-  }) {
-    return execute(() => _repo.updateTask(
+  }) async {
+    await execute(() => _repo.updateTask(
           id: id,
           title: title,
           description: description,
@@ -116,16 +128,22 @@ class TaskController extends MutationController {
           category: category,
           applicationId: applicationId,
         ));
+    _invalidateAll();
+    _ref?.invalidate(taskDetailProvider(id));
   }
 
   /// কাজ সম্পন্ন চিহ্নিতকরণ
-  Future<void> markCompleted(String id, bool completed) {
-    return execute(() => _repo.markCompleted(id, completed));
+  Future<void> markCompleted(String id, bool completed) async {
+    await execute(() => _repo.markCompleted(id, completed));
+    _invalidateAll();
+    _ref?.invalidate(taskDetailProvider(id));
   }
 
   /// অপ্রয়োজনীয় বা বাতিল কাজ সরাসরি হার্ড ডিলিট (BACKEND_MASTER_PLAN.md §1.3)
-  Future<void> deleteTask(String id) {
-    return execute(() => _repo.deleteTask(id));
+  Future<void> deleteTask(String id) async {
+    await execute(() => _repo.deleteTask(id));
+    _invalidateAll();
+    _ref?.invalidate(taskDetailProvider(id));
   }
 }
 
@@ -133,6 +151,6 @@ class TaskController extends MutationController {
 final taskControllerProvider =
     StateNotifierProvider<TaskController, AsyncValue<void>>((ref) {
   final repo = ref.watch(taskRepositoryProvider);
-  return TaskController(repo);
+  return TaskController(repo, ref);
 });
 

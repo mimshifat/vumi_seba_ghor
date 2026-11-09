@@ -5,6 +5,8 @@ import '../../../../core/database/repository_providers.dart';
 import '../../../../core/providers/mutation_controller.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/filter_bottom_sheet.dart';
+import '../../../finance/presentation/providers/finance_providers.dart';
+import '../../../tasks/presentation/providers/task_providers.dart';
 import '../../domain/models/application_with_financials.dart';
 
 /// আবেদনের সার্চ ও ফিল্টারিং স্টেট (Search & Filter Criteria State)
@@ -294,8 +296,19 @@ final applicationStatusHistoryProvider =
 /// আবেদন সংক্রান্ত সকল মিউটেশন ও অ্যাকশন কন্ট্রোলার (ডাবল-ট্যাপ ও সেফটি লক সহ)
 class ApplicationController extends MutationController {
   final ApplicationRepository _repo;
+  final Ref? _ref;
 
-  ApplicationController(this._repo);
+  ApplicationController(this._repo, [this._ref]);
+
+  void _invalidateAll() {
+    if (_ref != null) {
+      _ref.invalidate(applicationsWithFinancialsStreamProvider);
+      _ref.invalidate(allUnifiedTransactionsStreamProvider);
+      _ref.invalidate(financialOverviewProvider);
+      _ref.invalidate(todayFinancialSnapshotProvider);
+      _ref.invalidate(thisMonthFinancialSnapshotProvider);
+    }
+  }
 
   /// নতুন আবেদন তৈরি
   Future<Application?> createApplication({
@@ -318,8 +331,8 @@ class ApplicationController extends MutationController {
     String? notes,
     int? initialPaymentPaisa,
     String initialPaymentMethod = 'নগদ',
-  }) {
-    return execute(() => _repo.createApplication(
+  }) async {
+    final res = await execute(() => _repo.createApplication(
           id: id,
           applicantId: applicantId,
           applicantName: applicantName,
@@ -340,25 +353,47 @@ class ApplicationController extends MutationController {
           initialPaymentPaisa: initialPaymentPaisa,
           initialPaymentMethod: initialPaymentMethod,
         ));
+    if (res != null) {
+      _invalidateAll();
+      _ref?.invalidate(applicationStatusCountsProvider);
+    }
+    return res;
   }
 
   /// আবেদন আপডেট
   Future<void> updateApplication({
     required String id,
+    String? applicantName,
+    String? applicantPhone,
+    String? applicantAddress,
+    String? referenceId,
+    String? referenceName,
+    String? officeId,
+    String? officeName,
     String? mouza,
     String? appNumber,
     String? caseNumber,
     int? agreedAmountPaisa,
     String? notes,
-  }) {
-    return execute(() => _repo.updateApplication(
+  }) async {
+    await execute(() => _repo.updateApplication(
           id: id,
+          applicantName: applicantName,
+          applicantPhone: applicantPhone,
+          applicantAddress: applicantAddress,
+          referenceId: referenceId,
+          referenceName: referenceName,
+          officeId: officeId,
+          officeName: officeName,
           mouza: mouza,
           appNumber: appNumber,
           caseNumber: caseNumber,
           agreedAmountPaisa: agreedAmountPaisa,
           notes: notes,
         ));
+    _invalidateAll();
+    _ref?.invalidate(applicationDetailProvider(id));
+    _ref?.invalidate(applicationWithFinancialsDetailProvider(id));
   }
 
   /// পর্যায়ক্রমিক অবস্থা রূপান্তর (একক ট্রানজ্যাকশন)
@@ -373,8 +408,8 @@ class ApplicationController extends MutationController {
     String? hearingTaskTitle,
     DateTime? hearingTaskDueDate,
     String? hearingTaskPriority,
-  }) {
-    return execute(() => _repo.transitionStatus(
+  }) async {
+    await execute(() => _repo.transitionStatus(
           applicationId: applicationId,
           newStatus: newStatus,
           note: note,
@@ -386,21 +421,41 @@ class ApplicationController extends MutationController {
           hearingTaskDueDate: hearingTaskDueDate,
           hearingTaskPriority: hearingTaskPriority,
         ));
+    _invalidateAll();
+    _ref?.invalidate(applicationStatusHistoryProvider(applicationId));
+    _ref?.invalidate(applicationDetailProvider(applicationId));
+    _ref?.invalidate(applicationWithFinancialsDetailProvider(applicationId));
+    _ref?.invalidate(applicationExpensesProvider(applicationId));
+    _ref?.invalidate(applicationPaymentsProvider(applicationId));
+    _ref?.invalidate(todayTasksCountProvider);
+    _ref?.invalidate(tasksStreamProvider);
+    _ref?.invalidate(applicationStatusCountsProvider);
   }
 
   /// বকেয়া মওকুফ ও নিষ্পত্তি চিহ্নিতকরণ
-  Future<void> markAsPaid(String id, bool paid) {
-    return execute(() => _repo.markAsPaid(id, paid));
+  Future<void> markAsPaid(String id, bool paid) async {
+    await execute(() => _repo.markAsPaid(id, paid));
+    _invalidateAll();
+    _ref?.invalidate(applicationDetailProvider(id));
+    _ref?.invalidate(applicationWithFinancialsDetailProvider(id));
   }
 
   /// আবেদন সফট ডিলিট
-  Future<void> deleteApplication(String id) {
-    return execute(() => _repo.deleteApplication(id));
+  Future<void> deleteApplication(String id) async {
+    await execute(() => _repo.deleteApplication(id));
+    _invalidateAll();
+    _ref?.invalidate(applicationDetailProvider(id));
+    _ref?.invalidate(applicationWithFinancialsDetailProvider(id));
+    _ref?.invalidate(applicationStatusCountsProvider);
   }
 
   /// আবেদন পুনরুদ্ধার (Undo / Restore)
-  Future<void> restoreApplication(String id) {
-    return execute(() => _repo.restoreApplication(id));
+  Future<void> restoreApplication(String id) async {
+    await execute(() => _repo.restoreApplication(id));
+    _invalidateAll();
+    _ref?.invalidate(applicationDetailProvider(id));
+    _ref?.invalidate(applicationWithFinancialsDetailProvider(id));
+    _ref?.invalidate(applicationStatusCountsProvider);
   }
 }
 
@@ -408,6 +463,6 @@ class ApplicationController extends MutationController {
 final applicationControllerProvider =
     StateNotifierProvider<ApplicationController, AsyncValue<void>>((ref) {
   final repo = ref.watch(applicationRepositoryProvider);
-  return ApplicationController(repo);
+  return ApplicationController(repo, ref);
 });
 

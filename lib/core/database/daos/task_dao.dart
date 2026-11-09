@@ -175,5 +175,21 @@ class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
     final row = await query.getSingle();
     return row.read(countCol) ?? 0;
   }
+
+  /// আজকের অথবা বকেয়া অবশিষ্ট অসমাপ্ত কাজের সংখ্যার লাইভ স্ট্রিম
+  Stream<int> watchTodayTasksCount() {
+    final now = DateTime.now();
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59, 999)
+        .millisecondsSinceEpoch;
+
+    final countCol = tasks.id.count();
+    final query = selectOnly(tasks)
+      ..addColumns([countCol])
+      ..where(tasks.deletedAt.isNull() &
+          tasks.status.isNotValue('সম্পন্ন') &
+          tasks.dueDate.isSmallerOrEqualValue(endOfToday));
+
+    return query.watchSingle().map((row) => row.read(countCol) ?? 0);
+  }
 }
 

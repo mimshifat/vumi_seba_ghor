@@ -31,8 +31,15 @@ final personApplicationCountProvider =
 /// গ্রাহক মিউটেশন কন্ট্রোলার (সেফটি লক সহ)
 class PersonController extends MutationController {
   final PersonRepository _repo;
+  final Ref? _ref;
 
-  PersonController(this._repo);
+  PersonController(this._repo, [this._ref]);
+
+  void _invalidateAll() {
+    if (_ref != null) {
+      _ref.invalidate(personsStreamProvider);
+    }
+  }
 
   /// নতুন গ্রাহক তৈরি
   Future<Person?> createPerson({
@@ -42,8 +49,8 @@ class PersonController extends MutationController {
     String? address,
     Uint8List? photo,
     String? notes,
-  }) {
-    return execute(() => _repo.createPerson(
+  }) async {
+    final res = await execute(() => _repo.createPerson(
           id: id,
           name: name,
           phone: phone,
@@ -51,6 +58,8 @@ class PersonController extends MutationController {
           photo: photo,
           notes: notes,
         ));
+    if (res != null) _invalidateAll();
+    return res;
   }
 
   /// গ্রাহক তথ্য আপডেট
@@ -61,8 +70,8 @@ class PersonController extends MutationController {
     String? address,
     Uint8List? photo,
     String? notes,
-  }) {
-    return execute(() => _repo.updatePerson(
+  }) async {
+    await execute(() => _repo.updatePerson(
           id: id,
           name: name,
           phone: phone,
@@ -70,16 +79,25 @@ class PersonController extends MutationController {
           photo: photo,
           notes: notes,
         ));
+    _invalidateAll();
+    _ref?.invalidate(personDetailProvider(id));
   }
 
   /// স্মার্ট ডিলিট: কোনো ফাইল না থাকলে হার্ড ডিলিট; ফাইল থাকলে সফট ডিলিট
-  Future<bool?> deletePerson(String id) {
-    return execute(() => _repo.deletePerson(id));
+  Future<bool?> deletePerson(String id) async {
+    final res = await execute(() => _repo.deletePerson(id));
+    if (res == true) {
+      _invalidateAll();
+      _ref?.invalidate(personDetailProvider(id));
+    }
+    return res;
   }
 
   /// সফট ডিলিট গ্রাহক পুনরুদ্ধার
-  Future<void> restorePerson(String id) {
-    return execute(() => _repo.restorePerson(id));
+  Future<void> restorePerson(String id) async {
+    await execute(() => _repo.restorePerson(id));
+    _invalidateAll();
+    _ref?.invalidate(personDetailProvider(id));
   }
 }
 
@@ -87,6 +105,6 @@ class PersonController extends MutationController {
 final personControllerProvider =
     StateNotifierProvider<PersonController, AsyncValue<void>>((ref) {
   final repo = ref.watch(personRepositoryProvider);
-  return PersonController(repo);
+  return PersonController(repo, ref);
 });
 

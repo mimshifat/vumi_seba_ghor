@@ -13,6 +13,7 @@ import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/money_field.dart';
+import '../../../finance/presentation/providers/finance_providers.dart';
 import '../../../offices/presentation/providers/office_providers.dart';
 import '../../../persons/presentation/providers/person_providers.dart';
 import '../../../references/presentation/widgets/reference_selector_sheet.dart';
@@ -535,6 +536,9 @@ class _ApplicationCreateScreenState
           behavior: SnackBarBehavior.floating,
         ),
       );
+
+      ref.invalidate(applicationsWithFinancialsStreamProvider);
+      ref.invalidate(allUnifiedTransactionsStreamProvider);
 
       Navigator.of(context).pop();
     } catch (e) {

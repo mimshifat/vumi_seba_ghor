@@ -513,6 +513,12 @@ class _ApplicationDetailScreenState
                                 if (!ctx.mounted) return;
                                 Navigator.pop(ctx);
 
+                                if (mounted) {
+                                  setState(() {
+                                    _app = _app.copyWith(status: selectedStatus);
+                                  });
+                                }
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('ফাইলের অবস্থা সফলভাবে "$selectedStatus" এ হালনাগাদ হয়েছে।'),
@@ -809,8 +815,9 @@ class _ApplicationDetailScreenState
                   builder: (ctx) => ApplicationEditScreen(application: _app),
                 ),
               ).then((updated) {
-                if (updated is DemoApplication) {
-                  setState(() => _app = updated);
+                if (updated == true || updated is DemoApplication) {
+                  ref.invalidate(applicationsWithFinancialsStreamProvider);
+                  if (mounted) setState(() {});
                 }
               });
             },
@@ -987,7 +994,11 @@ class _ApplicationDetailScreenState
                       dueAmount: _app.dueAmount,
                     ),
                   ),
-                );
+                ).then((_) {
+                  ref.invalidate(applicationsWithFinancialsStreamProvider);
+                  ref.invalidate(allUnifiedTransactionsStreamProvider);
+                  if (mounted) setState(() {});
+                });
               },
             ),
           ],
@@ -1652,7 +1663,11 @@ class _ApplicationDetailScreenState
                       dueAmount: _app.dueAmount,
                     ),
                   ),
-                );
+                ).then((_) {
+                  ref.invalidate(applicationsWithFinancialsStreamProvider);
+                  ref.invalidate(allUnifiedTransactionsStreamProvider);
+                  if (mounted) setState(() {});
+                });
               },
             ),
           ],

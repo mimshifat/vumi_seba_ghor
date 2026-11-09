@@ -347,7 +347,10 @@ class _DueManagementScreenState extends ConsumerState<DueManagementScreen> {
                                           dueAmount: app.dueAmount,
                                         ),
                                       ),
-                                    );
+                                    ).then((_) {
+                                      ref.invalidate(applicationsWithFinancialsStreamProvider);
+                                      if (mounted) setState(() {});
+                                    });
                                   },
                                 ),
                               ],

@@ -108,6 +108,11 @@ class _IncomeFormScreenState extends ConsumerState<IncomeFormScreen> {
 
       if (!mounted) return;
 
+      ref.invalidate(allUnifiedTransactionsStreamProvider);
+      ref.invalidate(financialOverviewProvider);
+      ref.invalidate(todayFinancialSnapshotProvider);
+      ref.invalidate(thisMonthFinancialSnapshotProvider);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

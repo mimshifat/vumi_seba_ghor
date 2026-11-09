@@ -90,6 +90,13 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
     try {
       await ref.read(applicationControllerProvider.notifier).updateApplication(
             id: widget.application.id,
+            applicantName: _nameController.text.trim(),
+            applicantPhone: _phoneController.text.trim(),
+            applicantAddress: _addressController.text.trim().isNotEmpty
+                ? _addressController.text.trim()
+                : null,
+            referenceId: _selectedReference?.id,
+            referenceName: _selectedReference?.name,
             mouza: _mouzaController.text.trim().isNotEmpty
                 ? _mouzaController.text.trim()
                 : null,
@@ -114,7 +121,7 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
         ),
       );
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

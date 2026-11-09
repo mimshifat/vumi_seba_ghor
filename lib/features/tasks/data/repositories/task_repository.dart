@@ -190,5 +190,10 @@ class TaskRepository {
       throw AppFailure.fromException(e, s);
     }
   }
+
+  /// আজকের বা বকেয়া অবশিষ্ট অসমাপ্ত কাজের লাইভ স্ট্রিম
+  Stream<int> watchTodayTasksCount() {
+    return _db.taskDao.watchTodayTasksCount();
+  }
 }
 

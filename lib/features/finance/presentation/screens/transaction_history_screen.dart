@@ -73,7 +73,7 @@ class _TransactionHistoryScreenState
   }
 
   List<DemoTransaction> _getAllTransactions() {
-    final liveTx = ref.watch(unifiedTransactionsStreamProvider).valueOrNull;
+    final liveTx = ref.watch(allUnifiedTransactionsStreamProvider).valueOrNull;
     if (liveTx != null) {
       return liveTx.map((tx) {
         return DemoTransaction(
@@ -148,6 +148,7 @@ class _TransactionHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(allUnifiedTransactionsStreamProvider);
     final filtered = _getFilteredTransactions();
 
     Money filteredTotalIncome = Money.zero;

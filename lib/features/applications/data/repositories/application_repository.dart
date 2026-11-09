@@ -247,9 +247,16 @@ class ApplicationRepository {
     }
   }
 
-  /// আবেদন আপডেট (স্ন্যাপশট কলাম অপরিবর্তনীয় রাখা নিশ্চিত করে)
+  /// আবেদনের সার্বিক তথ্য হালনাগাদ
   Future<void> updateApplication({
     required String id,
+    String? applicantName,
+    String? applicantPhone,
+    String? applicantAddress,
+    String? referenceId,
+    String? referenceName,
+    String? officeId,
+    String? officeName,
     String? mouza,
     String? appNumber,
     String? caseNumber,
@@ -262,16 +269,31 @@ class ApplicationRepository {
         throw AppFailure.custom('আবেদনটি খুঁজে পাওয়া যায়নি।');
       }
 
+      final cleanName = applicantName?.trim();
+      if (cleanName != null && cleanName.isEmpty) {
+        throw AppFailure.requiredField('আবেদনকারীর নাম');
+      }
+
+      final cleanPhone = applicantPhone != null
+          ? AppValidators.standardizePhone(applicantPhone)
+          : null;
+      if (cleanPhone != null && !AppValidators.isValidPhone(cleanPhone)) {
+        throw AppFailure.invalidPhone();
+      }
+
       if (agreedAmountPaisa != null && agreedAmountPaisa <= 0) {
         throw AppFailure.invalidAmount('চুক্তির টাকা শূন্যর বেশি হতে হবে।');
       }
 
       final cleanAppNum = appNumber?.trim();
-      if (cleanAppNum != null && cleanAppNum.isNotEmpty && cleanAppNum != existing.appNumber) {
+      final effectiveOfficeId = officeId ?? existing.officeId;
+      if (cleanAppNum != null &&
+          cleanAppNum.isNotEmpty &&
+          cleanAppNum != existing.appNumber) {
         final isDuplicate = await _db.applicationDao.isDuplicateAppNumber(
           cleanAppNum,
           excludeId: id,
-          officeId: existing.officeId,
+          officeId: effectiveOfficeId,
         );
         if (isDuplicate) {
           throw AppFailure.duplicateAppNumber();
@@ -281,6 +303,13 @@ class ApplicationRepository {
       final now = DateTime.now().millisecondsSinceEpoch;
       await _db.applicationDao.updateApplication(
         existing.toCompanion(true).copyWith(
+          applicantName: Value(cleanName ?? existing.applicantName),
+          applicantPhone: Value(cleanPhone ?? existing.applicantPhone),
+          applicantAddress: Value(applicantAddress?.trim() ?? existing.applicantAddress),
+          referenceId: Value(referenceId ?? existing.referenceId),
+          referenceName: Value(referenceName?.trim() ?? existing.referenceName),
+          officeId: Value(officeId ?? existing.officeId),
+          officeName: Value(officeName?.trim() ?? existing.officeName),
           mouza: Value(mouza?.trim() ?? existing.mouza),
           appNumber: Value(cleanAppNum ?? existing.appNumber),
           caseNumber: Value(caseNumber?.trim() ?? existing.caseNumber),

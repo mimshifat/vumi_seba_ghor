@@ -371,7 +371,7 @@ class _FinancialOverviewScreenState
   }
 
   List<DemoTransaction> _getAllTransactions() {
-    final liveTx = ref.watch(unifiedTransactionsStreamProvider).valueOrNull;
+    final liveTx = ref.watch(allUnifiedTransactionsStreamProvider).valueOrNull;
     if (liveTx != null) {
       return liveTx.map((tx) {
         return DemoTransaction(
@@ -481,6 +481,7 @@ class _FinancialOverviewScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(allUnifiedTransactionsStreamProvider);
     final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
     final allApps = allAppsAsync.valueOrNull ?? const [];
     final dueApps = allApps
@@ -500,7 +501,11 @@ class _FinancialOverviewScreenState
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (ctx) => const DueManagementScreen()),
-              ).then((_) => setState(() {}));
+              ).then((_) {
+                ref.invalidate(allUnifiedTransactionsStreamProvider);
+                ref.invalidate(applicationsWithFinancialsStreamProvider);
+                if (mounted) setState(() {});
+              });
             },
           ),
           IconButton(
@@ -509,7 +514,11 @@ class _FinancialOverviewScreenState
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (ctx) => const TransactionHistoryScreen()),
-              ).then((_) => setState(() {}));
+              ).then((_) {
+                ref.invalidate(allUnifiedTransactionsStreamProvider);
+                ref.invalidate(applicationsWithFinancialsStreamProvider);
+                if (mounted) setState(() {});
+              });
             },
           ),
         ],
@@ -526,7 +535,14 @@ class _FinancialOverviewScreenState
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (ctx) => const IncomeFormScreen()),
-                ).then((_) => setState(() {}));
+                ).then((_) {
+                  ref.invalidate(allUnifiedTransactionsStreamProvider);
+                  ref.invalidate(applicationsWithFinancialsStreamProvider);
+                  ref.invalidate(financialOverviewProvider);
+                  ref.invalidate(todayFinancialSnapshotProvider);
+                  ref.invalidate(thisMonthFinancialSnapshotProvider);
+                  if (mounted) setState(() {});
+                });
               },
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -537,7 +553,14 @@ class _FinancialOverviewScreenState
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (ctx) => const ExpenseFormScreen()),
-                ).then((_) => setState(() {}));
+                ).then((_) {
+                  ref.invalidate(allUnifiedTransactionsStreamProvider);
+                  ref.invalidate(applicationsWithFinancialsStreamProvider);
+                  ref.invalidate(financialOverviewProvider);
+                  ref.invalidate(todayFinancialSnapshotProvider);
+                  ref.invalidate(thisMonthFinancialSnapshotProvider);
+                  if (mounted) setState(() {});
+                });
               },
             ),
           ],

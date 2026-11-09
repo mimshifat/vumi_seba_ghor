@@ -39,8 +39,15 @@ final referenceApplicationCountProvider =
 /// রেফারেন্স মিউটেশন কন্ট্রোলার (সেফটি লক সহ)
 class ReferenceController extends MutationController {
   final ReferenceRepository _repo;
+  final Ref? _ref;
 
-  ReferenceController(this._repo);
+  ReferenceController(this._repo, [this._ref]);
+
+  void _invalidateAll() {
+    if (_ref != null) {
+      _ref.invalidate(referencesStreamProvider);
+    }
+  }
 
   /// নতুন রেফারেন্স তৈরি
   Future<Reference?> createReference({
@@ -50,8 +57,8 @@ class ReferenceController extends MutationController {
     String? address,
     Uint8List? photo,
     String? notes,
-  }) {
-    return execute(() => _repo.createReference(
+  }) async {
+    final res = await execute(() => _repo.createReference(
           id: id,
           name: name,
           phone: phone,
@@ -59,6 +66,8 @@ class ReferenceController extends MutationController {
           photo: photo,
           notes: notes,
         ));
+    if (res != null) _invalidateAll();
+    return res;
   }
 
   /// রেফারেন্স তথ্য আপডেট
@@ -69,8 +78,8 @@ class ReferenceController extends MutationController {
     String? address,
     Uint8List? photo,
     String? notes,
-  }) {
-    return execute(() => _repo.updateReference(
+  }) async {
+    await execute(() => _repo.updateReference(
           id: id,
           name: name,
           phone: phone,
@@ -78,16 +87,25 @@ class ReferenceController extends MutationController {
           photo: photo,
           notes: notes,
         ));
+    _invalidateAll();
+    _ref?.invalidate(referenceDetailProvider(id));
   }
 
   /// স্মার্ট ডিলিট: কোনো ফাইল না থাকলে হার্ড ডিলিট; ফাইল থাকলে সফট ডিলিট
-  Future<bool?> deleteReference(String id) {
-    return execute(() => _repo.deleteReference(id));
+  Future<bool?> deleteReference(String id) async {
+    final res = await execute(() => _repo.deleteReference(id));
+    if (res == true) {
+      _invalidateAll();
+      _ref?.invalidate(referenceDetailProvider(id));
+    }
+    return res;
   }
 
   /// সফট ডিলিট রেফারেন্স পুনরুদ্ধার
-  Future<void> restoreReference(String id) {
-    return execute(() => _repo.restoreReference(id));
+  Future<void> restoreReference(String id) async {
+    await execute(() => _repo.restoreReference(id));
+    _invalidateAll();
+    _ref?.invalidate(referenceDetailProvider(id));
   }
 }
 
@@ -95,6 +113,6 @@ class ReferenceController extends MutationController {
 final referenceControllerProvider =
     StateNotifierProvider<ReferenceController, AsyncValue<void>>((ref) {
   final repo = ref.watch(referenceRepositoryProvider);
-  return ReferenceController(repo);
+  return ReferenceController(repo, ref);
 });
 

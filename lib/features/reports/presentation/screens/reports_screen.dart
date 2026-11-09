@@ -50,7 +50,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
     final allApps = allAppsAsync.valueOrNull ?? const [];
 
-    final allTxsAsync = ref.watch(unifiedTransactionsStreamProvider);
+    final allTxsAsync = ref.watch(allUnifiedTransactionsStreamProvider);
     final allTxs = allTxsAsync.valueOrNull ?? const [];
 
     final startMs = _getPeriodStartDate().millisecondsSinceEpoch;
@@ -77,7 +77,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     final activeFiles = filteredApps.where((a) {
       final s = a.application.status;
-      return s != 'সম্পন্ন' && s != 'খতিয়ান ডেলিভারি' && s != 'বাতিল' && s != 'খারিজ';
+      return s != 'সম্পন্ন' &&
+          s != 'খতিয়ান ডেলিভারি' &&
+          s != 'বাতিল' &&
+          s != 'খারিজ' &&
+          s != 'নামঞ্জুর';
     }).length;
 
     int totalIncomePaisa = 0;
@@ -105,6 +109,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'রিফ্রেশ করুন',
             onPressed: () {
+              ref.invalidate(applicationsWithFinancialsStreamProvider);
+              ref.invalidate(allUnifiedTransactionsStreamProvider);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('সর্বশেষ ব্যবসায়িক তথ্য আপডেট হয়েছে'),
@@ -825,12 +831,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Widget _buildPipelineFunnelCard(List<dynamic> apps) {
     final int newCount = apps.where((a) {
       final s = a.application.status as String;
-      return s == 'দাখিলকৃত' || s == 'নতুন';
+      return s == 'আবেদন' || s == 'দাখিলকৃত' || s == 'নতুন';
     }).length;
 
     final int processingCount = apps.where((a) {
       final s = a.application.status as String;
-      return s == 'তহশিলদার প্রতিবেদন' || s == 'এসিল্যান্ড আদেশ' || s == 'কার্যক্রম শুরু';
+      return s == 'প্রস্তাব প্রেরণ' ||
+          s == 'তহশিলদার প্রতিবেদন' ||
+          s == 'এসিল্যান্ড আদেশ' ||
+          s == 'কার্যক্রম শুরু';
     }).length;
 
     final int hearingCount = apps.where((a) {
@@ -840,7 +849,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     final int approvedCount = apps.where((a) {
       final s = a.application.status as String;
-      return s == 'অনুমোদিত' || s == 'ডিসিআর কাটা';
+      return s == 'মঞ্জুর' ||
+          s == 'ডিসিআর প্রস্তুত' ||
+          s == 'অনুমোদিত' ||
+          s == 'ডিসিআর কাটা' ||
+          s == 'পাশ';
     }).length;
 
     final int completedCount = apps.where((a) {

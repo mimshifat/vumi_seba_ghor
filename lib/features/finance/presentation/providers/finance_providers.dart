@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/database/repository_providers.dart';
 import '../../../../core/providers/mutation_controller.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
 
 /// আর্থিক হিসাবের সময়সীমা ফিল্টার ধরন
 enum FinancialDateFilterType {
@@ -153,12 +154,12 @@ final financialDateFilterProvider = StateNotifierProvider<
 
 /// নির্বাচিত সময়সীমার দোকানের সামগ্রিক আর্থিক হিসাব (Realized Net Income)
 final financialOverviewProvider =
-    FutureProvider<ShopFinancialOverview>((ref) async {
+    StreamProvider<ShopFinancialOverview>((ref) {
   final repo = ref.watch(financeRepositoryProvider);
   final filter = ref.watch(financialDateFilterProvider);
   final range = filter.dateRange;
 
-  return repo.getShopFinancialOverview(
+  return repo.watchShopFinancialOverview(
     startDate: range.startMs,
     endDate: range.endMs,
   );
@@ -166,7 +167,7 @@ final financialOverviewProvider =
 
 /// আজকের দিনের স্ন্যাপশট (Dashboard ও দ্রুত পর্যালোচনার জন্য)
 final todayFinancialSnapshotProvider =
-    FutureProvider<ShopFinancialOverview>((ref) async {
+    StreamProvider<ShopFinancialOverview>((ref) {
   final repo = ref.watch(financeRepositoryProvider);
   final now = DateTime.now();
   final start = DateTime(now.year, now.month, now.day, 0, 0, 0, 0)
@@ -174,19 +175,19 @@ final todayFinancialSnapshotProvider =
   final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999)
       .millisecondsSinceEpoch;
 
-  return repo.getShopFinancialOverview(startDate: start, endDate: end);
+  return repo.watchShopFinancialOverview(startDate: start, endDate: end);
 });
 
 /// চলতি মাসের আর্থিক স্ন্যাপশট
 final thisMonthFinancialSnapshotProvider =
-    FutureProvider<ShopFinancialOverview>((ref) async {
+    StreamProvider<ShopFinancialOverview>((ref) {
   final repo = ref.watch(financeRepositoryProvider);
   final now = DateTime.now();
   final start = DateTime(now.year, now.month, 1, 0, 0, 0, 0).millisecondsSinceEpoch;
   final lastDay = DateTime(now.year, now.month + 1, 0).day;
   final end = DateTime(now.year, now.month, lastDay, 23, 59, 59, 999).millisecondsSinceEpoch;
 
-  return repo.getShopFinancialOverview(startDate: start, endDate: end);
+  return repo.watchShopFinancialOverview(startDate: start, endDate: end);
 });
 
 /// নির্দিষ্ট একক আবেদনের আর্থিক হিসাব (আদায়, কাজের খরচ, নিট ইনকাম, বকেয়া)
@@ -289,7 +290,14 @@ final transactionsFilterProvider = StateNotifierProvider<
   (ref) => TransactionsFilterNotifier(),
 );
 
-/// সেন্ট্রালাইজড লেনদেন ভিউ স্ট্রিম (Unified Transactions Stream)
+/// সেন্ট্রালাইজড সমস্ত সক্রিয় লেনদেন ওয়াচ স্ট্রিম (সম্পূর্ণ ক্যাশবই, আনফিল্টারড)
+final allUnifiedTransactionsStreamProvider =
+    StreamProvider<List<UnifiedTransactionsViewData>>((ref) {
+  final repo = ref.watch(financeRepositoryProvider);
+  return repo.watchUnifiedTransactions();
+});
+
+/// সেন্ট্রালাইজড লেনদেন ভিউ স্ট্রিম (Unified Transactions Stream - তারিখ ফিল্টারসহ)
 final unifiedTransactionsStreamProvider =
     StreamProvider<List<UnifiedTransactionsViewData>>((ref) {
   final repo = ref.watch(financeRepositoryProvider);
@@ -348,8 +356,19 @@ final filteredTransactionsProvider =
 
 class FinanceController extends MutationController {
   final FinanceRepository _repo;
+  final Ref? _ref;
 
-  FinanceController(this._repo);
+  FinanceController(this._repo, [this._ref]);
+
+  void _invalidateAll() {
+    if (_ref != null) {
+      _ref.invalidate(allUnifiedTransactionsStreamProvider);
+      _ref.invalidate(applicationsWithFinancialsStreamProvider);
+      _ref.invalidate(financialOverviewProvider);
+      _ref.invalidate(todayFinancialSnapshotProvider);
+      _ref.invalidate(thisMonthFinancialSnapshotProvider);
+    }
+  }
 
   /// কিস্তি বা ফি বাবদ টাকা জমা
   Future<Payment?> addPayment({
@@ -363,8 +382,8 @@ class FinanceController extends MutationController {
     String? statusHistoryId,
     String? statusName,
     bool allowOverpayment = true,
-  }) {
-    return execute(() => _repo.addPayment(
+  }) async {
+    final res = await execute(() => _repo.addPayment(
           id: id,
           applicationId: applicationId,
           amountPaisa: amountPaisa,
@@ -376,6 +395,11 @@ class FinanceController extends MutationController {
           statusName: statusName,
           allowOverpayment: allowOverpayment,
         ));
+    if (res != null) {
+      _invalidateAll();
+      _ref?.invalidate(applicationPaymentsProvider(applicationId));
+    }
+    return res;
   }
 
   /// ফাইলের সরাসরি কাজের খরচ
@@ -389,8 +413,8 @@ class FinanceController extends MutationController {
     String? statusHistoryId,
     String? statusName,
     bool isStatusExpense = false,
-  }) {
-    return execute(() => _repo.addApplicationExpense(
+  }) async {
+    final res = await execute(() => _repo.addApplicationExpense(
           id: id,
           applicationId: applicationId,
           amountPaisa: amountPaisa,
@@ -401,6 +425,11 @@ class FinanceController extends MutationController {
           statusName: statusName,
           isStatusExpense: isStatusExpense,
         ));
+    if (res != null) {
+      _invalidateAll();
+      _ref?.invalidate(applicationExpensesProvider(applicationId));
+    }
+    return res;
   }
 
   /// দোকানের সাধারণ পরিচালন খরচ
@@ -410,14 +439,19 @@ class FinanceController extends MutationController {
     required String category,
     DateTime? date,
     String? note,
-  }) {
-    return execute(() => _repo.addGeneralExpense(
+  }) async {
+    final res = await execute(() => _repo.addGeneralExpense(
           id: id,
           amountPaisa: amountPaisa,
           category: category,
           date: date,
           note: note,
         ));
+    if (res != null) {
+      _invalidateAll();
+      _ref?.invalidate(generalExpensesProvider);
+    }
+    return res;
   }
 
   /// স্বতন্ত্র দোকান আয়
@@ -429,8 +463,8 @@ class FinanceController extends MutationController {
     String paymentMethod = 'নগদ',
     String? customerName,
     String? note,
-  }) {
-    return execute(() => _repo.addIndependentIncome(
+  }) async {
+    final res = await execute(() => _repo.addIndependentIncome(
           id: id,
           category: category,
           amountPaisa: amountPaisa,
@@ -439,36 +473,47 @@ class FinanceController extends MutationController {
           customerName: customerName,
           note: note,
         ));
+    if (res != null) {
+      _invalidateAll();
+      _ref?.invalidate(independentIncomesProvider);
+    }
+    return res;
   }
 
   /// পেমেন্ট সফট ডিলিট
-  Future<void> deletePayment(String id) {
-    return execute(() => _repo.deletePayment(id));
+  Future<void> deletePayment(String id) async {
+    await execute(() => _repo.deletePayment(id));
+    _invalidateAll();
   }
 
   /// পেমেন্ট পুনরুদ্ধার
-  Future<void> restorePayment(String id) {
-    return execute(() => _repo.restorePayment(id));
+  Future<void> restorePayment(String id) async {
+    await execute(() => _repo.restorePayment(id));
+    _invalidateAll();
   }
 
   /// খরচ সফট ডিলিট
-  Future<void> deleteExpense(String id) {
-    return execute(() => _repo.deleteExpense(id));
+  Future<void> deleteExpense(String id) async {
+    await execute(() => _repo.deleteExpense(id));
+    _invalidateAll();
   }
 
   /// খরচ পুনরুদ্ধার
-  Future<void> restoreExpense(String id) {
-    return execute(() => _repo.restoreExpense(id));
+  Future<void> restoreExpense(String id) async {
+    await execute(() => _repo.restoreExpense(id));
+    _invalidateAll();
   }
 
   /// স্বতন্ত্র আয় সফট ডিলিট
-  Future<void> deleteIndependentIncome(String id) {
-    return execute(() => _repo.deleteIndependentIncome(id));
+  Future<void> deleteIndependentIncome(String id) async {
+    await execute(() => _repo.deleteIndependentIncome(id));
+    _invalidateAll();
   }
 
   /// স্বতন্ত্র আয় পুনরুদ্ধার
-  Future<void> restoreIndependentIncome(String id) {
-    return execute(() => _repo.restoreIndependentIncome(id));
+  Future<void> restoreIndependentIncome(String id) async {
+    await execute(() => _repo.restoreIndependentIncome(id));
+    _invalidateAll();
   }
 }
 
@@ -476,6 +521,6 @@ class FinanceController extends MutationController {
 final financeControllerProvider =
     StateNotifierProvider<FinanceController, AsyncValue<void>>((ref) {
   final repo = ref.watch(financeRepositoryProvider);
-  return FinanceController(repo);
+  return FinanceController(repo, ref);
 });
 

@@ -47,82 +47,108 @@ final shopSettingProvider =
 
 class CategoryController extends MutationController {
   final CategoryRepository _repo;
+  final Ref? _ref;
 
-  CategoryController(this._repo);
+  CategoryController(this._repo, [this._ref]);
+
+  void _invalidateAll() {
+    if (_ref != null) {
+      _ref.invalidate(expenseCategoriesStreamProvider(null));
+      _ref.invalidate(expenseCategoriesStreamProvider(true));
+      _ref.invalidate(expenseCategoriesStreamProvider(false));
+      _ref.invalidate(incomeCategoriesStreamProvider);
+      _ref.invalidate(workTypesStreamProvider);
+    }
+  }
 
   /// খরচের খাত তৈরি
   Future<ExpenseCategory?> createExpenseCategory({
     String? id,
     required String name,
     required bool isGeneral,
-  }) {
-    return execute(() => _repo.createExpenseCategory(
+  }) async {
+    final res = await execute(() => _repo.createExpenseCategory(
           id: id,
           name: name,
           isGeneral: isGeneral,
         ));
+    if (res != null) _invalidateAll();
+    return res;
   }
 
   /// খরচের খাত আপডেট
   Future<void> updateExpenseCategory({
     required String id,
     required String name,
-  }) {
-    return execute(() => _repo.updateExpenseCategory(id: id, name: name));
+  }) async {
+    await execute(() => _repo.updateExpenseCategory(id: id, name: name));
+    _invalidateAll();
   }
 
   /// খরচের খাত মোছা (সিস্টেমের ডিফল্ট খাত সুরক্ষা সহ)
-  Future<bool?> deleteExpenseCategory(String id) {
-    return execute(() => _repo.deleteExpenseCategory(id));
+  Future<bool?> deleteExpenseCategory(String id) async {
+    final res = await execute(() => _repo.deleteExpenseCategory(id));
+    if (res == true) _invalidateAll();
+    return res;
   }
 
   /// স্বতন্ত্র আয়ের খাত তৈরি
   Future<IncomeCategory?> createIncomeCategory({
     String? id,
     required String name,
-  }) {
-    return execute(() => _repo.createIncomeCategory(id: id, name: name));
+  }) async {
+    final res = await execute(() => _repo.createIncomeCategory(id: id, name: name));
+    if (res != null) _invalidateAll();
+    return res;
   }
 
   /// স্বতন্ত্র আয়ের খাত আপডেট
   Future<void> updateIncomeCategory({
     required String id,
     required String name,
-  }) {
-    return execute(() => _repo.updateIncomeCategory(id: id, name: name));
+  }) async {
+    await execute(() => _repo.updateIncomeCategory(id: id, name: name));
+    _invalidateAll();
   }
 
   /// স্বতন্ত্র আয়ের খাত মোছা (ডিফল্ট সুরক্ষা সহ)
-  Future<bool?> deleteIncomeCategory(String id) {
-    return execute(() => _repo.deleteIncomeCategory(id));
+  Future<bool?> deleteIncomeCategory(String id) async {
+    final res = await execute(() => _repo.deleteIncomeCategory(id));
+    if (res == true) _invalidateAll();
+    return res;
   }
 
   /// কাজের ধরন তৈরি
   Future<WorkType?> createWorkType({
     String? id,
     required String name,
-  }) {
-    return execute(() => _repo.createWorkType(id: id, name: name));
+  }) async {
+    final res = await execute(() => _repo.createWorkType(id: id, name: name));
+    if (res != null) _invalidateAll();
+    return res;
   }
 
   /// কাজের ধরন আপডেট
   Future<void> updateWorkType({
     required String id,
     required String name,
-  }) {
-    return execute(() => _repo.updateWorkType(id: id, name: name));
+  }) async {
+    await execute(() => _repo.updateWorkType(id: id, name: name));
+    _invalidateAll();
   }
 
   /// কাজের ধরন মোছা (ডিফল্ট সুরক্ষা সহ)
-  Future<bool?> deleteWorkType(String id) {
-    return execute(() => _repo.deleteWorkType(id));
+  Future<bool?> deleteWorkType(String id) async {
+    final res = await execute(() => _repo.deleteWorkType(id));
+    if (res == true) _invalidateAll();
+    return res;
   }
 }
 
 final categoryControllerProvider =
     StateNotifierProvider<CategoryController, AsyncValue<void>>((ref) {
   final repo = ref.watch(categoryRepositoryProvider);
-  return CategoryController(repo);
+  return CategoryController(repo, ref);
 });
 
 // -------------------------------------------------------------

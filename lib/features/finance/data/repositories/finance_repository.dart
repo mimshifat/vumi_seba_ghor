@@ -465,5 +465,16 @@ class FinanceRepository {
       throw AppFailure.fromException(e, s);
     }
   }
+
+  /// দোকানের সামগ্রিক নিট ইনকাম ও আর্থিক হিসাবের রিয়েক্টিভ ওয়াচ স্ট্রিম
+  Stream<ShopFinancialOverview> watchShopFinancialOverview({
+    int? startDate,
+    int? endDate,
+  }) {
+    return _db.financeDao.watchOverallFinancialStats(
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
 }
 

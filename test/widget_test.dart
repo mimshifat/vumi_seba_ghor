@@ -12,7 +12,7 @@ void main() {
       ProviderScope(
         overrides: [
           applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
-          todayTasksCountProvider.overrideWith((ref) => Future.value(0)),
+          todayTasksCountProvider.overrideWith((ref) => Stream.value(0)),
           shopSettingsStreamProvider.overrideWith((ref) => Stream.value({})),
           unifiedTransactionsStreamProvider.overrideWith((ref) => Stream.value([])),
         ],
