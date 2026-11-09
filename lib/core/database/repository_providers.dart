@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/applications/data/repositories/application_repository.dart';
+import '../../features/backup/data/repositories/backup_repository.dart';
 import '../../features/finance/data/repositories/finance_repository.dart';
 import '../../features/offices/data/repositories/office_repository.dart';
 import '../../features/persons/data/repositories/person_repository.dart';
@@ -11,6 +12,7 @@ import '../../features/tasks/data/repositories/task_repository.dart';
 import 'database_provider.dart';
 
 export '../../features/applications/data/repositories/application_repository.dart';
+export '../../features/backup/data/repositories/backup_repository.dart';
 export '../../features/finance/data/repositories/finance_repository.dart';
 export '../../features/offices/data/repositories/office_repository.dart';
 export '../../features/persons/data/repositories/person_repository.dart';
@@ -65,5 +67,11 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 final shopSettingsRepositoryProvider = Provider<ShopSettingsRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return ShopSettingsRepository(db);
+});
+
+/// ব্যাকআপ ও রিস্টোর রিপোজিটরি প্রোভাইডার
+final backupRepositoryProvider = Provider<BackupRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return BackupRepository(db);
 });
 

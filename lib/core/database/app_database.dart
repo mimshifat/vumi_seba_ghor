@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/common.dart';
 
 import 'tables/applications_table.dart';
@@ -101,6 +105,22 @@ class AppDatabase extends _$AppDatabase {
             ),
           ),
         );
+
+  /// অ্যাপের প্রোডাকশন SQLite ডাটাবেজ ফাইল অবজেক্ট।
+  static Future<File> getDatabaseFile() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    return File(p.join(docsDir.path, 'rojob_bhumi.sqlite'));
+  }
+
+  /// লাইভ ডেটাবেজ ও সংশ্লিষ্ট WAL এবং SHM ফাইলসমূহ।
+  static Future<List<File>> getAllDatabaseFiles() async {
+    final file = await getDatabaseFile();
+    return [
+      file,
+      File('${file.path}-wal'),
+      File('${file.path}-shm'),
+    ];
+  }
 
   @override
   int get schemaVersion => 1;

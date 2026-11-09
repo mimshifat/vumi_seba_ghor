@@ -135,6 +135,15 @@ class FinanceRepository {
     return _db.financeDao.watchPaymentsForApplication(applicationId);
   }
 
+  /// নির্দিষ্ট আবেদনের পেমেন্ট তালিকা সংগ্রহ (Future)
+  Future<List<Payment>> getPaymentsForApplication(String applicationId) async {
+    try {
+      return await _db.financeDao.getPaymentsForApplication(applicationId);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
+  }
+
   // -------------------------------------------------------------
   // ২. খরচ (Expenses) — কঠোর বিভাজন (BACKEND_MASTER_PLAN.md §1.2 নিয়ম ৪)
   // -------------------------------------------------------------
@@ -262,6 +271,15 @@ class FinanceRepository {
   /// নির্দিষ্ট আবেদনের খরচের স্ট্রিম
   Stream<List<Expense>> watchExpensesForApplication(String applicationId) {
     return _db.financeDao.watchExpensesForApplication(applicationId);
+  }
+
+  /// নির্দিষ্ট আবেদনের কাজের খরচের তালিকা সংগ্রহ (Future)
+  Future<List<Expense>> getExpensesForApplication(String applicationId) async {
+    try {
+      return await _db.financeDao.getExpensesForApplication(applicationId);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
   }
 
   /// দোকানের সাধারণ খরচের স্ট্রিম

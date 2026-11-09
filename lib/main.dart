@@ -38,11 +38,9 @@ void main() async {
   }
 
   runApp(
-    ProviderScope(
-      overrides: [
-        appDatabaseProvider.overrideWithValue(db),
-      ],
-      child: _AppRoot(key: _rootKey),
+    AppRoot(
+      key: rootAppKey,
+      initialDb: db,
     ),
   );
 }
@@ -84,7 +82,7 @@ Widget buildErrorRecoveryWidget(FlutterErrorDetails details) {
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () => _rootKey.currentState?.rebuildApp(),
+              onPressed: () => rootAppKey.currentState?.rebuildApp(),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('পুনরায় চেষ্টা করুন'),
               style: ElevatedButton.styleFrom(
@@ -101,32 +99,49 @@ Widget buildErrorRecoveryWidget(FlutterErrorDetails details) {
   );
 }
 
+/// `AppRoot`-এর গ্লোবাল কী — ত্রুটি থেকে ফিরে আসার ও ডেটাবেজ সোয়াপ করার জন্য।
+final GlobalKey<AppRootState> rootAppKey = GlobalKey<AppRootState>();
+
 /// রেন্ডারিং ত্রুটির পর অ্যাপের উইজেট ট্রি পুনরায় তৈরি করার জন্য রুট উইজেট।
-class _AppRoot extends StatefulWidget {
-  const _AppRoot({super.key});
+class AppRoot extends StatefulWidget {
+  final AppDatabase initialDb;
+  const AppRoot({super.key, required this.initialDb});
 
   @override
-  State<_AppRoot> createState() => _AppRootState();
+  State<AppRoot> createState() => AppRootState();
 }
 
-class _AppRootState extends State<_AppRoot> {
-  int _buildGeneration = 0;
+class AppRootState extends State<AppRoot> {
+  late AppDatabase _currentDb;
+  Key _scopeKey = UniqueKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentDb = widget.initialDb;
+  }
+
+  /// ডেটাবেজ রিস্টোর সম্পন্ন হলে নতুন সংযোগ দিয়ে সমগ্র উইজেট ও প্রোভাইডার ট্রি রিলোড করে।
+  void replaceDatabase(AppDatabase newDb) {
+    setState(() {
+      _currentDb = newDb;
+      _scopeKey = UniqueKey();
+    });
+  }
 
   /// পুরো উইজেট ট্রি পুনরায় তৈরি করে।
   void rebuildApp() {
-    setState(() => _buildGeneration++);
+    setState(() => _scopeKey = UniqueKey());
   }
 
   @override
   Widget build(BuildContext context) {
-    // প্রতিবার নতুন কী ব্যবহার করলে পুরো সাবট্রি নতুন করে তৈরি হয়,
-    // ফলে আগের রেন্ডার ত্রুটির অবস্থা পরিষ্কার হয়ে যায়।
-    return KeyedSubtree(
-      key: ValueKey(_buildGeneration),
+    return ProviderScope(
+      key: _scopeKey,
+      overrides: [
+        appDatabaseProvider.overrideWithValue(_currentDb),
+      ],
       child: const BhumiKajerHisabApp(),
     );
   }
 }
-
-/// `_AppRoot`-এর গ্লোবাল কী — ত্রুটি থেকে ফিরে আসার জন্য।
-final GlobalKey<_AppRootState> _rootKey = GlobalKey<_AppRootState>();

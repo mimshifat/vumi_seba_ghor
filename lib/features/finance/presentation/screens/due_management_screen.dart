@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../../../core/demo/demo_data.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -167,13 +167,41 @@ class _DueManagementScreenState extends ConsumerState<DueManagementScreen> {
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w700),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${app.workType} • ${BengaliDigits.toBengali(app.applicantPhone)}',
-                                        style: AppTypography.bodySmall
-                                            .copyWith(
-                                                color:
-                                                    AppColors.textSecondary),
+                                      const SizedBox(height: 3),
+                                      InkWell(
+                                        onTap: () => AppLauncher.makePhoneCall(
+                                          context,
+                                          app.applicantPhone,
+                                          contactName: app.applicantName,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '${app.workType} • ',
+                                              style: AppTypography.bodySmall
+                                                  .copyWith(
+                                                      color: AppColors
+                                                          .textSecondary),
+                                            ),
+                                            const Icon(Icons.phone_in_talk,
+                                                size: 13,
+                                                color: AppColors.emerald),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              BengaliDigits.toBengali(
+                                                  app.applicantPhone),
+                                              style: AppTypography.bodySmall
+                                                  .copyWith(
+                                                color: AppColors.primary,
+                                                fontWeight: FontWeight.w600,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -231,8 +259,23 @@ class _DueManagementScreenState extends ConsumerState<DueManagementScreen> {
                             ),
                             const SizedBox(height: AppSpacing.md),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
+                                IconButton(
+                                  icon: const Icon(Icons.phone_in_talk,
+                                      size: 18, color: AppColors.emerald),
+                                  tooltip: 'গ্রাহককে কল করুন',
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: const Color(0xFFECFDF5),
+                                    padding: const EdgeInsets.all(8),
+                                    minimumSize: const Size(36, 36),
+                                  ),
+                                  onPressed: () => AppLauncher.makePhoneCall(
+                                    context,
+                                    app.applicantPhone,
+                                    contactName: app.applicantName,
+                                  ),
+                                ),
+                                const Spacer(),
                                 OutlinedButton.icon(
                                   icon: const Icon(
                                       Icons.check_circle_outline,

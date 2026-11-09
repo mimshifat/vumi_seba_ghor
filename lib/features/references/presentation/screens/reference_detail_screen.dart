@@ -6,6 +6,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -305,11 +306,11 @@ class _ReferenceDetailScreenState
           IconButton(
             icon: const Icon(Icons.phone_in_talk, color: AppColors.emerald),
             tooltip: 'কল করুন',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$name ($phone)-এ কল করা হচ্ছে...')),
-              );
-            },
+            onPressed: () => AppLauncher.makePhoneCall(
+              context,
+              phone,
+              contactName: name,
+            ),
           ),
         ],
       ),
@@ -434,19 +435,29 @@ class _ReferenceDetailScreenState
                   ],
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.phone_android,
-                        size: 15, color: AppColors.emerald),
-                    const SizedBox(width: 6),
-                    Text(
-                      BengaliDigits.toBengali(phone),
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                InkWell(
+                  onTap: () => AppLauncher.makePhoneCall(
+                    context,
+                    phone,
+                    contactName: name,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.phone_in_talk,
+                          size: 15, color: AppColors.emerald),
+                      const SizedBox(width: 6),
+                      Text(
+                        BengaliDigits.toBengali(phone),
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 if (address != null && address.trim().isNotEmpty) ...[
                   const SizedBox(height: 4),

@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_floating_button.dart';
@@ -192,9 +193,20 @@ class _PersonListScreenState extends ConsumerState<PersonListScreen> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 2),
-                                      Text(
-                                        BengaliDigits.toBengali(p.phone),
-                                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                                      InkWell(
+                                        onTap: () => AppLauncher.makePhoneCall(
+                                          context,
+                                          p.phone,
+                                          contactName: p.name,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Text(
+                                          BengaliDigits.toBengali(p.phone),
+                                          style: AppTypography.bodySmall.copyWith(
+                                            color: AppColors.textSecondary,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       Row(
@@ -236,11 +248,11 @@ class _PersonListScreenState extends ConsumerState<PersonListScreen> {
                                 IconButton(
                                   icon: const Icon(Icons.phone_in_talk, color: AppColors.emerald, size: 20),
                                   tooltip: 'কল করুন',
-                                  onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('${p.phone} নম্বরে কল করা হচ্ছে...')),
-                                    );
-                                  },
+                                  onPressed: () => AppLauncher.makePhoneCall(
+                                    context,
+                                    p.phone,
+                                    contactName: p.name,
+                                  ),
                                 ),
                               ],
                             ),

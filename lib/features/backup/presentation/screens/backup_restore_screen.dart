@@ -1,28 +1,36 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../main.dart';
+import '../providers/backup_providers.dart';
 
-class BackupRestoreScreen extends StatefulWidget {
+class BackupRestoreScreen extends ConsumerStatefulWidget {
   const BackupRestoreScreen({super.key});
 
   @override
-  State<BackupRestoreScreen> createState() => _BackupRestoreScreenState();
+  ConsumerState<BackupRestoreScreen> createState() =>
+      _BackupRestoreScreenState();
 }
 
-class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
-  final _botTokenController = TextEditingController(text: '7182938491:AAHk98...');
-  final _chatIdController = TextEditingController(text: '987654321');
+class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
+  final _botTokenController = TextEditingController();
+  final _chatIdController = TextEditingController();
   bool _isExportingPhone = false;
   bool _isExportingTelegram = false;
   bool _isImporting = false;
-  String? _lastBackupTime = '০৮ নভেম্বর ২০২৬, সকাল ১০:১৫';
 
   @override
   void dispose() {
@@ -31,32 +39,41 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     super.dispose();
   }
 
-  // 1. Export Backup to Phone
+  // ১. ফোনে সুরক্ষিত অফলাইন ব্যাকআপ এক্সপোর্ট
   Future<void> _exportBackupToPhone() async {
     setState(() => _isExportingPhone = true);
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (!mounted) return;
+    try {
+      final file =
+          await ref.read(backupControllerProvider.notifier).exportToPhone();
+      if (!mounted) return;
 
-    final now = DateTime.now();
-    final fileName = 'rojob_backup_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.db';
-
-    setState(() {
-      _isExportingPhone = false;
-      _lastBackupTime = BengaliDigits.toBengali(
-        '${now.day.toString().padLeft(2, '0')} নভেম্বর ${now.year}, ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
+      if (file != null) {
+        final fileName = p.basename(file.path);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('ব্যাকআপ ফাইলটি সেভ হয়েছে: $fileName'),
+            backgroundColor: AppColors.emerald,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final failure = AppFailure.fromException(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(failure.message),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('ব্যাকআপ ফাইলটি Downloads ফোল্ডারে সেভ হয়েছে ($fileName)'),
-        backgroundColor: AppColors.emerald,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    } finally {
+      if (mounted) setState(() => _isExportingPhone = false);
+    }
   }
 
-  // 2. Import Backup from Phone
+  // ২. ফাইল থেকে ডেটাবেজ রিস্টোর (জিরো ডাটা লস ও ব্যাকগ্রাউন্ড ইন্টিগ্রিটি চেক)
   Future<void> _importBackupFromPhone() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -66,13 +83,52 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
       if (result == null || result.files.isEmpty) return;
 
-      final file = result.files.first;
+      final pickedPath = result.files.first.path;
+      if (pickedPath == null) return;
+      final file = File(pickedPath);
+      if (!file.existsSync()) return;
+
       if (!mounted) return;
+      setState(() => _isImporting = true);
+
+      // ব্যাকগ্রাউন্ড আইসোলেটে ফাইল পরীক্ষা (Zero-Freeze & Anti-Corruption)
+      final validation = await ref
+          .read(backupControllerProvider.notifier)
+          .validateFile(pickedPath);
+
+      if (!mounted) return;
+      setState(() => _isImporting = false);
+
+      if (validation == null || !validation.isValid) {
+        final failure = AppFailure.corruptBackup(validation?.errorMessage);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(failure.message),
+            backgroundColor: AppColors.rose,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // ফাইল সারাংশ ও বিস্তারিত প্রদর্শন করে কনফার্মেশন ডায়ালগ
+      final fileSizeKb =
+          (validation.fileSizeBytes / 1024).toStringAsFixed(1);
+      final sizeBn = BengaliDigits.toBengali(fileSizeKb);
+      final appsBn = BengaliDigits.toBengali(validation.totalApplications);
+      final paysBn = BengaliDigits.toBengali(validation.totalPayments);
+      final expsBn = BengaliDigits.toBengali(validation.totalExpenses);
 
       final confirmed = await ConfirmDialog.show(
         context,
         title: 'ডেটা রিস্টোর করবেন?',
-        message: 'নির্বাচিত ফাইল: ${file.name}\n\nএই ব্যাকআপ ফাইলটি থেকে সমস্ত তথ্য পুনরুদ্ধার করা হবে। আপনি কি নিশ্চিত?',
+        message: 'নির্বাচিত ফাইল: ${p.basename(pickedPath)} ($sizeBn KB)\n\n'
+            'ফাইলের সংরক্ষিত তথ্য:\n'
+            '• মোট আবেদন: $appsBn টি\n'
+            '• মোট জমা রসিদ: $paysBn টি\n'
+            '• মোট খরচ ভাউচার: $expsBn টি\n\n'
+            'এই ফাইল থেকে সমস্ত তথ্য পুনরুদ্ধার করা হবে। বর্তমান তথ্যের একটি নিরাপত্তা ব্যাকআপ রাখা হবে। আপনি কি নিশ্চিত?',
         confirmText: 'হ্যাঁ, রিস্টোর করুন',
         isDestructive: true,
         icon: Icons.restore_page_outlined,
@@ -81,7 +137,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       if (confirmed != true || !mounted) return;
 
       setState(() => _isImporting = true);
-      await Future.delayed(const Duration(milliseconds: 1200));
+
+      // মূল রিস্টোর প্রক্রিয়া (Automatic Swap & Rollback Safety)
+      await ref.read(backupControllerProvider.notifier).restoreFromFile(
+        pickedPath,
+        onDatabaseReopened: (newDb) {
+          rootAppKey.currentState?.replaceDatabase(newDb);
+        },
+      );
 
       if (!mounted) return;
       setState(() => _isImporting = false);
@@ -96,44 +159,81 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isImporting = false);
+      final failure = AppFailure.fromException(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('ফাইল নির্বাচনে সমস্যা হয়েছে: $e'),
+          content: Text(failure.message),
           backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 
-  // 3. Export to Telegram
+  // ৩. টেলিগ্রাম ক্লাউড ব্যাকআপ
   Future<void> _exportBackupToTelegram() async {
+    final savedToken = ref.read(telegramBotTokenStreamProvider).valueOrNull;
+    final savedChatId = ref.read(telegramChatIdStreamProvider).valueOrNull;
+
+    final token = _botTokenController.text.trim().isNotEmpty
+        ? _botTokenController.text.trim()
+        : (savedToken ?? '');
+    final chatId = _chatIdController.text.trim().isNotEmpty
+        ? _chatIdController.text.trim()
+        : (savedChatId ?? '');
+
+    if (token.isEmpty || chatId.isEmpty) {
+      _showTelegramConfigDialog();
+      return;
+    }
+
     setState(() => _isExportingTelegram = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
+    try {
+      await ref.read(backupControllerProvider.notifier).exportToTelegram(
+            botToken: token,
+            chatId: chatId,
+          );
+      if (!mounted) return;
 
-    final now = DateTime.now();
-    setState(() {
-      _isExportingTelegram = false;
-      _lastBackupTime = BengaliDigits.toBengali(
-        '${now.day.toString().padLeft(2, '0')} নভেম্বর ${now.year}, ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('টেলিগ্রাম বটে ক্লাউড ব্যাকআপ সফলভাবে পাঠানো হয়েছে!'),
+          backgroundColor: AppColors.emerald,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('টেলিগ্রাম বটে ক্লাউড ব্যাকআপ সফলভাবে পাঠানো হয়েছে!'),
-        backgroundColor: AppColors.emerald,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    } catch (e) {
+      if (!mounted) return;
+      final failure = AppFailure.fromException(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(failure.message),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingTelegram = false);
+    }
   }
 
-  // Telegram Config Dialog
+  // টেলিগ্রাম বট কনফিগ ডায়ালগ
   void _showTelegramConfigDialog() {
+    final savedToken = ref.read(telegramBotTokenStreamProvider).valueOrNull;
+    final savedChatId = ref.read(telegramChatIdStreamProvider).valueOrNull;
+
+    if (_botTokenController.text.isEmpty && savedToken != null) {
+      _botTokenController.text = savedToken;
+    }
+    if (_chatIdController.text.isEmpty && savedChatId != null) {
+      _chatIdController.text = savedChatId;
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
         title: const Text('টেলিগ্রাম বট সেটিংস'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -151,15 +251,30 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ),
           ],
         ),
-        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        actionsPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         actions: [
           AppDialogActionRow(
             confirmText: 'সংরক্ষণ',
-            onConfirm: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('টেলিগ্রাম বট সেটিংস সংরক্ষিত হয়েছে')),
-              );
+            onConfirm: () async {
+              final token = _botTokenController.text.trim();
+              final chatId = _chatIdController.text.trim();
+              await ref
+                  .read(backupControllerProvider.notifier)
+                  .saveTelegramConfig(
+                    botToken: token,
+                    chatId: chatId,
+                  );
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('টেলিগ্রাম বট সেটিংস সংরক্ষিত হয়েছে'),
+                    backgroundColor: AppColors.emerald,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
             },
           ),
         ],
@@ -169,6 +284,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lastBackupTime =
+        ref.watch(lastBackupTimeStreamProvider).valueOrNull;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -177,7 +295,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.base),
         children: [
-          // 1. Hero Status Card (Simple & Reassuring)
+          // ১. হিরো স্ট্যাটাস কার্ড (সান্ত্বনাদায়ক ও স্পষ্ট)
           Container(
             padding: const EdgeInsets.all(AppSpacing.base),
             decoration: BoxDecoration(
@@ -194,7 +312,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     color: AppColors.emeraldSurface,
                     borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   ),
-                  child: const Icon(Icons.shield_outlined, color: AppColors.emeraldDark, size: 26),
+                  child: const Icon(Icons.shield_outlined,
+                      color: AppColors.emeraldDark, size: 26),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -203,12 +322,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     children: [
                       const Text(
                         'আপনার ডেটা সম্পূর্ণ নিরাপদ',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        _lastBackupTime != null
-                            ? 'সর্বশেষ ব্যাকআপ: $_lastBackupTime'
+                        lastBackupTime != null && lastBackupTime.isNotEmpty
+                            ? 'সর্বশেষ ব্যাকআপ: $lastBackupTime'
                             : 'এখনও কোনো ব্যাকআপ নেওয়া হয়নি',
                         style: AppTypography.bodySmall.copyWith(
                           color: AppColors.textSecondary,
@@ -224,7 +344,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
           const SizedBox(height: AppSpacing.base),
 
-          // 2. Main Action Card (Phone Export & Import)
+          // ২. ডিভাইস ব্যাকআপ ও ফাইল রিস্টোর সেকশন
           _buildSectionHeader('ডিভাইস ব্যাকআপ (অফলাইন)'),
           Container(
             decoration: BoxDecoration(
@@ -236,17 +356,24 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               children: [
                 // Export Tile
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.base, vertical: 4),
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
                     ),
-                    child: const Icon(Icons.file_download_outlined, color: Color(0xFF4F46E5), size: 22),
+                    child: const Icon(Icons.file_download_outlined,
+                        color: Color(0xFF4F46E5), size: 22),
                   ),
-                  title: const Text('ফোনে ব্যাকআপ নিন', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Downloads ফোল্ডারে ফাইল সেভ হবে', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  title: const Text('ফোনে ব্যাকআপ নিন',
+                      style: TextStyle(
+                          fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Downloads ফোল্ডারে ফাইল সেভ হবে',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textMuted)),
                   trailing: AppButton(
                     text: 'ব্যাকআপ',
                     width: 92,
@@ -258,17 +385,24 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 const Divider(height: 1),
                 // Import Tile
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.base, vertical: 4),
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFFBEB),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
                     ),
-                    child: const Icon(Icons.folder_open_outlined, color: Color(0xFFD97706), size: 22),
+                    child: const Icon(Icons.folder_open_outlined,
+                        color: Color(0xFFD97706), size: 22),
                   ),
-                  title: const Text('ফাইল থেকে রিস্টোর', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('পূর্বে সংরক্ষিত ফাইল বাছুন', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  title: const Text('ফাইল থেকে রিস্টোর',
+                      style: TextStyle(
+                          fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('পূর্বে সংরক্ষিত ফাইল বাছুন',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textMuted)),
                   trailing: AppButton(
                     text: 'ফাইল বাছুন',
                     variant: ButtonVariant.outline,
@@ -284,7 +418,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
           const SizedBox(height: AppSpacing.base),
 
-          // 3. Telegram Cloud Backup (Optional & Compact)
+          // ৩. টেলিগ্রাম ক্লাউড ব্যাকআপ
           _buildSectionHeader('ক্লাউড ব্যাকআপ (ঐচ্ছিক)'),
           Container(
             decoration: BoxDecoration(
@@ -293,19 +427,29 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               border: Border.all(color: AppColors.border),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 4),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.base, vertical: 4),
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0F9FF),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
-                child: const Icon(Icons.send_rounded, color: Color(0xFF0284C7), size: 22),
+                child: const Icon(Icons.send_rounded,
+                    color: Color(0xFF0284C7), size: 22),
               ),
-              title: const Text('টেলিগ্রাম ব্যাকআপ', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+              title: const Text('টেলিগ্রাম ব্যাকআপ',
+                  style: TextStyle(
+                      fontSize: 14.5, fontWeight: FontWeight.w600)),
               subtitle: GestureDetector(
                 onTap: _showTelegramConfigDialog,
-                child: const Text('বট সেটিংস কনফিগার করুন ⚙️', style: TextStyle(fontSize: 12, color: Color(0xFF0284C7), fontWeight: FontWeight.w500)),
+                child: const Text(
+                  'বট সেটিংস কনফিগার করুন ⚙️',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF0284C7),
+                      fontWeight: FontWeight.w500),
+                ),
               ),
               trailing: AppButton(
                 text: 'পাঠান',
@@ -320,11 +464,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
           const SizedBox(height: AppSpacing.lg),
 
-          // Simple Help Note
+          // আশ্বস্তকরণ বার্তা
           Center(
             child: Text(
               'ফোন পরিবর্তন করলেও ব্যাকআপ ফাইলের মাধ্যমে সব ডেটা ফিরে পাবেন।',
-              style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11.5),
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.textMuted, fontSize: 11.5),
               textAlign: TextAlign.center,
             ),
           ),

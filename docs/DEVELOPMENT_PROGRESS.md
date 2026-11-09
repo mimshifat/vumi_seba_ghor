@@ -10,8 +10,8 @@
 | **Backend Phase 1** | Drift DAOs, Repository Layer & Human Error Mapping | ✅ Completed (131/131 Tests Green) |
 | **Backend Phase 2** | Riverpod Providers & State Management (Double-tap lock & Reactive state) | ✅ Completed (146/146 Tests Green) |
 | **Backend Phase 3** | UI Screen Migration to Live Providers | ✅ Completed (146/146 Tests Green) |
-| **Backend Phase 4** | Backup, Restore & Data Migration Safety | ⏳ Next |
-| **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ⏳ Scheduled |
+| **Backend Phase 4** | Backup, Restore & Data Migration Safety | ✅ Completed (157/157 Tests Green) |
+| **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ✅ Completed (173/173 Tests Green) |
 
 ---
 
@@ -361,5 +361,83 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
 
 ---
 
-### Next Phase
-**Backend Phase 4 — Backup, Restore & Data Migration Safety** (SQLite database file export, encrypted/raw import validation, PRAGMA integrity check, foreign key verification upon restore).
+## Backend Phase 4: Backup, Restore & Data Migration Safety (Completed)
+
+### Scope Completed
+1. **SQLite Offline Database Export (`PRAGMA wal_checkpoint(TRUNCATE)` & `VACUUM INTO`):**
+   - Implemented `exportBackup()` in `BackupRepository` which flushes WAL pages to disk and executes native SQLite `VACUUM INTO` to produce an unfragmented, standalone, clean `.db` file in the device's Downloads directory (with fallback to Documents).
+   - Generates unique timestamped filenames (e.g. `rojob_backup_YYYYMMDD_HHmmss.db`).
+   - Automatically records `last_backup_time` in `shop_settings`.
+2. **Background Isolate Integrity & Schema Verification (`validateBackupFile`):**
+   - Complete validation executed in a dedicated background `Isolate.run()` to guarantee zero UI freeze or ANR.
+   - Executes `PRAGMA integrity_check;` and `PRAGMA quick_check;`.
+   - Verifies the presence of all core tables (`applications`, `payments`, `expenses`, `persons`, `references`, `offices`, `shop_settings`).
+   - Gathers exact record statistics (applications, payments, expenses, customers, references, schema version) to preview for user confirmation.
+   - Throws human-friendly Bengali `AppFailure.corruptBackup` on corrupted or alien database files without touching the live database.
+3. **Zero Data Loss & Safe Restore with Automatic Rollback (`restoreBackup`):**
+   - Validates candidate file in isolate prior to any live database modification.
+   - Automatically creates a safety snapshot copy of the current live database (`rojob_bhumi_pre_restore.sqlite`).
+   - Closes live connection to release OS file locks, purges stale `-wal` and `-shm` journals, and swaps the file.
+   - Performs post-restore integrity check on the newly placed database file.
+   - If any step fails, automatically rolls back from `rojob_bhumi_pre_restore.sqlite` and reopens the original database.
+   - Notifies Riverpod via `rootAppKey.currentState?.replaceDatabase(newDb)`, cleanly remounting `ProviderScope` with fresh streams and zero zombie connections.
+4. **Telegram Bot Cloud Backup Integration (`exportBackupToTelegram`):**
+   - Persists bot token and chat ID in `shop_settings`.
+   - Creates a temporary SQLite snapshot and uploads directly via Telegram Bot `sendDocument` API using standard Dart `HttpClient` multipart form-data.
+   - Includes natural Bengali caption with backup date and time.
+   - Graceful offline/network failure handling with human-friendly Bengali messages.
+5. **UI Screen Integration (`BackupRestoreScreen`):**
+   - Replaced dummy delay timers with live `backupControllerProvider` and reactive stream providers.
+   - Added detailed restore confirmation dialog displaying exact record counts and file size in Bengali.
+   - Human-friendly SnackBars on export, import, and telegram upload success/failure.
+6. **Verification & Testing:**
+   - Added `test/unit/phase_four_backup_test.dart` covering 11 critical test scenarios (offline export, isolate validation, corrupt file rejection, alien file rejection, atomic restore, rollback safety, telegram config, and Bengali date formatting).
+   - Full Test Suite: **157 / 157 tests passed!** (100% green).
+   - Static Analysis: 0 errors.
+
+---
+
+## Backend Phase 5: Stress Testing, End-to-End Verification & Release (Completed)
+
+### Scope Completed
+1. **High-Volume & Stress Performance Verification (১,০০০+ আবেদন ও ৫,০০০+ লেনদেন):**
+   - Bulk insertion of 1,000 complete applications across multiple offices and work types completed in < 3 seconds.
+   - Bulk insertion of 5,000 distinct financial transactions (2,500 installment payments, 1,500 direct application expenses, 500 independent shop incomes, and 500 general overhead expenses) executed in < 5 seconds without lockups.
+   - Verified that `unified_transactions_view` properly ingests and classifies all 5,000 rows across 6 sources with bit-for-bit integer paisa accuracy.
+   - Verified that aggregate shop accounting calculations (`totalReceived`, `totalExpense`, `realizedIncome`, `netRealizedIncome`) across 5,000 rows run with zero arithmetic drift or float rounding errors.
+   - Verified fast pagination and aggregated subquery performance across 1,000 applications in under 2 seconds.
+   - Validated high-volume search and filtering speed across Bengali/English phone digits, app numbers, and Mouza strings.
+
+2. **Concurrency & Race Condition Safety (কনকারেন্সি ও ডেটা অখণ্ডতা):**
+   - Simultaneous parallel async operations (20 concurrent payment transactions on an application using `Future.wait`) executing cleanly with zero deadlocks or lost updates.
+   - Verified race condition handling on duplicate application numbers within the same office: exactly one operation succeeds, and the conflicting request is rejected with a respectful natural Bengali `AppFailure`.
+
+3. **Worst-Case & Extreme Crisis Scenarios (চরম সংকট টেস্ট):**
+   - **Transaction Rollback Guard:** Verified that an unhandled crash or unexpected failure during a multi-table atomic operation (status transition + fee expense + hearing task creation) cleanly rolls back all modified tables, leaving zero orphaned rows or half-written records.
+   - **Snapshot Immutability Breach Protection:** Tested SQLite triggers to ensure direct SQL `UPDATE` statements attempting to alter `applicant_name`, `applicant_phone`, `applicant_address`, `reference_name`, or `office_name` on an existing application are immediately aborted.
+   - **Financial Audit Immutability:** Verified that direct SQL `UPDATE` statements on payments or expenses are blocked by database triggers, requiring soft-deletion and new voucher creation for any correction.
+   - **Corrupted Backup Safety:** Verified that corrupted, zero-byte, alien, or damaged SQLite backup files are rejected during background isolate validation without altering the live database.
+   - **Soft-Delete & Restore Audit Trail:** Verified that soft-deleted payments and expenses are cleanly removed from active views and financial calculations, while remaining preserved in storage for audit history, and can be fully restored.
+   - **Adversarial & Malformed Input Handling:** Tested edge cases across mixed Bengali/English digit strings, spaces, symbols, zero/negative money bounds, and extreme 64-bit integer values without crashes.
+
+4. **Real-World End-to-End Land Service Shop Lifecycle (Golden Rules 1–6 Audit):**
+   - Verified full 12-step realistic business lifecycle:
+     1. Customer and Reference onboarding.
+     2. ৳8,000 package deal contract creation with ৳3,000 advance payment.
+     3. Transition to 'প্রস্তাব প্রেরণ' with ৳70 online government fee expense recorded (Realized income: ৳3,000 - ৳70 = ৳2,930; Due: ৳5,000).
+     4. Transition to 'শুনানি' with ৳300 expense and automatic hearing task scheduled in Tasks table.
+     5. 2nd installment of ৳3,500 received (Total received: ৳6,500; Expense: ৳370; Realized income: ৳6,130; Due: ৳1,500).
+     6. Transition to 'ডিসিআর প্রস্তুত' with ৳1,100 DCR fee recorded.
+     7. Transition to 'সম্পন্ন'.
+     8. 3rd installment of ৳1,300 received (Total received: ৳7,800; Remaining ৳200 waived by shopkeeper via `markAsPaid`).
+     9. Effective due becomes ৳0, file settled, final realized income = ৳7,800 - ৳1,470 = ৳6,330.
+     10. Reference person profile stats verified: 1 application, ৳8,000 total volume, ৳7,800 collection, ৳0 remaining due.
+     11. Independent income ৳500 + General shop overhead ৳1,000 added.
+     12. Overall Shop Net Income: (৳7,800 + ৳500) - (৳1,470 + ৳1,000) = ৳8,300 - ৳2,470 = ৳5,830 exact to the paisa.
+     13. Customer/Reference deletion tested: applicant snapshot data remains 100% frozen and intact in historical applications.
+
+5. **Verification & Release Readiness:**
+   - Static Analysis (`flutter analyze`): **0 errors, 0 warnings**.
+   - Full Test Suite: **173 / 173 tests passed!** (100% green).
+   - Added Native Phone Dialer & URL Launcher integration (`AppLauncher`) across all screens (Due management, Application details, Customer list/details, Reference cards/details, Settings hotline/WhatsApp) with automatic Bengali digit conversion and fallback clipboard safety.
+   - All 5 Phases of `docs/BACKEND_MASTER_PLAN.md` are completely implemented, verified, and release-ready.

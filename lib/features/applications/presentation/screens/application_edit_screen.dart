@@ -38,8 +38,6 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
   late final TextEditingController _notesController;
 
   late String _selectedWorkType;
-  late String _selectedOffice;
-  late DateTime _applicationDate;
 
   @override
   void initState() {
@@ -66,8 +64,6 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
     _agreedAmountController = TextEditingController(text: app.agreedAmount.inTaka.toString());
     _notesController = TextEditingController(text: app.notes ?? '');
     _selectedWorkType = app.workType;
-    _selectedOffice = app.officeName;
-    _applicationDate = app.applicationDate;
   }
 
   @override

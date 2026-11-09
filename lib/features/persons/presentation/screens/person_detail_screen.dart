@@ -6,6 +6,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -182,18 +183,23 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                   children: [
                     const Icon(Icons.phone_android, size: 16, color: AppColors.slate400),
                     const SizedBox(width: 4),
-                    Text(
-                      BengaliDigits.toBengali(phone),
-                      style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                    InkWell(
+                      onTap: () => AppLauncher.makePhoneCall(context, phone, contactName: name),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Text(
+                        BengaliDigits.toBengali(phone),
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(Icons.phone_in_talk, size: 18, color: AppColors.emerald),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('$phone নম্বরে কল করা হচ্ছে...')),
-                        );
-                      },
+                      tooltip: 'কল করুন',
+                      onPressed: () => AppLauncher.makePhoneCall(context, phone, contactName: name),
                     ),
                   ],
                 ),

@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -1008,12 +1009,13 @@ class _ApplicationDetailScreenState
             _buildDetailRow(
               'মোবাইল নম্বর',
               BengaliDigits.toBengali(_app.applicantPhone),
+              isCopyable: true,
               trailing: InkWell(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${_app.applicantPhone} নম্বরে কল করা হচ্ছে...')),
-                  );
-                },
+                onTap: () => AppLauncher.makePhoneCall(
+                  context,
+                  _app.applicantPhone,
+                  contactName: _app.applicantName,
+                ),
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(6),

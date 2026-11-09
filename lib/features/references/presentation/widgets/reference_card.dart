@@ -5,6 +5,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../../domain/models/reference_stats.dart';
@@ -100,20 +101,29 @@ class ReferenceCard extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            const Icon(Icons.phone_android,
-                                size: 13, color: AppColors.textMuted),
-                            const SizedBox(width: 4),
-                            Text(
-                              BengaliDigits.toBengali(_phone),
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                        InkWell(
+                          onTap: () => AppLauncher.makePhoneCall(
+                            context,
+                            _phone,
+                            contactName: _name,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.phone_android,
+                                  size: 13, color: AppColors.textMuted),
+                              const SizedBox(width: 4),
+                              Text(
+                                BengaliDigits.toBengali(_phone),
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: TextDecoration.underline,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         if (_address != null && _address!.trim().isNotEmpty) ...[
                           const SizedBox(height: 2),
@@ -142,17 +152,16 @@ class ReferenceCard extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.phone_in_talk,
                         size: 19, color: AppColors.emerald),
+                    tooltip: 'কল করুন',
                     style: IconButton.styleFrom(
                       backgroundColor: const Color(0xFFECFDF5),
                       padding: const EdgeInsets.all(8),
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                '$_name ($_phone)-এ কল করা হচ্ছে...')),
-                      );
-                    },
+                    onPressed: () => AppLauncher.makePhoneCall(
+                      context,
+                      _phone,
+                      contactName: _name,
+                    ),
                   ),
                 ],
               ),

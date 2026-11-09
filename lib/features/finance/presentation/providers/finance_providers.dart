@@ -4,7 +4,6 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/database/daos/finance_dao.dart';
 import '../../../../core/database/repository_providers.dart';
 import '../../../../core/providers/mutation_controller.dart';
-import '../../../../core/utils/money.dart';
 
 /// আর্থিক হিসাবের সময়সীমা ফিল্টার ধরন
 enum FinancialDateFilterType {
@@ -96,7 +95,6 @@ class FinancialDateFilterState {
         return (startMs: null, endMs: null);
 
       case FinancialDateFilterType.allTime:
-      default:
         return (startMs: null, endMs: null);
     }
   }

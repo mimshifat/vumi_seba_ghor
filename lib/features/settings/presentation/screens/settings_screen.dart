@@ -5,6 +5,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
@@ -186,11 +187,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: AppTypography.bodySmall,
             ),
             const SizedBox(height: AppSpacing.md),
-            _buildContactRow(Icons.phone, 'হটলাইন নম্বর', '+৮৮০ ১৮০০-০০০০০০'),
+            _buildContactRow(
+              ctx,
+              Icons.phone,
+              'হটলাইন নম্বর (কল করতে চাপুন)',
+              '+৮৮০ ১৮০০-০০০০০০',
+              onTap: () => AppLauncher.makePhoneCall(ctx, '+8801800000000'),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            _buildContactRow(Icons.chat_bubble_outline, 'হোয়াটসঅ্যাপ সাপোর্ট', '+৮৮০ ১৭০০-০০০০০০'),
+            _buildContactRow(
+              ctx,
+              Icons.chat_bubble_outline,
+              'হোয়াটসঅ্যাপ সাপোর্ট (চ্যাট করতে চাপুন)',
+              '+৮৮০ ১৭০০-০০০০০০',
+              onTap: () => AppLauncher.launchWeb(ctx, 'https://wa.me/8801700000000'),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            _buildContactRow(Icons.schedule, 'সময়সূচি', 'সকাল ৯:০০ - রাত ৯:০০'),
+            _buildContactRow(
+              ctx,
+              Icons.schedule,
+              'সময়সূচি',
+              'সকাল ৯:০০ - রাত ৯:০০',
+            ),
           ],
         ),
         actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
@@ -208,27 +226,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  static Widget _buildContactRow(IconData icon, String title, String value) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.slate100,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11)),
-                Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-              ],
+  static Widget _buildContactRow(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value, {
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.slate100,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11)),
+                  Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (onTap != null)
+              const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.slate400),
+          ],
+        ),
       ),
     );
   }

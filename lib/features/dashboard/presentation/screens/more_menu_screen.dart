@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/app_launcher.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
 import '../../../offices/presentation/screens/office_management_screen.dart';
 import '../../../persons/presentation/screens/person_list_screen.dart';
@@ -108,7 +109,7 @@ class MoreMenuScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
 
           // 3. Clean Developer & App Info Footer
-          const Center(
+          Center(
             child: Column(
               children: [
                 Text(
@@ -135,20 +136,30 @@ class MoreMenuScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                SizedBox(height: 3),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.email_outlined, size: 14, color: AppColors.textMuted),
-                    SizedBox(width: 4),
-                    Text(
-                      'mimshifat5@gmail.com',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
+                const SizedBox(height: 3),
+                InkWell(
+                  onTap: () => AppLauncher.launchWeb(context, 'mailto:mimshifat5@gmail.com'),
+                  onLongPress: () => AppLauncher.copyToClipboard(
+                    context,
+                    'mimshifat5@gmail.com',
+                    successMessage: 'ইমেইল ঠিকানা কপি করা হয়েছে',
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.email_outlined, size: 14, color: AppColors.primary),
+                      SizedBox(width: 4),
+                      Text(
+                        'mimshifat5@gmail.com',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
