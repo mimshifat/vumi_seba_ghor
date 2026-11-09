@@ -425,7 +425,7 @@ class FinanceRepository {
   // ৫. আর্থিক হিসাব ও সারাংশ (Financial Overview)
   // -------------------------------------------------------------
 
-  /// নির্দিষ্ট আবেদনের আর্থিক হিসাব (আদায়, কাজের খরচ, প্রকৃত লাভ, বকেয়া)
+  /// নির্দিষ্ট আবেদনের আর্থিক হিসাব (আদায়, কাজের খরচ, প্রকৃত ইনকাম, বকেয়া)
   Future<ApplicationFinancials> getApplicationFinancials(
       String applicationId) async {
     try {

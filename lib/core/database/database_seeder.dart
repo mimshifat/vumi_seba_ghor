@@ -17,6 +17,125 @@ class DatabaseSeeder {
     return count == 0;
   }
 
+  /// সিস্টেমের আবশ্যকীয় মৌলিক সেটিংস ও ক্যাটাগরি সিড করে (কোনো ডেমো আবেদন বা ব্যক্তি ছাড়া)।
+  static Future<void> seedEssentialDefaults(AppDatabase db) async {
+    const uuid = Uuid();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    await db.transaction(() async {
+      // ১. কাজের ধরন (যদি না থাকে)
+      final wtCount = await db.workTypes.count().getSingle();
+      if (wtCount == 0) {
+        for (final workType in DemoStore.workTypes) {
+          await db.into(db.workTypes).insert(
+                WorkTypesCompanion.insert(
+                  id: uuid.v4(),
+                  name: workType,
+                  isDefault: const Value(1),
+                  createdAt: now,
+                  updatedAt: now,
+                ),
+              );
+        }
+      }
+
+      // ২. খরচের খাতসমূহ (যদি না থাকে)
+      final ecCount = await db.expenseCategories.count().getSingle();
+      if (ecCount == 0) {
+        for (final category in DemoStore.applicationExpenseCategories) {
+          await db.into(db.expenseCategories).insert(
+                ExpenseCategoriesCompanion.insert(
+                  id: uuid.v4(),
+                  name: category,
+                  isGeneral: const Value(0),
+                  isDefault: const Value(1),
+                  createdAt: now,
+                  updatedAt: now,
+                ),
+              );
+        }
+        for (final category in DemoStore.generalExpenseCategories) {
+          await db.into(db.expenseCategories).insert(
+                ExpenseCategoriesCompanion.insert(
+                  id: uuid.v4(),
+                  name: category,
+                  isGeneral: const Value(1),
+                  isDefault: const Value(1),
+                  createdAt: now,
+                  updatedAt: now,
+                ),
+              );
+        }
+      }
+
+      // ৩. আয়ের খাতসমূহ (যদি না থাকে)
+      final icCount = await db.incomeCategories.count().getSingle();
+      if (icCount == 0) {
+        for (final category in DemoStore.incomeCategories) {
+          await db.into(db.incomeCategories).insert(
+                IncomeCategoriesCompanion.insert(
+                  id: uuid.v4(),
+                  name: category,
+                  isDefault: const Value(1),
+                  createdAt: now,
+                  updatedAt: now,
+                ),
+              );
+        }
+      }
+
+      // ৪. ভূমি অফিসসমূহ (যদি না থাকে)
+      final officeCount = await db.offices.count().getSingle();
+      if (officeCount == 0) {
+        for (final office in DemoStore.offices) {
+          await db.into(db.offices).insert(
+                OfficesCompanion.insert(
+                  id: uuid.v4(),
+                  name: office.name,
+                  createdAt: now,
+                  updatedAt: now,
+                ),
+              );
+        }
+      }
+
+      // ৫. শপ সেটিংস (যদি না থাকে)
+      final settingsCount = await db.shopSettings.count().getSingle();
+      if (settingsCount == 0) {
+        for (final entry in {
+          'shop_name': 'রজব ভূমি সেবা ঘর',
+          'proprietor_name': '',
+          'shop_phone': '',
+          'shop_address': '',
+        }.entries) {
+          await db.into(db.shopSettings).insert(
+                ShopSettingsCompanion.insert(
+                  settingKey: entry.key,
+                  value: entry.value,
+                  createdAt: now,
+                  updatedAt: now,
+                ),
+              );
+        }
+      }
+    });
+  }
+
+  /// সমস্ত ডেমো বা পরীক্ষামূলক ব্যবসায়িক ডেটা মুছে ফেলা (আবেদন, ব্যক্তি, রেফারেন্স, কাজ, লেনদেন)
+  static Future<void> clearAllDemoData(AppDatabase db) async {
+    await db.transaction(() async {
+      await db.delete(db.documents).go();
+      await db.delete(db.tasks).go();
+      await db.delete(db.payments).go();
+      await db.delete(db.expenses).go();
+      await db.delete(db.statusHistory).go();
+      await db.delete(db.applications).go();
+      await db.delete(db.persons).go();
+      await db.delete(db.references).go();
+      await db.delete(db.independentIncomes).go();
+    });
+  }
+
   /// ডেমো ডেটা ডেটাবেজে বসায় — একটি একক ট্রানজ্যাকশনে।
   ///
   /// যাতে কোনো একটি রেকর্ড ব্যর্থ হলে পুরো সিড রোলব্যাক হয় এবং

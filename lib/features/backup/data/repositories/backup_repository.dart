@@ -469,6 +469,18 @@ class BackupRepository {
   /// এক্সপোর্ট ডিরেক্টরি নির্ণয় (অ্যান্ড্রয়েড ১০/১১+ ও অন্যান্য ডিভাইসে নিরাপদ পথ)
   static Future<Directory> getExportDirectory() async {
     if (Platform.isAndroid) {
+      // প্রথমে সরাসরি পাবলিক ডাউনলোড ফোল্ডারে লেখার অনুমতি পরীক্ষা করা
+      final publicDownload = Directory('/storage/emulated/0/Download');
+      if (publicDownload.existsSync()) {
+        try {
+          final probe = File(p.join(publicDownload.path, '.rojob_write_probe'));
+          probe.writeAsStringSync('probe');
+          probe.deleteSync();
+          return publicDownload;
+        } catch (_) {}
+      }
+
+      // Scoped Storage থাকলে অ্যাপের নিজস্ব এক্সটার্নাল স্টোরেজ ব্যবহার করা
       try {
         final extDirs = await getExternalStorageDirectories(
           type: StorageDirectory.downloads,
@@ -478,17 +490,6 @@ class BackupRepository {
           if (dir.existsSync()) return dir;
         }
       } catch (_) {}
-
-      final publicDownload = Directory('/storage/emulated/0/Download');
-      if (publicDownload.existsSync()) {
-        try {
-          // অ্যান্ড্রয়েড ১১+ Scoped Storage-এ সরাসরি লেখার পারমিশন পরীক্ষা
-          final probe = File(p.join(publicDownload.path, '.rojob_write_probe'));
-          probe.writeAsStringSync('probe');
-          probe.deleteSync();
-          return publicDownload;
-        } catch (_) {}
-      }
     }
 
     try {
@@ -499,6 +500,26 @@ class BackupRepository {
     } catch (_) {}
 
     return await getApplicationDocumentsDirectory();
+  }
+
+  /// সর্বশেষ সংরক্ষিত ব্যাকআপ ফাইল পাওয়া (যদি থাকে)
+  Future<File?> getLatestBackupFile() async {
+    try {
+      final targetDir = await getExportDirectory();
+      if (!targetDir.existsSync()) return null;
+      final files = targetDir
+          .listSync()
+          .whereType<File>()
+          .where((f) =>
+              p.basename(f.path).startsWith('rojob_backup_') &&
+              f.path.endsWith('.db'))
+          .toList();
+      if (files.isEmpty) return null;
+      files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      return files.first;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// পুরনো ব্যাকআপ প্রুনিং (সর্বোচ্চ [maxKeep] টি ব্যাকআপ ফাইল রেখে অতিরিক্ত পুরনো ফাইল মুছে ফেলা)

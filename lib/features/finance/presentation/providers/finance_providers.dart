@@ -189,7 +189,7 @@ final thisMonthFinancialSnapshotProvider =
   return repo.getShopFinancialOverview(startDate: start, endDate: end);
 });
 
-/// নির্দিষ্ট একক আবেদনের আর্থিক হিসাব (আদায়, কাজের খরচ, নিট লাভ, বকেয়া)
+/// নির্দিষ্ট একক আবেদনের আর্থিক হিসাব (আদায়, কাজের খরচ, নিট ইনকাম, বকেয়া)
 final applicationFinancialsProvider =
     FutureProvider.family<ApplicationFinancials, String>((ref, applicationId) {
   final repo = ref.watch(financeRepositoryProvider);

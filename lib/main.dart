@@ -30,12 +30,10 @@ void main() async {
   // রিস্টোর ব্যর্থতাজনিত কোনো ক্র্যাশ থাকলে স্বয়ংক্রিয় প্রাক-রিস্টোর ব্যাকআপ পুনরুদ্ধার
   await AppDatabase.checkAndRecoverPreRestoreSnapshot();
 
-  // ডেটাবেজ সংযোগ ও প্রাথমিক সিডিং (যদি নতুন/খালি হয়)
+  // ডেটাবেজ সংযোগ ও আবশ্যকীয় সিস্টেম সেটিংস নিশ্চিতকরণ (কোনো ডেমো আবেদন ছাড়া)
   final db = AppDatabase.open();
   try {
-    if (await DatabaseSeeder.isEmpty(db)) {
-      await DatabaseSeeder.seed(db);
-    }
+    await DatabaseSeeder.seedEssentialDefaults(db);
   } catch (e, s) {
     _logCrash('DatabaseSeeder', e, s);
   }

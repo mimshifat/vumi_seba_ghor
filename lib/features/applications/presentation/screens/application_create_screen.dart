@@ -7,6 +7,7 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
@@ -144,7 +145,7 @@ class _ApplicationCreateScreenState
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           final livePersons = ref.read(personsStreamProvider).valueOrNull;
-          final personList = livePersons != null && livePersons.isNotEmpty
+          final personList = livePersons != null
               ? livePersons
                   .map((p) => DemoPerson(
                         id: p.id,
@@ -155,7 +156,7 @@ class _ApplicationCreateScreenState
                         totalDue: Money.zero,
                       ))
                   .toList()
-              : DemoStore.persons;
+              : const <DemoPerson>[];
 
           final filteredPersons = personList.where((p) {
             if (searchQuery.isEmpty) return true;
@@ -400,15 +401,70 @@ class _ApplicationCreateScreenState
   }
 
   Future<void> _saveApplication() async {
-    if (!_step1FormKey.currentState!.validate()) {
+    // ১. নিরাপদ ফিল্ড-লেভেল ভ্যালিডেশন (আনমাউন্টেড কী ক্র্যাশ প্রতিরোধে)
+    final cleanName = _nameController.text.trim();
+    if (cleanName.isEmpty) {
       _goToStep(0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('অনুগ্রহ করে আবেদনকারীর নাম লিখুন'),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
-    if (!_step2FormKey.currentState!.validate()) {
+
+    final cleanPhone = AppValidators.standardizePhone(_phoneController.text.trim());
+    if (!AppValidators.isValidPhone(cleanPhone)) {
+      _goToStep(0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('১১ ডিজিটের সঠিক মোবাইল নম্বর দিন'),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_appNumberController.text.trim().isEmpty) {
       _goToStep(1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('আবেদন নম্বর আবশ্যক'),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
-    if (!_step3FormKey.currentState!.validate()) {
+
+    if (_selectedWorkType.trim().isEmpty) {
+      _goToStep(1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('কাজের ধরন নির্বাচন আবশ্যক'),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedOffice.trim().isEmpty) {
+      _goToStep(1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ভূমি অফিস নির্বাচন আবশ্যক'),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_step3FormKey.currentState?.validate() == false) {
       return;
     }
 
@@ -424,10 +480,10 @@ class _ApplicationCreateScreenState
         initialTaka > 0 ? Money.fromTaka(initialTaka).paisa : null;
 
     try {
-      await ref.read(applicationControllerProvider.notifier).createApplication(
+      final createdApp = await ref.read(applicationControllerProvider.notifier).createApplication(
             applicantId: _selectedPersonId,
-            applicantName: _nameController.text.trim(),
-            applicantPhone: _phoneController.text.trim(),
+            applicantName: cleanName,
+            applicantPhone: cleanPhone,
             applicantAddress: _addressController.text.trim().isNotEmpty
                 ? _addressController.text.trim()
                 : null,
@@ -456,10 +512,25 @@ class _ApplicationCreateScreenState
 
       if (!mounted) return;
 
+      if (createdApp == null) {
+        final failure = ref.read(applicationControllerProvider).error;
+        final message = failure is AppFailure
+            ? failure.message
+            : 'সংরক্ষণে একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.rose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'আবেদন "${_nameController.text.trim()}" সফলভাবে সংরক্ষিত হয়েছে!'),
+              'আবেদন "$cleanName" সফলভাবে সংরক্ষিত হয়েছে!'),
           backgroundColor: AppColors.emerald,
           behavior: SnackBarBehavior.floating,
         ),
@@ -506,9 +577,9 @@ class _ApplicationCreateScreenState
                 setState(() => _currentStep = page);
               },
               children: [
-                _buildStep1CustomerInfo(),
-                _buildStep2WorkAndOffice(),
-                _buildStep3PaymentAndFinish(),
+                _KeepAlivePage(child: _buildStep1CustomerInfo()),
+                _KeepAlivePage(child: _buildStep2WorkAndOffice()),
+                _KeepAlivePage(child: _buildStep3PaymentAndFinish()),
               ],
             ),
           ),
@@ -1582,6 +1653,7 @@ class _ApplicationCreateScreenState
               child: AppButton(
                 text: isLastStep ? 'আবেদন সংরক্ষণ করুন' : 'পরবর্তী ধাপ',
                 icon: isLastStep ? Icons.check_circle_outline : Icons.arrow_forward,
+                isLoading: isLastStep && ref.watch(applicationControllerProvider).isLoading,
                 onPressed: _onNextStep,
               ),
             ),
@@ -1589,5 +1661,26 @@ class _ApplicationCreateScreenState
         ),
       ),
     );
+  }
+}
+
+/// পেজভিউ-এর ধাপগুলোকে মেমরিতে সক্রিয় রাখার সহায়ক উইজেট
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+  const _KeepAlivePage({required this.child});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

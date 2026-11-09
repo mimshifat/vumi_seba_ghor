@@ -145,7 +145,18 @@ class BackupController extends MutationController {
           chatId: chatId,
         ));
   }
+
+  /// সর্বশেষ ব্যাকআপ ফাইল পাওয়া
+  Future<File?> getLatestBackupFile() {
+    return _repo.getLatestBackupFile();
+  }
 }
+
+/// সর্বশেষ ব্যাকআপ ফাইল প্রোভাইডার
+final latestBackupFileProvider = FutureProvider.autoDispose<File?>((ref) async {
+  final repo = ref.watch(backupRepositoryProvider);
+  return repo.getLatestBackupFile();
+});
 
 /// ব্যাকআপ কন্ট্রোলার স্টেট প্রোভাইডার
 final backupControllerProvider =

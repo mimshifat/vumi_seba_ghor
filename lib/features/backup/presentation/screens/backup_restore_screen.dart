@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
@@ -39,21 +40,44 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     super.dispose();
   }
 
-  // ১. ফোনে সুরক্ষিত অফলাইন ব্যাকআপ এক্সপোর্ট
+  // ১. ফোনে সুরক্ষিত অফলাইন ব্যাকআপ এক্সপোর্ট (ফাইল ম্যানেজার থেকে ফোল্ডার নির্বাচন)
   Future<void> _exportBackupToPhone() async {
     setState(() => _isExportingPhone = true);
     try {
+      // প্রথমে ব্যাকগ্রাউন্ডে নিরাপদ ও সুনির্দিষ্ট SQLite VACUUM ডেটাবেজ ফাইল তৈরি
       final file =
           await ref.read(backupControllerProvider.notifier).exportToPhone();
+      if (!mounted || file == null) return;
+
+      ref.invalidate(latestBackupFileProvider);
+
+      final fileName = p.basename(file.path);
+      final bytes = await file.readAsBytes();
+
+      // সিস্টেম ফাইল ম্যানেজার ওপেন করা — ইউজার নিজের পছন্দমতো ফোল্ডার বেছে নিয়ে সেভ করবেন
+      final savedPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'রজব ডেটাবেজ সেভ করার ফোল্ডার নির্বাচন করুন',
+        fileName: fileName,
+        type: FileType.any,
+        bytes: bytes,
+      );
+
       if (!mounted) return;
 
-      if (file != null) {
-        final fileName = p.basename(file.path);
+      if (savedPath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('ব্যাকআপ ফাইলটি সেভ হয়েছে: $fileName'),
+            content: Text('নির্বাচিত ফোল্ডারে সেভ হয়েছে: $fileName'),
             backgroundColor: AppColors.emerald,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        // ইউজার ডায়ালগ ক্যানসেল করলে
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ফোল্ডার নির্বাচন বাতিল করা হয়েছে'),
+            backgroundColor: AppColors.textMuted,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -77,8 +101,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   Future<void> _importBackupFromPhone() async {
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['db', 'sqlite'],
+        type: FileType.any,
         dialogTitle: 'রজব ব্যাকআপ ফাইল নির্বাচন করুন (.db বা .sqlite)',
       );
 
@@ -88,6 +111,22 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       if (pickedPath == null) return;
       final file = File(pickedPath);
       if (!file.existsSync()) return;
+
+      // এক্সটেনশন নিশ্চিতকরণ (.db অথবা .sqlite)
+      final lowerPath = pickedPath.toLowerCase();
+      if (!lowerPath.endsWith('.db') && !lowerPath.endsWith('.sqlite')) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'বাছাইকৃত ফাইলটি সঠিক ব্যাকআপ ফাইল নয়। অনুগ্রহ করে .db বা .sqlite ফাইল নির্বাচন করুন।',
+            ),
+            backgroundColor: AppColors.rose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
 
       if (!mounted) return;
       setState(() => _isImporting = true);
@@ -377,7 +416,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                   title: const Text('ফোনে ব্যাকআপ নিন',
                       style: TextStyle(
                           fontSize: 14.5, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Downloads ফোল্ডারে ফাইল সেভ হবে',
+                  subtitle: const Text('ফাইল ম্যানেজার থেকে ফোল্ডার বেছে সেভ করুন',
                       style: TextStyle(
                           fontSize: 12, color: AppColors.textMuted)),
                   trailing: AppButton(
@@ -387,6 +426,68 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                     isLoading: _isExportingPhone,
                     onPressed: _exportBackupToPhone,
                   ),
+                ),
+                const Divider(height: 1),
+                // Share Latest Backup Tile
+                Consumer(
+                  builder: (context, ref, child) {
+                    final latestFileAsync =
+                        ref.watch(latestBackupFileProvider);
+                    final latestFile = latestFileAsync.valueOrNull;
+                    final hasFile =
+                        latestFile != null && latestFile.existsSync();
+                    final fileName = hasFile
+                        ? p.basename(latestFile.path)
+                        : null;
+                    final fileSizeKb = hasFile
+                        ? (latestFile.lengthSync() / 1024).toStringAsFixed(1)
+                        : null;
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.base, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusSm),
+                        ),
+                        child: const Icon(Icons.share_outlined,
+                            color: Color(0xFF16A34A), size: 22),
+                      ),
+                      title: const Text('ড্রাইভ বা হোয়াটসঅ্যাপে শেয়ার',
+                          style: TextStyle(
+                              fontSize: 14.5, fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        hasFile
+                            ? '$fileName ($fileSizeKb KB)'
+                            : 'ড্রাইভ বা হোয়াটসঅ্যাপে পাঠাতে আগে ব্যাকআপ নিন',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: AppButton(
+                        text: 'শেয়ার',
+                        variant: ButtonVariant.outline,
+                        width: 92,
+                        height: 36,
+                        onPressed: hasFile
+                            ? () async {
+                                await SharePlus.instance.share(
+                                  ShareParams(
+                                    files: [XFile(latestFile.path)],
+                                    text:
+                                        'রজব ভূমি সেবা ডেটাবেজ ব্যাকআপ: $fileName',
+                                    subject: 'রজব ডেটাবেজ ব্যাকআপ',
+                                  ),
+                                );
+                              }
+                            : null,
+                      ),
+                    );
+                  },
                 ),
                 const Divider(height: 1),
                 // Import Tile

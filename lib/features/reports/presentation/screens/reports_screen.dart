@@ -1,70 +1,99 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/money.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
+import '../../../finance/presentation/providers/finance_providers.dart';
 
-class ReportsScreen extends StatefulWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
-  int _selectedPeriodIndex = 1; // Default to 'গত ৩ মাস'
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  int _selectedPeriodIndex = 0; // 0: চলতি মাস, 1: গত ৩ মাস, 2: চলতি বছর, 3: সর্বকালের
   final List<String> _periods = ['চলতি মাস', 'গত ৩ মাস', 'চলতি বছর', 'সর্বকালের'];
 
   int _touchedPieIndex = -1;
 
-  // Analytics datasets depending on selected period
-  final List<Map<String, dynamic>> _periodStats = [
-    {
-      'totalApps': 23,
-      'completed': 18,
-      'successRate': '৭৮%',
-      'netIncome': '৳৭০,১০০',
-      'avgIncome': '৳৩,০৪৮',
-      'activeFiles': 5,
-      'trendIncome': [18.0, 22.0, 35.0, 52.0, 78.0],
-      'trendIncomeNet': [11.0, 14.0, 23.0, 36.0, 50.0],
-    },
-    {
-      'totalApps': 64,
-      'completed': 49,
-      'successRate': '৭৬%',
-      'netIncome': '৳১,৯৪,৫০০',
-      'avgIncome': '৳৩,০৩৯',
-      'activeFiles': 15,
-      'trendIncome': [28.0, 42.0, 55.0, 68.0, 85.0],
-      'trendIncomeNet': [18.0, 27.0, 38.0, 47.0, 60.0],
-    },
-    {
-      'totalApps': 128,
-      'completed': 98,
-      'successRate': '৭৬%',
-      'netIncome': '৳৩,৮৫,০০০',
-      'avgIncome': '৳৩,০০৭',
-      'activeFiles': 30,
-      'trendIncome': [35.0, 50.0, 65.0, 82.0, 110.0],
-      'trendIncomeNet': [22.0, 32.0, 43.0, 56.0, 78.0],
-    },
-    {
-      'totalApps': 182,
-      'completed': 142,
-      'successRate': '৭৮%',
-      'netIncome': '৳৫,৪০,০০০',
-      'avgIncome': '৳২,৯৬৭',
-      'activeFiles': 40,
-      'trendIncome': [40.0, 60.0, 80.0, 105.0, 130.0],
-      'trendIncomeNet': [25.0, 40.0, 54.0, 72.0, 92.0],
-    },
+  static const List<String> _bengaliMonthsShort = [
+    'জানু', 'ফেব্রু', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+    'জুলাই', 'আগস্ট', 'সেপ্টে', 'অক্টো', 'নভে', 'ডিসে'
   ];
+
+  DateTime _getPeriodStartDate() {
+    final now = DateTime.now();
+    switch (_selectedPeriodIndex) {
+      case 0: // চলতি মাস
+        return DateTime(now.year, now.month, 1);
+      case 1: // গত ৩ মাস
+        final m = now.month - 2;
+        return m > 0 ? DateTime(now.year, m, 1) : DateTime(now.year - 1, m + 12, 1);
+      case 2: // চলতি বছর
+        return DateTime(now.year, 1, 1);
+      case 3: // সর্বকালের
+      default:
+        return DateTime(2000, 1, 1);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentStats = _periodStats[_selectedPeriodIndex];
+    final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
+    final allApps = allAppsAsync.valueOrNull ?? const [];
+
+    final allTxsAsync = ref.watch(unifiedTransactionsStreamProvider);
+    final allTxs = allTxsAsync.valueOrNull ?? const [];
+
+    final startMs = _getPeriodStartDate().millisecondsSinceEpoch;
+
+    // পিরিয়ড অনুযায়ী ফিল্টার
+    final filteredApps = allApps.where((a) {
+      return a.application.applicationDate >= startMs;
+    }).toList();
+
+    final filteredTxs = allTxs.where((t) {
+      return t.date >= startMs;
+    }).toList();
+
+    // এক্সিকিউটিভ মেট্রিক্স ক্যালকুলেশন
+    final totalApps = filteredApps.length;
+    final completedApps = filteredApps.where((a) {
+      final s = a.application.status;
+      return s == 'সম্পন্ন' || s == 'খতিয়ান ডেলিভারি';
+    }).length;
+
+    final successRate = totalApps > 0
+        ? '${((completedApps / totalApps) * 100).round()}%'
+        : '০%';
+
+    final activeFiles = filteredApps.where((a) {
+      final s = a.application.status;
+      return s != 'সম্পন্ন' && s != 'খতিয়ান ডেলিভারি' && s != 'বাতিল' && s != 'খারিজ';
+    }).length;
+
+    int totalIncomePaisa = 0;
+    int totalExpensePaisa = 0;
+    for (final tx in filteredTxs) {
+      if (tx.type == 'income') {
+        totalIncomePaisa += tx.amount;
+      } else if (tx.type == 'expense') {
+        totalExpensePaisa += tx.amount;
+      }
+    }
+    final netIncomePaisa = totalIncomePaisa - totalExpensePaisa;
+    final netIncomeFormatted = Money.fromPaisa(netIncomePaisa).formatBengali();
+    final avgIncomeFormatted = totalApps > 0
+        ? Money.fromPaisa((totalIncomePaisa / totalApps).round()).formatBengali()
+        : '৳০';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -95,32 +124,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
           const SizedBox(height: AppSpacing.base),
 
           // 4 Executive KPI Cards
-          _buildExecutiveSummary(currentStats),
+          _buildExecutiveSummary(
+            totalApps: totalApps,
+            completedApps: completedApps,
+            successRate: successRate,
+            netIncomeFormatted: netIncomeFormatted,
+            avgIncomeFormatted: avgIncomeFormatted,
+            activeFiles: activeFiles,
+            totalIncomePaisa: totalIncomePaisa,
+          ),
 
           const SizedBox(height: AppSpacing.lg),
 
           // Multi-Month Growth & Net Income Trend Chart
-          _buildTrendChartCard(currentStats),
+          _buildTrendChartCard(allTxs),
 
           const SizedBox(height: AppSpacing.lg),
 
           // Work Type Distribution (Donut Chart & Legend)
-          _buildWorkTypeDistributionCard(),
+          _buildWorkTypeDistributionCard(filteredApps),
 
           const SizedBox(height: AppSpacing.lg),
 
           // Pipeline & Application Funnel
-          _buildPipelineFunnelCard(),
+          _buildPipelineFunnelCard(filteredApps),
 
           const SizedBox(height: AppSpacing.lg),
 
           // Land Office Performance & Distribution
-          _buildOfficePerformanceCard(),
+          _buildOfficePerformanceCard(filteredApps),
 
           const SizedBox(height: AppSpacing.lg),
 
           // Smart Business Insights
-          _buildSmartInsightsCard(),
+          _buildSmartInsightsCard(filteredApps, totalIncomePaisa, completedApps),
         ],
       ),
     );
@@ -166,7 +203,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // --- 4 EXECUTIVE KPI SUMMARY CARDS ---
-  Widget _buildExecutiveSummary(Map<String, dynamic> stats) {
+  Widget _buildExecutiveSummary({
+    required int totalApps,
+    required int completedApps,
+    required String successRate,
+    required String netIncomeFormatted,
+    required String avgIncomeFormatted,
+    required int activeFiles,
+    required int totalIncomePaisa,
+  }) {
     return Column(
       children: [
         Row(
@@ -174,8 +219,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Expanded(
               child: _buildMetricTile(
                 title: 'মোট আবেদন',
-                value: '${BengaliDigits.toBengali(stats['totalApps'])} টি',
-                subtitle: '+১৫% বিগত সময়ের চেয়ে',
+                value: '${BengaliDigits.toBengali(totalApps)} টি',
+                subtitle: totalApps > 0 ? 'নির্ধারিত সময়কালের ফাইল' : 'কোনো আবেদন নেই',
                 icon: Icons.folder_shared_outlined,
                 accentColor: AppColors.primary,
               ),
@@ -184,8 +229,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Expanded(
               child: _buildMetricTile(
                 title: 'সম্পন্নতার হার',
-                value: stats['successRate'],
-                subtitle: '${BengaliDigits.toBengali(stats['completed'])} টি সফল ডেলিভারি',
+                value: successRate,
+                subtitle: '${BengaliDigits.toBengali(completedApps)} টি সফল ডেলিভারি',
                 icon: Icons.verified_outlined,
                 accentColor: AppColors.emerald,
               ),
@@ -198,8 +243,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Expanded(
               child: _buildMetricTile(
                 title: 'প্রকৃত ইনকাম',
-                value: stats['netIncome'],
-                subtitle: 'আয়ের অনুপাত ৬৩.৪%',
+                value: netIncomeFormatted,
+                subtitle: totalIncomePaisa > 0 ? 'আদায়কৃত আয় - ব্যয়' : 'কোনো লেনদেন নেই',
                 icon: Icons.trending_up,
                 accentColor: AppColors.primaryDark,
               ),
@@ -208,8 +253,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Expanded(
               child: _buildMetricTile(
                 title: 'গড় ইনকাম / ফাইল',
-                value: stats['avgIncome'],
-                subtitle: '${BengaliDigits.toBengali(stats['activeFiles'])} টি প্রক্রিয়াধীন',
+                value: avgIncomeFormatted,
+                subtitle: '${BengaliDigits.toBengali(activeFiles)} টি প্রক্রিয়াধীন',
                 icon: Icons.pie_chart_outline,
                 accentColor: AppColors.amberDark,
               ),
@@ -299,9 +344,52 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // --- MULTI-MONTH TREND CHART ---
-  Widget _buildTrendChartCard(Map<String, dynamic> stats) {
-    final List<double> incomeData = List<double>.from(stats['trendIncome']);
-    final List<double> netIncomeData = List<double>.from(stats['trendIncomeNet']);
+  Widget _buildTrendChartCard(List<dynamic> allTxs) {
+    final now = DateTime.now();
+
+    // বিগত ৫ মাসের নাম ও রেঞ্জ
+    final monthLabels = <String>[];
+    final incomeSpots = <FlSpot>[];
+    final netSpots = <FlSpot>[];
+
+    double maxVal = 10.0;
+
+    for (int i = 4; i >= 0; i--) {
+      int yr = now.year;
+      int mo = now.month - i;
+      while (mo <= 0) {
+        mo += 12;
+        yr -= 1;
+      }
+
+      monthLabels.add(_bengaliMonthsShort[mo - 1]);
+
+      int monthIncome = 0;
+      int monthExpense = 0;
+
+      for (final tx in allTxs) {
+        final d = DateTime.fromMillisecondsSinceEpoch(tx.date as int);
+        if (d.year == yr && d.month == mo) {
+          if (tx.type == 'income') {
+            monthIncome += (tx.amount as int);
+          } else if (tx.type == 'expense') {
+            monthExpense += (tx.amount as int);
+          }
+        }
+      }
+
+      final incThousand = monthIncome / 100000.0; // টাকা / ১০০০
+      final netThousand = (monthIncome - monthExpense) / 100000.0;
+
+      if (incThousand > maxVal) maxVal = incThousand;
+      if (netThousand > maxVal) maxVal = netThousand;
+
+      final spotIdx = (4 - i).toDouble();
+      incomeSpots.add(FlSpot(spotIdx, math.max(0.0, incThousand)));
+      netSpots.add(FlSpot(spotIdx, math.max(0.0, netThousand)));
+    }
+
+    final double chartMaxY = (maxVal * 1.25).clamp(10.0, 1000.0);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
@@ -349,7 +437,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: 25,
+                  horizontalInterval: chartMaxY / 4,
                   getDrawingHorizontalLine: (value) => const FlLine(
                     color: AppColors.slate200,
                     strokeWidth: 1,
@@ -364,7 +452,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 34,
-                      interval: 25,
+                      interval: chartMaxY / 4,
                       getTitlesWidget: (value, meta) {
                         return Text(
                           '${BengaliDigits.toBengali(value.toInt())}k',
@@ -383,13 +471,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       reservedSize: 26,
                       interval: 1,
                       getTitlesWidget: (value, meta) {
-                        const months = ['জুলাই', 'আগস্ট', 'সেপ্টে', 'অক্টো', 'নভে'];
                         final idx = value.toInt();
-                        if (idx >= 0 && idx < months.length) {
+                        if (idx >= 0 && idx < monthLabels.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              months[idx],
+                              monthLabels[idx],
                               style: const TextStyle(
                                 color: AppColors.slate600,
                                 fontSize: 11,
@@ -408,14 +495,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 minX: 0,
                 maxX: 4,
                 minY: 0,
-                maxY: 140,
+                maxY: chartMaxY,
                 lineBarsData: [
-                  // Income Line
                   LineChartBarData(
-                    spots: List.generate(
-                      incomeData.length,
-                      (i) => FlSpot(i.toDouble(), incomeData[i]),
-                    ),
+                    spots: incomeSpots,
                     isCurved: true,
                     curveSmoothness: 0.35,
                     color: AppColors.primary,
@@ -435,12 +518,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       color: AppColors.primary.withValues(alpha: 0.08),
                     ),
                   ),
-                  // Net Income Line
                   LineChartBarData(
-                    spots: List.generate(
-                      netIncomeData.length,
-                      (i) => FlSpot(i.toDouble(), netIncomeData[i]),
-                    ),
+                    spots: netSpots,
                     isCurved: true,
                     curveSmoothness: 0.35,
                     color: AppColors.emerald,
@@ -491,13 +570,89 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // --- WORK TYPE DONUT CHART CARD ---
-  Widget _buildWorkTypeDistributionCard() {
-    final workTypes = [
-      {'name': 'নামজারি', 'count': 12, 'percent': 52, 'amount': '৳৫৫,০০০', 'color': AppColors.primary},
-      {'name': 'জমাভাগ', 'count': 5, 'percent': 22, 'amount': '৳২৮,০০০', 'color': AppColors.emerald},
-      {'name': 'খতিয়ান সংশোধন', 'count': 4, 'percent': 17, 'amount': '৳১৮,৫০০', 'color': AppColors.amberDark},
-      {'name': 'বিবিধ সেবা', 'count': 2, 'percent': 9, 'amount': '৳৯,০০০', 'color': AppColors.rose},
+  Widget _buildWorkTypeDistributionCard(List<dynamic> apps) {
+    if (apps.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.base),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'কাজের ধরন ভিত্তিক বিভাজন',
+                  style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.slate100,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                  ),
+                  child: Text(
+                    '০ টি ফাইল',
+                    style: AppTypography.labelMedium.copyWith(color: AppColors.textSecondary, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const Icon(Icons.pie_chart_outline, size: 40, color: AppColors.slate300),
+            const SizedBox(height: 8),
+            Text(
+              'এখনও কোনো কাজের তথ্য নেই',
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'নতুন আবেদন তৈরি করলে কাজের ধরন অনুযায়ী বিশ্লেষণ চার্ট এখানে দৃশ্যমান হবে।',
+              style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      );
+    }
+
+    // গ্রুপ বাই workType
+    final Map<String, int> typeCounts = {};
+    final Map<String, int> typeAmounts = {};
+
+    for (final appWithFin in apps) {
+      final wt = (appWithFin.application.workType as String?)?.trim() ?? 'অন্যান্য';
+      typeCounts[wt] = (typeCounts[wt] ?? 0) + 1;
+      typeAmounts[wt] = (typeAmounts[wt] ?? 0) + (appWithFin.application.agreedAmount as int);
+    }
+
+    final palette = [
+      AppColors.primary,
+      AppColors.emerald,
+      AppColors.amberDark,
+      AppColors.rose,
+      AppColors.primaryDeep,
+      AppColors.slate600,
     ];
+
+    final workTypeList = <Map<String, dynamic>>[];
+    int colorIdx = 0;
+    typeCounts.forEach((name, count) {
+      final pct = ((count / apps.length) * 100).round();
+      final amt = Money.fromPaisa(typeAmounts[name] ?? 0).formatBengali();
+      workTypeList.add({
+        'name': name,
+        'count': count,
+        'percent': pct,
+        'amount': amt,
+        'color': palette[colorIdx % palette.length],
+      });
+      colorIdx++;
+    });
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
@@ -523,15 +678,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
                 ),
                 child: Text(
-                  'মোট ২৩ টি ফাইল',
+                  'মোট ${BengaliDigits.toBengali(apps.length)} টি ফাইল',
                   style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontSize: 11),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.base),
-
-          // Donut Chart & Side Details
           Row(
             children: [
               SizedBox(
@@ -558,13 +711,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         borderData: FlBorderData(show: false),
                         sectionsSpace: 2,
                         centerSpaceRadius: 36,
-                        sections: List.generate(workTypes.length, (i) {
+                        sections: List.generate(workTypeList.length, (i) {
                           final isTouched = i == _touchedPieIndex;
                           final radius = isTouched ? 30.0 : 25.0;
-                          final item = workTypes[i];
+                          final item = workTypeList[i];
                           return PieChartSectionData(
                             color: item['color'] as Color,
-                            value: (item['percent'] as int).toDouble(),
+                            value: (item['count'] as int).toDouble(),
                             title: '',
                             radius: radius,
                           );
@@ -575,9 +728,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _touchedPieIndex >= 0 && _touchedPieIndex < workTypes.length
-                              ? '${BengaliDigits.toBengali(workTypes[_touchedPieIndex]['percent'])}%'
-                              : '২৩ টি',
+                          _touchedPieIndex >= 0 && _touchedPieIndex < workTypeList.length
+                              ? '${BengaliDigits.toBengali(workTypeList[_touchedPieIndex]['percent'])}%'
+                              : '${BengaliDigits.toBengali(apps.length)} টি',
                           style: AppTypography.headingSmall.copyWith(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -585,13 +738,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ),
                         ),
                         Text(
-                          _touchedPieIndex >= 0 && _touchedPieIndex < workTypes.length
-                              ? workTypes[_touchedPieIndex]['name'] as String
+                          _touchedPieIndex >= 0 && _touchedPieIndex < workTypeList.length
+                              ? workTypeList[_touchedPieIndex]['name'] as String
                               : 'মোট কাজ',
                           style: AppTypography.bodySmall.copyWith(
                             fontSize: 10,
                             color: AppColors.textMuted,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -599,10 +754,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
               const SizedBox(width: AppSpacing.base),
-              // Legend List
               Expanded(
                 child: Column(
-                  children: workTypes.map((item) {
+                  children: workTypeList.map((item) {
                     final color = item['color'] as Color;
                     final name = item['name'] as String;
                     final percent = BengaliDigits.toBengali(item['percent']);
@@ -630,6 +784,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 fontWeight: FontWeight.w600,
                                 fontSize: 12,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           Column(
@@ -666,13 +822,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // --- APPLICATION PIPELINE & FUNNEL CARD ---
-  Widget _buildPipelineFunnelCard() {
+  Widget _buildPipelineFunnelCard(List<dynamic> apps) {
+    final int newCount = apps.where((a) {
+      final s = a.application.status as String;
+      return s == 'দাখিলকৃত' || s == 'নতুন';
+    }).length;
+
+    final int processingCount = apps.where((a) {
+      final s = a.application.status as String;
+      return s == 'তহশিলদার প্রতিবেদন' || s == 'এসিল্যান্ড আদেশ' || s == 'কার্যক্রম শুরু';
+    }).length;
+
+    final int hearingCount = apps.where((a) {
+      final s = a.application.status as String;
+      return s == 'শুনানি' || s == 'শুনানি সম্পন্ন';
+    }).length;
+
+    final int approvedCount = apps.where((a) {
+      final s = a.application.status as String;
+      return s == 'অনুমোদিত' || s == 'ডিসিআর কাটা';
+    }).length;
+
+    final int completedCount = apps.where((a) {
+      final s = a.application.status as String;
+      return s == 'সম্পন্ন' || s == 'খতিয়ান ডেলিভারি';
+    }).length;
+
+    final total = apps.length;
+
     final stages = [
-      {'title': 'নতুন আবেদন দাখিল', 'count': 23, 'percent': 100, 'color': AppColors.statusNew},
-      {'title': 'প্রস্তাব ও নথি প্রেরণ', 'count': 17, 'percent': 74, 'color': AppColors.statusSent},
-      {'title': 'শুনানি পর্যায়', 'count': 12, 'percent': 52, 'color': AppColors.statusHearing},
-      {'title': 'অনুমোদিত ও পাশ', 'count': 8, 'percent': 35, 'color': AppColors.statusPassed},
-      {'title': 'সম্পন্ন ও ডেলিভারি', 'count': 5, 'percent': 22, 'color': AppColors.statusCompleted},
+      {'title': 'নতুন আবেদন দাখিল', 'count': newCount, 'color': AppColors.statusNew},
+      {'title': 'প্রস্তাব ও নথি প্রেরণ', 'count': processingCount, 'color': AppColors.statusSent},
+      {'title': 'শুনানি পর্যায়', 'count': hearingCount, 'color': AppColors.statusHearing},
+      {'title': 'অনুমোদিত ও পাশ', 'count': approvedCount, 'color': AppColors.statusPassed},
+      {'title': 'সম্পন্ন ও ডেলিভারি', 'count': completedCount, 'color': AppColors.statusCompleted},
     ];
 
     return Container(
@@ -701,11 +884,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
             style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11.5),
           ),
           const SizedBox(height: AppSpacing.base),
-
           ...stages.map((stage) {
             final title = stage['title'] as String;
-            final count = BengaliDigits.toBengali(stage['count']);
-            final percent = stage['percent'] as int;
+            final count = stage['count'] as int;
+            final percent = total > 0 ? ((count / total) * 100).round() : 0;
             final color = stage['color'] as Color;
 
             return Padding(
@@ -725,7 +907,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                       ),
                       Text(
-                        '$count টি (${BengaliDigits.toBengali(percent)}%)',
+                        '${BengaliDigits.toBengali(count)} টি (${BengaliDigits.toBengali(percent)}%)',
                         style: AppTypography.bodySmall.copyWith(
                           fontWeight: FontWeight.w700,
                           color: color,
@@ -738,7 +920,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
                     child: LinearProgressIndicator(
-                      value: percent / 100,
+                      value: total > 0 ? (count / total) : 0.0,
                       minHeight: 7,
                       backgroundColor: AppColors.slate100,
                       valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -754,30 +936,71 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // --- LAND OFFICE PERFORMANCE & DISTRIBUTION CARD ---
-  Widget _buildOfficePerformanceCard() {
-    final offices = [
-      {
-        'name': 'উপজেলা ভূমি অফিস, সাভার',
-        'count': 12,
-        'revenue': '৳৬০,০০০',
-        'percentage': 0.52,
-        'color': AppColors.primary,
-      },
-      {
-        'name': 'সহকারী কমিশনার (ভূমি), কেরানীগঞ্জ',
-        'count': 7,
-        'revenue': '৳৩৫,০০০',
-        'percentage': 0.30,
-        'color': AppColors.emerald,
-      },
-      {
-        'name': 'ইউনিয়ন ভূমি অফিস, কালীগঞ্জ',
-        'count': 4,
-        'revenue': '৳১৫,৫০০',
-        'percentage': 0.18,
-        'color': AppColors.amberDark,
-      },
-    ];
+  Widget _buildOfficePerformanceCard(List<dynamic> apps) {
+    if (apps.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.base),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'ভূমি অফিস ভিত্তিক পরিসংখ্যান',
+                  style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                const Icon(Icons.account_balance_outlined, size: 18, color: AppColors.slate400),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const Icon(Icons.account_balance_outlined, size: 40, color: AppColors.slate300),
+            const SizedBox(height: 8),
+            Text(
+              'এখনও কোনো ভূমি অফিসের আবেদন নেই',
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'আবেদনে সংশ্লিষ্ট ভূমি অফিস নির্বাচন করলে অফিসভিত্তিক পারফরম্যান্স এখানে দৃশ্যমান হবে।',
+              style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      );
+    }
+
+    final Map<String, int> officeCounts = {};
+    final Map<String, int> officeRevenues = {};
+
+    for (final appWithFin in apps) {
+      final off = (appWithFin.application.officeName as String?)?.trim() ?? 'অনির্ধারিত অফিস';
+      officeCounts[off] = (officeCounts[off] ?? 0) + 1;
+      officeRevenues[off] = (officeRevenues[off] ?? 0) + (appWithFin.application.agreedAmount as int);
+    }
+
+    final colors = [AppColors.primary, AppColors.emerald, AppColors.amberDark, AppColors.primaryDeep];
+
+    int cIdx = 0;
+    final officeList = <Map<String, dynamic>>[];
+    officeCounts.forEach((name, count) {
+      final rev = Money.fromPaisa(officeRevenues[name] ?? 0).formatBengali();
+      final pct = apps.isNotEmpty ? (count / apps.length) : 0.0;
+      officeList.add({
+        'name': name,
+        'count': count,
+        'revenue': rev,
+        'percentage': pct,
+        'color': colors[cIdx % colors.length],
+      });
+      cIdx++;
+    });
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
@@ -805,8 +1028,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11.5),
           ),
           const SizedBox(height: AppSpacing.base),
-
-          ...offices.map((office) {
+          ...officeList.map((office) {
             final name = office['name'] as String;
             final count = BengaliDigits.toBengali(office['count']);
             final revenue = office['revenue'] as String;
@@ -891,27 +1113,85 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // --- SMART BUSINESS INSIGHTS CARD ---
-  Widget _buildSmartInsightsCard() {
-    final insights = [
-      {
+  Widget _buildSmartInsightsCard(List<dynamic> apps, int totalIncomePaisa, int completedApps) {
+    final List<Map<String, dynamic>> insights = [];
+
+    if (apps.isNotEmpty) {
+      // টপ সার্ভিস
+      final Map<String, int> typeCounts = {};
+      for (final a in apps) {
+        final wt = (a.application.workType as String?)?.trim() ?? 'অন্যান্য';
+        typeCounts[wt] = (typeCounts[wt] ?? 0) + 1;
+      }
+      String topType = 'নামজারি';
+      int maxTypeCount = 0;
+      typeCounts.forEach((k, v) {
+        if (v > maxTypeCount) {
+          maxTypeCount = v;
+          topType = k;
+        }
+      });
+
+      insights.add({
         'icon': Icons.insights_rounded,
-        'title': 'সর্বাধিক ইনকাম প্রদানকারী সেবা',
-        'desc': 'নামজারি আবেদন থেকে গড় আয় ৳৪,৫৮০ এবং ব্যয় অনুপাত মাত্র ১৮%।',
+        'title': 'সর্বাধিক ফাইল পরিচালনাকারী খাত',
+        'desc': '$topType সংক্রান্ত সেবায় সবচেয়ে বেশি (${BengaliDigits.toBengali(maxTypeCount)} টি) ফাইল চলছে।',
         'color': AppColors.emerald,
-      },
-      {
+      });
+
+      // ডেলিভারি ও নিষ্পত্তি
+      final rate = ((completedApps / apps.length) * 100).round();
+      insights.add({
         'icon': Icons.bolt_rounded,
-        'title': 'দ্রুততম নিষ্পত্তি হার',
-        'desc': 'খতিয়ান সংশোধন সংক্রান্ত কাজগুলো গড়ে মাত্র ৯ দিনে নিষ্পত্তি হচ্ছে।',
+        'title': 'নিষ্পত্তির হার ও অগ্রগতি',
+        'desc': 'মোট আবেদনের ${BengaliDigits.toBengali(rate)}% কাজ সফলভাবে সম্পন্ন হয়েছে।',
         'color': AppColors.primary,
-      },
-      {
+      });
+
+      // অফিস ইনসাইট
+      final Map<String, int> offCounts = {};
+      for (final a in apps) {
+        final off = (a.application.officeName as String?)?.trim() ?? 'অফিস';
+        offCounts[off] = (offCounts[off] ?? 0) + 1;
+      }
+      String topOff = 'ভূমি অফিস';
+      int maxOffCount = 0;
+      offCounts.forEach((k, v) {
+        if (v > maxOffCount) {
+          maxOffCount = v;
+          topOff = k;
+        }
+      });
+
+      insights.add({
         'icon': Icons.location_city_rounded,
         'title': 'প্রধান অপারেশন কেন্দ্র',
-        'desc': 'সাভার উপজেলা ভূমি অফিসে সবচেয়ে বেশি (৫২%) ফাইল চলমান রয়েছে।',
+        'desc': '$topOff-এ সবচেয়ে বেশি (${BengaliDigits.toBengali(maxOffCount)} টি) ফাইলের কাজ চলমান রয়েছে।',
         'color': AppColors.amberDark,
-      },
-    ];
+      });
+    } else {
+      // যখন কোনো আবেদন বা লেনদেন নেই
+      insights.addAll([
+        {
+          'icon': Icons.post_add_rounded,
+          'title': 'নতুন আবেদন এন্ট্রি করুন',
+          'desc': 'গ্রাহকের প্রথম আবেদন এন্ট্রি করে কাজের ধরন ও চুক্তি ফি নির্ধারণ করুন।',
+          'color': AppColors.primary,
+        },
+        {
+          'icon': Icons.account_balance_wallet_outlined,
+          'title': 'দৈনন্দিন আয় ও খরচের হিসাব',
+          'desc': 'দোকান ও আবেদনের প্রতিটি খরচ ও পেমেন্ট লিপিবদ্ধ করলে স্বয়ংক্রিয়ভাবে আর্থিক ইনকামের হিসাব তৈরি হবে।',
+          'color': AppColors.emerald,
+        },
+        {
+          'icon': Icons.verified_user_outlined,
+          'title': 'সুরক্ষিত অফলাইন ব্যাকআপ',
+          'desc': 'প্রতিদিনের কাজের শেষে সেটিংস থেকে ফোনে বা টেলিগ্রামে ব্যাকআপ নিয়ে রাখুন।',
+          'color': AppColors.amberDark,
+        },
+      ]);
+    }
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),

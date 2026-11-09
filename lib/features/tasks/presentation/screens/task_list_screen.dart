@@ -167,9 +167,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
     final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
     final allApps = allAppsAsync.valueOrNull ?? const [];
 
-    final allTasks = rawTasks.isNotEmpty
-        ? rawTasks.map((t) => _toDemoTask(t, allApps)).toList()
-        : DemoStore.tasks;
+    final allTasks = rawTasks.map((t) => _toDemoTask(t, allApps)).toList();
 
     final todayCount =
         allTasks.where((t) => t.isToday && t.status != 'সম্পন্ন').length;

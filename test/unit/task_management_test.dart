@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:bhumi_kajer_hisab/core/database/app_database.dart';
 import 'package:bhumi_kajer_hisab/core/demo/demo_data.dart';
 import 'package:bhumi_kajer_hisab/core/theme/app_theme.dart';
 import 'package:bhumi_kajer_hisab/core/utils/bengali_digits.dart';
@@ -13,12 +14,40 @@ import 'package:bhumi_kajer_hisab/features/tasks/presentation/screens/task_detai
 import 'package:bhumi_kajer_hisab/features/tasks/presentation/screens/task_list_screen.dart';
 
 void main() {
-  Widget buildTestScope(Widget screen, {int? todayCount}) {
+  Widget buildTestScope(Widget screen, {int? todayCount, List<Task>? tasks}) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final defaultTasks = tasks ?? [
+      Task(
+        id: 'task-test-1',
+        title: 'রহিম উদ্দিনের শুনানিতে উপস্থিত হওয়া',
+        description: 'শুনানি',
+        dueDate: now,
+        dueTime: 'সকাল ১০:০০',
+        priority: 'জরুরি',
+        status: 'করতে হবে',
+        category: 'শুনানি',
+        createdAt: now,
+        updatedAt: now,
+      ),
+      Task(
+        id: 'task-test-2',
+        title: 'কাউন্দিয়া তহশিল অফিসে যোগাযোগ',
+        description: 'যোগাযোগ',
+        dueDate: now,
+        dueTime: 'দুপুর ১২:০০',
+        priority: 'সাধারণ',
+        status: 'করতে হবে',
+        category: 'যোগাযোগ',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    ];
+
     return ProviderScope(
       overrides: [
         applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
-        todayTasksCountProvider.overrideWith((ref) => Future.value(todayCount ?? DemoStore.todayTasksCount)),
-        tasksStreamProvider.overrideWith((ref) => Stream.value([])),
+        todayTasksCountProvider.overrideWith((ref) => Future.value(todayCount ?? defaultTasks.length)),
+        tasksStreamProvider.overrideWith((ref) => Stream.value(defaultTasks)),
         taskDetailProvider.overrideWith((ref, id) => const Stream.empty()),
         shopSettingsStreamProvider.overrideWith((ref) => Stream.value({})),
       ],
@@ -95,7 +124,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final todayPendingCount = BengaliDigits.toBengali(DemoStore.tasks.where((t) => t.isToday && t.status != 'সম্পন্ন').length);
+      final todayPendingCount = BengaliDigits.toBengali(2);
       final todayTabFinder = find.text('আজকের কাজ ($todayPendingCount)');
       expect(todayTabFinder, findsOneWidget);
 
@@ -115,9 +144,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      // Ensure first task is not completed
-      final task = DemoStore.tasks.firstWhere((t) => t.isToday);
-      final initialTitle = task.title;
+      const initialTitle = 'রহিম উদ্দিনের শুনানিতে উপস্থিত হওয়া';
 
       await tester.pumpWidget(
         buildTestScope(const TaskListScreen()),

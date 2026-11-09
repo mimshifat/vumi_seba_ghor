@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/database/database_provider.dart';
+import '../../../../core/database/database_seeder.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/app_launcher.dart';
@@ -264,15 +266,66 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  void _showResetDataDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('অ্যাপ ফ্রেশ ও ডেটা রিসেট'),
+        content: const Text(
+          'আপনি কি সব আবেদন, ব্যক্তি ও পরীক্ষামূলক লেনদেন মুছে ফেলে অ্যাপ সম্পূর্ণ ফ্রেশ করতে চান?\n\n'
+          '⚠️ এতে শুধু কাজের খাত, ভূমি অফিস ও শপ সেটিংস অক্ষত থাকবে।',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('বাতিল'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.rose,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final db = ref.read(appDatabaseProvider);
+                await DatabaseSeeder.clearAllDemoData(db);
+                await DatabaseSeeder.seedEssentialDefaults(db);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('সকল ডেটা মুছে অ্যাপ সম্পূর্ণ ফ্রেশ করা হয়েছে'),
+                      backgroundColor: AppColors.emerald,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('ত্রুটি হয়েছে: $e'),
+                      backgroundColor: AppColors.rose,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('হ্যাঁ, ফ্রেশ করুন'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(shopSettingsStreamProvider);
     final settings = settingsAsync.valueOrNull ?? {};
 
-    final shopName = settings['shop_name'] ?? DemoStore.shopName;
-    final proprietorName = settings['proprietor_name'] ?? DemoStore.proprietorName;
-    final shopPhone = settings['shop_phone'] ?? DemoStore.shopPhone;
-    final shopAddress = settings['shop_address'] ?? DemoStore.shopAddress;
+    final shopName = settings['shop_name'] ?? 'রজব ভূমি সেবা ঘর';
+    final proprietorName = settings['proprietor_name'] ?? '';
+    final shopPhone = settings['shop_phone'] ?? '';
+    final shopAddress = settings['shop_address'] ?? '';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -427,6 +480,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: 'সহায়তা ও যোগাযোগ',
             subtitle: 'সমস্যা ও পরামর্শ জানাতে কল বা মেসেজ করুন',
             onTap: _showSupportDialog,
+          ),
+          _buildSettingsTile(
+            icon: Icons.cleaning_services_outlined,
+            title: 'অ্যাপ ফ্রেশ ও ডেটা রিসেট',
+            subtitle: 'সব ডেমো ও পরীক্ষামূলক তথ্য মুছে একদম নতুন শুরু করুন',
+            onTap: _showResetDataDialog,
           ),
 
           const SizedBox(height: AppSpacing.xl),
