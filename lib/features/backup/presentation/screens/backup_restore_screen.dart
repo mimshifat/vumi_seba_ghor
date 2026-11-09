@@ -77,8 +77,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   Future<void> _importBackupFromPhone() async {
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        dialogTitle: 'ব্যাকআপ ফাইল নির্বাচন করুন',
+        type: FileType.custom,
+        allowedExtensions: ['db', 'sqlite'],
+        dialogTitle: 'রজব ব্যাকআপ ফাইল নির্বাচন করুন (.db বা .sqlite)',
       );
 
       if (result == null || result.files.isEmpty) return;
@@ -120,6 +121,10 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       final paysBn = BengaliDigits.toBengali(validation.totalPayments);
       final expsBn = BengaliDigits.toBengali(validation.totalExpenses);
 
+      final lightweightNotice = validation.isLightweight
+          ? '⚠️ সতর্কতা: এটি একটি হালকা ক্লাউড ব্যাকআপ। এতে সমস্ত হিসাব ও আবেদনের তথ্য অক্ষত রয়েছে, তবে দলিলের স্ক্যান কপি বা ছবি অন্তর্ভুক্ত নেই।\n\n'
+          : '';
+
       final confirmed = await ConfirmDialog.show(
         context,
         title: 'ডেটা রিস্টোর করবেন?',
@@ -128,7 +133,8 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
             '• মোট আবেদন: $appsBn টি\n'
             '• মোট জমা রসিদ: $paysBn টি\n'
             '• মোট খরচ ভাউচার: $expsBn টি\n\n'
-            'এই ফাইল থেকে সমস্ত তথ্য পুনরুদ্ধার করা হবে। বর্তমান তথ্যের একটি নিরাপত্তা ব্যাকআপ রাখা হবে। আপনি কি নিশ্চিত?',
+            '$lightweightNotice'
+            'এই ফাইল থেকে সমস্ত তথ্য পুনরুদ্ধার করা হবে। এই ডিভাইসের টেলিগ্রাম সেটিংস নিরাপদ থাকবে। বর্তমান তথ্যের একটি স্থায়ী নিরাপত্তা ব্যাকআপ রাখা হবে যাতে ভুল হলে রিস্টোর বাতিল করা যায়। আপনি কি নিশ্চিত?',
         confirmText: 'হ্যাঁ, রিস্টোর করুন',
         isDestructive: true,
         icon: Icons.restore_page_outlined,
@@ -438,6 +444,12 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                     final lastAutoBackupDate = ref
                         .watch(lastTelegramAutoBackupDateStreamProvider)
                         .valueOrNull;
+                    final autoBackupStatus = ref
+                        .watch(lastTelegramAutoBackupStatusStreamProvider)
+                        .valueOrNull;
+                    final autoBackupError = ref
+                        .watch(lastTelegramAutoBackupErrorStreamProvider)
+                        .valueOrNull;
 
                     return SwitchListTile.adaptive(
                       contentPadding: const EdgeInsets.symmetric(
@@ -461,11 +473,25 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'সাইজ হালকা রাখতে দলিলের ভারী পিডিএফ বাদ দিয়ে শুধু আবেদন ও আর্থিক হিসাব ক্লাউডে পাঠানো হবে।',
+                            'সাইজ হালকা রাখতে দলিলের ভারী ফাইল বাদ দিয়ে শুধু আবেদন ও আর্থিক হিসাব ক্লাউডে পাঠানো হবে।',
                             style: TextStyle(
                                 fontSize: 11.5, color: AppColors.textMuted),
                           ),
-                          if (lastAutoBackupDate != null &&
+                          if (autoBackupStatus == 'failed' &&
+                              autoBackupError != null &&
+                              autoBackupError.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                '⚠️ সর্বশেষ চেষ্টা ব্যর্থ: $autoBackupError',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.rose,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            )
+                          else if (lastAutoBackupDate != null &&
                               lastAutoBackupDate.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 3),

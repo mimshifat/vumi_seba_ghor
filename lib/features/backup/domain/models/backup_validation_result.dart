@@ -30,6 +30,9 @@ class BackupValidationResult {
   /// ডেটাবেজ স্কিমা সংস্করণ
   final int schemaVersion;
 
+  /// এটি একটি হালকা ক্লাউড ব্যাকআপ কিনা (ভারী দলিল/ছবির বাইনারি ব্লব বাদ দেওয়া)
+  final bool isLightweight;
+
   /// ব্যাকআপ ফাইলের সর্বশেষ পরিবর্তনের তারিখ
   final DateTime? backupDate;
 
@@ -43,6 +46,7 @@ class BackupValidationResult {
     this.totalPersons = 0,
     this.totalReferences = 0,
     this.schemaVersion = 1,
+    this.isLightweight = false,
     this.backupDate,
   });
 

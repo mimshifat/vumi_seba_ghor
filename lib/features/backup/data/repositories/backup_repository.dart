@@ -11,31 +11,46 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../domain/models/backup_validation_result.dart';
+import '../datasources/telegram_config_store.dart';
 
 /// ব্যাকআপ, রিস্টোর ও ডেটা মাইগ্রেশন রিপোজিটরি (Backup & Restore Repository)।
 ///
 /// BACKEND_MASTER_PLAN.md §১.৩, §২.১, §২.২, §২.৩, §৩ ও §৫ ফেজ ৪ অনুযায়ী:
-/// - ফোনের ডাউনলোড ফোল্ডারে সুরক্ষিত অফলাইন `.db` ব্যাকআপ এক্সপোর্ট (`PRAGMA wal_checkpoint(TRUNCATE)` সহ)।
+/// - ফোনের নিরাপদ ফোল্ডারে অফলাইন `.db` ব্যাকআপ এক্সপোর্ট (`PRAGMA wal_checkpoint(TRUNCATE)` সহ)।
+/// - ব্যাকআপ ফাইলের স্টোরেজ প্রুনিং (অতিরিক্ত ফাইল জমা হওয়া রোধে সর্বশেষ ৫টি ফাইল সংরক্ষণ)।
 /// - ব্যাকগ্রাউন্ড আইসোলেটে ফাইল অখণ্ডতা (`PRAGMA integrity_check`) ও স্কিমা সংস্করণ যাচাই।
-/// - করাপ্ট বা অনুপযুক্ত ফাইলে লাইভ ডাটা ধ্বংস হওয়া থেকে ১০০% সুরক্ষা (Safety Snapshot & Automatic Rollback)।
-/// - টেলিগ্রাম বট ক্লাউড ব্যাকআপ ইন্টিগ্রেশন।
+/// - করাপ্ট বা ভুল ফাইলে লাইভ ডাটা ধ্বংস হওয়া থেকে ১০০% সুরক্ষা (Safety Archive Snapshot & Automatic Rollback)।
+/// - টেলিগ্রাম বট ক্লাউড ব্যাকআপ ইন্টিগ্রেশন (বট ক্রেডেনশিয়াল SQLite-এর বাইরে নিরাপদ App-Private স্টোরেজে সংরক্ষিত)।
 class BackupRepository {
   final AppDatabase _db;
+  final TelegramConfigStore _configStore;
 
-  BackupRepository(this._db);
+  BackupRepository(this._db, {TelegramConfigStore? configStore})
+      : _configStore = configStore ?? TelegramConfigStore.instance;
 
-  /// ফোনের ডাউনলোড ফোল্ডারে সুরক্ষিত অফলাইন `.db` ব্যাকআপ এক্সপোর্ট করে।
+  TelegramConfigStore get configStore => _configStore;
+
+  /// ফোনের নিরাপদ ফোল্ডারে অফলাইন `.db` ব্যাকআপ এক্সপোর্ট করে।
   ///
-  /// ১. `PRAGMA wal_checkpoint(TRUNCATE)` দিয়ে WAL ফাইল মূল ডাটাবেজে ফ্লাশ করে।
-  /// ২. `VACUUM INTO` স্টেটমেন্ট ব্যবহার করে একটি ডিফ্র্যাগমেন্টেড, ত্রুটিহীন
-  ///    কপি তৈরি করে।
-  /// ৩. সফল ব্যাকআপের পর `last_backup_time` সেটিংস টেবিলে সংরক্ষণ করে।
+  /// ১. ব্যাকআপ ফাইলের নিরাপত্তা নিশ্চিত করতে SQLite ডাটাবেজ থেকে যদি কোনো পূর্ববর্তী
+  ///    টেলিগ্রাম টোকেন বা চ্যাট আইডি থাকে তা মুছে ফেলে।
+  /// ২. `PRAGMA wal_checkpoint(TRUNCATE)` দিয়ে WAL ফাইল মূল ডাটাবেজে ফ্লাশ করে।
+  /// ৩. `VACUUM INTO` স্টেটমেন্ট ব্যবহার করে একটি ডিফ্র্যাগমেন্টেড, ত্রুটিহীন কপি তৈরি করে।
+  /// ৪. ডিভাইসের স্টোরেজ বাঁচাতে পুরনো ব্যাকআপ ফাইল প্রুন করে (সর্বশেষ ৫টি রাখা হয়)।
+  /// ৫. সফল ব্যাকআপের পর `last_backup_time` সেটিংস টেবিলে সংরক্ষণ করে।
   Future<File> exportBackup({String? customDestinationDir}) async {
     try {
-      // ১. WAL চেকপয়েন্ট
+      // ১. টোকেন যাতে ডেটাবেজে কখনই না যায় তা নিশ্চিত করা
+      try {
+        await _db.customStatement(
+          "DELETE FROM shop_settings WHERE key IN ('telegram_bot_token', 'telegram_chat_id');",
+        );
+      } catch (_) {}
+
+      // ২. WAL চেকপয়েন্ট
       await _db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
 
-      // ২. গন্তব্য ডিরেক্টরি নির্ধারণ
+      // ৩. গন্তব্য ডিরেক্টরি নির্ধারণ
       Directory targetDir;
       if (customDestinationDir != null && customDestinationDir.isNotEmpty) {
         targetDir = Directory(customDestinationDir);
@@ -47,7 +62,7 @@ class BackupRepository {
         targetDir.createSync(recursive: true);
       }
 
-      // ৩. ইউনিক টাইমস্ট্যাম্পযুক্ত ফাইলের নাম
+      // ৪. ইউনিক টাইমস্ট্যাম্পযুক্ত ফাইলের নাম
       final now = DateTime.now();
       final timestamp =
           '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_'
@@ -59,11 +74,14 @@ class BackupRepository {
         destinationFile.deleteSync();
       }
 
-      // ৪. SQLite VACUUM INTO
+      // ৫. SQLite VACUUM INTO
       final escapedPath = destinationFile.path.replaceAll("'", "''");
       await _db.customStatement("VACUUM INTO '$escapedPath';");
 
-      // ৫. সেটিংস টেবিলে সর্বশেষ ব্যাকআপের সময় আপডেট
+      // ৬. অতিরিক্ত পুরনো ব্যাকআপ প্রুনিং (সর্বোচ্চ ৫টি ফাইল রাখা)
+      _pruneOldBackups(targetDir, maxKeep: 5);
+
+      // ৭. সেটিংস টেবিলে সর্বশেষ ব্যাকআপের সময় আপডেট
       final formattedTime = formatBanglaDateTime(now);
       await _db.shopSettingsDao.setSetting('last_backup_time', formattedTime);
 
@@ -77,12 +95,6 @@ class BackupRepository {
   }
 
   /// ব্যাকআপ ফাইলের বৈধতা ও অখণ্ডতা পরীক্ষা করে (Background Isolate-এ)।
-  ///
-  /// মূল UI থ্রেডকে ব্লক না করে সম্পূর্ণ যাচাইকরণ ব্যাকগ্রাউন্ড আইসোলেটে সম্পন্ন হয়:
-  /// - `PRAGMA integrity_check;`
-  /// - `PRAGMA quick_check;`
-  /// - অ্যাপ্লিকেশন, পেমেন্ট, খরচ ও সেটিংস টেবিলের উপস্থিতি।
-  /// - মূল পরিসংখ্যান গণনা (কতগুলো ফাইল ও পেমেন্ট আছে)।
   Future<BackupValidationResult> validateBackupFile(String filePath) async {
     try {
       return await validateFileInIsolate(filePath);
@@ -95,18 +107,21 @@ class BackupRepository {
 
   /// ব্যাকআপ ফাইল থেকে সম্পূর্ণ ডেটাবেজ রিস্টোর করে।
   ///
-  /// জিরো ডাটা লস (Zero Data Loss) গ্যারান্টি:
+  /// জিরো ডাটা লস (Zero Data Loss) ও অ্যাকসিডেন্টাল ওভাররাইট প্রটেকশন:
   /// ১. রিস্টোরের পূর্বে ব্যাকগ্রাউন্ড আইসোলেটে ফাইল যাচাই করা হয়।
-  /// ২. বর্তমান লাইভ ডেটাবেজের একটি নিরাপত্তা কপি (`rojob_bhumi_pre_restore.sqlite`) রাখা হয়।
+  /// ২. বর্তমান লাইভ ডেটাবেজের একটি টাইমস্ট্যাম্পযুক্ত নিরাপত্তা আর্কাইভ রাখা হয়
+  ///    (`rojob_bhumi_pre_restore_[timestamp].sqlite`), যাতে ইউজার ভুল ফাইল রিস্টোর করলেও রিভার্ট করতে পারেন।
   /// ৩. লাইভ সংযোগ বন্ধ করে ফাইল সোয়াপ করা হয় এবং পুরনো WAL/SHM পরিষ্কার করা হয়।
   /// ৪. সোয়াপের পর রিস্টোরকৃত ফাইলের পোস্ট-ইন্টিগ্রিটি যাচাই করা হয়।
   /// ৫. কোনো ত্রুটি দেখা দিলে তাৎক্ষণিকভাবে নিরাপত্তা কপি থেকে আগের অবস্থায় রোলব্যাক হয়।
-  /// ৬. সফল হলে [onDatabaseReopened] কলব্যাকের মাধ্যমে নতুন [AppDatabase] পৌঁছে দেওয়া হয়।
+  /// ৬. রিস্টোরকৃত ডাটাবেজে পুরনো কোনো টেলিগ্রাম ক্রেডেনশিয়াল থাকলে তা স্বয়ংক্রিয়ভাবে মুছে ফেলা হয়।
+  /// ৭. সফল হলে [onDatabaseReopened] কলব্যাকের মাধ্যমে নতুন [AppDatabase] পৌঁছে দেওয়া হয়।
   Future<void> restoreBackup(
     String sourceFilePath, {
     required void Function(AppDatabase newDb) onDatabaseReopened,
     File? customLiveDbFile,
     AppDatabase Function()? databaseOpener,
+    bool preserveCurrentSettings = true,
   }) async {
     // ১. ব্যাকগ্রাউন্ড আইসোলেটে ইনপুট ফাইল ভ্যালিডেশন
     final validation = await validateFileInIsolate(sourceFilePath);
@@ -120,17 +135,22 @@ class BackupRepository {
     final shmFile = File('${liveDbFile.path}-shm');
     final preRestoreBackup =
         File(p.join(liveDbDir.path, 'rojob_bhumi_pre_restore.sqlite'));
+    final stagingFile =
+        File(p.join(liveDbDir.path, 'rojob_bhumi_restore_stage.sqlite'));
 
     // ২. বর্তমান ডেটাবেজের WAL চেকপয়েন্ট
     try {
       await _db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
     } catch (_) {}
 
-    // ৩. পূর্ববর্তী অক্ষত তথ্যের নিরাপত্তা কপি তৈরি (Rollback Safety)
+    // ৩. পূর্ববর্তী অক্ষত তথ্যের নিরাপত্তা কপি তৈরি (Rollback Safety & Accidental Restore Archive)
     if (liveDbFile.existsSync()) {
       try {
         if (preRestoreBackup.existsSync()) preRestoreBackup.deleteSync();
         liveDbFile.copySync(preRestoreBackup.path);
+
+        // ভুল ব্যাকআপ রিস্টোরের ক্ষতিপূরণে স্থায়ী টাইমস্ট্যাম্পড আর্কাইভ কপি রাখা
+        _archivePreRestoreSnapshot(liveDbFile, liveDbDir, maxKeep: 3);
       } catch (e) {
         throw AppFailure.custom(
           'বর্তমান ডেটাবেজের নিরাপত্তা কপি তৈরিতে সমস্যা হয়েছে। রিস্টোর বাতিল করা হলো।',
@@ -139,41 +159,59 @@ class BackupRepository {
       }
     }
 
-    // ৪. লাইভ সংযোগ বন্ধ করা যাতে ফাইল লক মুক্ত হয়
+    // ৪. নিরাপদ স্টেজিং ফাইলে কপি
+    try {
+      if (stagingFile.existsSync()) stagingFile.deleteSync();
+      File(sourceFilePath).copySync(stagingFile.path);
+    } catch (e) {
+      throw AppFailure.custom('রিস্টোর ফাইলটি লোড করা যায়নি।', cause: e);
+    }
+
+    // ৫. লাইভ সংযোগ বন্ধ করা যাতে ফাইল লক মুক্ত হয়
     await _db.close();
 
     try {
-      // ৫. অপ্রয়োজনীয় WAL ও SHM ডিলিট করা
+      // ৬. অপ্রয়োজনীয় WAL ও SHM ডিলিট করা
       if (walFile.existsSync()) walFile.deleteSync();
       if (shmFile.existsSync()) shmFile.deleteSync();
 
-      // ৬. নতুন ব্যাকআপ ফাইল সোয়াপ
-      File(sourceFilePath).copySync(liveDbFile.path);
+      // ৭. স্টেজিং ফাইল থেকে মূল লাইভ ডেটাবেজে সোয়াপ
+      stagingFile.copySync(liveDbFile.path);
+      if (stagingFile.existsSync()) stagingFile.deleteSync();
 
-      // ৭. পোস্ট-ইন্টিগ্রিটি যাচাই
+      // ৮. পোস্ট-ইন্টিগ্রিটি যাচাই
       final postValidation = await validateFileInIsolate(liveDbFile.path);
       if (!postValidation.isValid) {
         throw Exception('পোস্ট-ইন্টিগ্রিটি চেক ব্যর্থ হয়েছে।');
       }
 
-      // ৮. নতুন লাইভ ডেটাবেজ সংযোগ তৈরি
-      final newDb = databaseOpener != null ? databaseOpener() : AppDatabase.open();
+      // ৯. নতুন লাইভ ডেটাবেজ সংযোগ তৈরি
+      final newDb =
+          databaseOpener != null ? databaseOpener() : AppDatabase.open();
 
-      // ৯. সফল — নিরাপত্তা কপি অপরাসণ ও সময় আপডেট
+      // ১০. রিস্টোরকৃত ডাটাবেজে পুরনো কোনো টেলিগ্রাম টোকেন থাকলে তা মুছে ফেলা
+      try {
+        await newDb.customStatement(
+          "DELETE FROM shop_settings WHERE key IN ('telegram_bot_token', 'telegram_chat_id');",
+        );
+      } catch (_) {}
+
+      // ১১. সফল — সময় আপডেট
+      final now = DateTime.now();
+      await newDb.shopSettingsDao
+          .setSetting('last_restore_time', formatBanglaDateTime(now));
+
+      // সাময়িক প্রি-রিস্টোর ফাইলটি সরানো (তবে টাইমস্ট্যাম্পড সেফটি আর্কাইভ অক্ষত থাকবে)
       if (preRestoreBackup.existsSync()) {
         try {
           preRestoreBackup.deleteSync();
         } catch (_) {}
       }
 
-      final now = DateTime.now();
-      await newDb.shopSettingsDao
-          .setSetting('last_restore_time', formatBanglaDateTime(now));
-
-      // ১০. কলব্যাকের মাধ্যমে নতুন সংযোগ নোটিফাই
+      // ১২. কলব্যাকের মাধ্যমে নতুন সংযোগ নোটিফাই
       onDatabaseReopened(newDb);
     } catch (e) {
-      // ১০. স্বয়ংক্রিয় রোলব্যাক (Auto-Rollback on failure)
+      // স্বয়ংক্রিয় রোলব্যাক (Auto-Rollback on failure)
       try {
         if (preRestoreBackup.existsSync()) {
           if (walFile.existsSync()) walFile.deleteSync();
@@ -192,13 +230,19 @@ class BackupRepository {
 
       if (e is AppFailure) rethrow;
       throw AppFailure.corruptBackup(e);
+    } finally {
+      if (stagingFile.existsSync()) {
+        try {
+          stagingFile.deleteSync();
+        } catch (_) {}
+      }
     }
   }
 
   /// টেলিগ্রাম বটে অফলাইন ডেটাবেজের ক্লাউড ব্যাকআপ সেন্ড করে।
   ///
   /// - `skipPdfs` সত্য হলে দলিলের ভারী পিডিএফ ব্লব বাদ দিয়ে ফাইলের আকার ন্যূনতম (হালকা) করা হয়।
-  /// - `botToken` এবং `chatId` যাচাই ও `shop_settings` টেবিলে সংরক্ষণ।
+  /// - `botToken` এবং `chatId` যাচাই ও ডেডিকেটেড অ্যাপ-প্রাইভেট কনফিগে সংরক্ষণ (SQLite-এ নয়)।
   /// - সাময়িক ডিফ্র্যাগমেন্টেড `.db` ফাইল তৈরি ও মেমোরি-সেফ ফাইল স্ট্রিমিংয়ের মাধ্যমে টেলিগ্রামে আপলোড।
   /// - সফল হলে `last_backup_time` আপডেট ও সাময়িক ফাইল অপরাসণ।
   Future<void> exportBackupToTelegram({
@@ -216,33 +260,41 @@ class BackupRepository {
       );
     }
 
-    // ১. সেটিংস সংরক্ষণ
-    await _db.shopSettingsDao.setSetting('telegram_bot_token', cleanToken);
-    await _db.shopSettingsDao.setSetting('telegram_chat_id', cleanChatId);
+    // ১. সেটিংস সংরক্ষণ (SQLite-এ নয়, ডেডিকেটেড অ্যাপ-প্রাইভেট কনফিগ স্টোরে)
+    await _configStore.saveCredentials(botToken: cleanToken, chatId: cleanChatId);
 
-    // ২. এক্সপোর্ট ফাইল তৈরি
+    // ২. এক্সপোর্ট ফাইল তৈরি (পূর্বে ফেলে রাখা কোনো অনাথ টেম্প ফাইল থাকলে তা পরিষ্কার)
     final tempDir = await getTemporaryDirectory();
+    _cleanupOrphanedTempBackups(tempDir);
+
     final now = DateTime.now();
     final timestamp =
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_'
-        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}_${now.second.toString().padLeft(2, '0')}_${now.microsecond}';
     final backupFile = File(p.join(tempDir.path, 'rojob_backup_$timestamp.db'));
 
     if (backupFile.existsSync()) backupFile.deleteSync();
+
+    // টোকেন ডাটাবেজে নেই নিশ্চিত করে VACUUM INTO চালানো
+    try {
+      await _db.customStatement(
+        "DELETE FROM shop_settings WHERE key IN ('telegram_bot_token', 'telegram_chat_id');",
+      );
+    } catch (_) {}
 
     await _db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
     final escaped = backupFile.path.replaceAll("'", "''");
     await _db.customStatement("VACUUM INTO '$escaped';");
 
-    // ২.১. হালকা ব্যাকআপ (পিডিএফ বাইনারি ব্লব বাদ দিয়ে কম্প্যাক্ট করা)
+    // ২.১. হালকা ব্যাকআপ (সব ধরনের ভারী বাইনারি ব্লব বাদ দিয়ে কম্প্যাক্ট করা)
     if (skipPdfs) {
-      stripPdfsAndCompact(backupFile);
+      stripDocumentsAndCompact(backupFile);
     }
 
     // ৩. টেলিগ্রাম বট এপিআই-এ মেমোরি-সেফ স্ট্রিম আপলোড
     try {
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 45);
+      client.connectionTimeout = const Duration(seconds: 60);
 
       final uri =
           Uri.parse('https://api.telegram.org/bot$cleanToken/sendDocument');
@@ -256,7 +308,7 @@ class BackupRepository {
       );
 
       final caption = skipPdfs
-          ? 'রজব ভূমি সেবা ঘর — ক্লাউড ব্যাকআপ (হালকা/পিডিএফ ব্যতীত)\nতারিখ: ${formatBanglaDateTime(now)}'
+          ? 'রজব ভূমি সেবা ঘর — ক্লাউড ব্যাকআপ (হালকা/পিডিএফ ও ছবি ব্যতীত)\nতারিখ: ${formatBanglaDateTime(now)}'
           : 'রজব ভূমি সেবা ঘর — ক্লাউড ব্যাকআপ\nতারিখ: ${formatBanglaDateTime(now)}';
       final fileName = skipPdfs
           ? 'rojob_backup_light_$timestamp.db'
@@ -317,12 +369,8 @@ class BackupRepository {
     }
   }
 
-  /// সাময়িক ব্যাকআপ ডাটাবেজ থেকে ভারী পিডিএফ বাইনারি ব্লব বাদ দিয়ে VACUUM করে ফাইলের সাইজ ন্যূনতম করে।
-  ///
-  /// ডকুমেন্টস টেবিলের মেটাডেটা অক্ষত রেখে শুধুমাত্র ভারী বাইনারি ব্লব (`file_data`) জিরো বাইট
-  /// (`zeroblob(0)`) করা হয়। এরপর `VACUUM` চালিয়ে স্থান কম্প্যাক্ট করা হয় যাতে ফাইল সাইজ
-  /// কয়েকশো মেগাবাইট থেকে নেমে মাত্র কয়েকশো কিলোবাইটে চলে আসে।
-  static void stripPdfsAndCompact(File dbFile) {
+  /// সাময়িক ব্যাকআপ ডাটাবেজ থেকে ভারী পিডিএফ ও ইমেজ বাইনারি ব্লব বাদ দিয়ে VACUUM করে ফাইলের সাইজ ন্যূনতম করে।
+  static void stripDocumentsAndCompact(File dbFile) {
     CommonDatabase? tempDb;
     try {
       tempDb = sqlite3.open(dbFile.path);
@@ -331,38 +379,39 @@ class BackupRepository {
       );
       if (tables.isNotEmpty) {
         tempDb.execute(
-          "UPDATE documents SET file_data = zeroblob(0) WHERE LOWER(TRIM(file_type)) = 'pdf';",
+          "UPDATE documents SET file_data = zeroblob(0);",
         );
         tempDb.execute('VACUUM;');
       }
     } catch (_) {
-      // টেম্প ফাইলের স্ট্রিপিংয়ে ব্যর্থ হলেও ব্যাকআপ প্রক্রিয়া আটকাবে না
     } finally {
       tempDb?.dispose();
     }
   }
 
+  static void stripPdfsAndCompact(File dbFile) =>
+      stripDocumentsAndCompact(dbFile);
+
   /// স্বয়ংক্রিয় টেলিগ্রাম ব্যাকআপ চালু বা বন্ধ
   Future<void> setAutoBackupTelegram(bool enabled) async {
-    await _db.shopSettingsDao
-        .setSetting('auto_backup_telegram', enabled ? 'true' : 'false');
+    await _configStore.setAutoBackup(enabled);
   }
 
-  /// দৈনিক স্বয়ংক্রিয় টেলিগ্রাম ক্লাউড ব্যাকআপ (পিডিএফ ব্যতীত হালকা ফাইল)
+  /// দৈনিক স্বয়ংক্রিয় টেলিগ্রাম ক্লাউড ব্যাকআপ (পিডিএফ ও ছবি ব্যতীত হালকা ফাইল)
   ///
   /// - 'auto_backup_telegram' অন থাকলে এবং আজ ব্যাকআপ না গেলে ব্যাকগ্রাউন্ডে পাঠায়।
   /// - আইডিইমপোটেন্ট: দিনে একবারের বেশি কল করা হলেও দ্বিতীয়বার ব্যাকআপ পাঠাবে না।
-  /// - সম্পূর্ণ ব্যাকগ্রাউন্ডে নীরবে চলে, কোনো এররে মূল অ্যাপ বা ব্যবহারকারী বিঘ্নিত হয় না।
+  /// - সম্পূর্ণ ব্যাকগ্রাউন্ডে চলে এবং ব্যর্থ হলেও এরর রেকর্ড রাখে যাতে ইউজার সতর্ক হতে পারে।
   Future<bool> checkAndRunDailyTelegramBackup() async {
     try {
       final isEnabled =
-          await _db.shopSettingsDao.getSetting('auto_backup_telegram');
+          await _configStore.getSetting('auto_backup_telegram');
       if (isEnabled != 'true') return false;
 
       final token =
-          await _db.shopSettingsDao.getSetting('telegram_bot_token');
+          await _configStore.getSetting('telegram_bot_token');
       final chatId =
-          await _db.shopSettingsDao.getSetting('telegram_chat_id');
+          await _configStore.getSetting('telegram_chat_id');
       if (token == null ||
           token.trim().isEmpty ||
           chatId == null ||
@@ -374,7 +423,7 @@ class BackupRepository {
       final todayStr =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final lastRunDate =
-          await _db.shopSettingsDao.getSetting('last_telegram_auto_backup_date');
+          await _configStore.getSetting('last_telegram_auto_backup_date');
 
       if (lastRunDate == todayStr) {
         return false; // আজকের ব্যাকআপ ইতোমধ্যে সফল
@@ -386,10 +435,20 @@ class BackupRepository {
         skipPdfs: true,
       );
 
-      await _db.shopSettingsDao
-          .setSetting('last_telegram_auto_backup_date', todayStr);
+      await _configStore.recordBackupSuccess(todayStr);
       return true;
-    } catch (_) {
+    } catch (e) {
+      try {
+        final now = DateTime.now();
+        final errTime = formatBanglaDateTime(now);
+        final errMsg = e is AppFailure
+            ? e.message
+            : 'টেলিগ্রামে ব্যাকআপ পাঠানো যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করুন।';
+        await _configStore.recordBackupFailure(
+          errorMessage: errMsg,
+          attemptTime: errTime,
+        );
+      } catch (_) {}
       return false;
     }
   }
@@ -399,11 +458,15 @@ class BackupRepository {
     required String botToken,
     required String chatId,
   }) async {
-    await _db.shopSettingsDao.setSetting('telegram_bot_token', botToken.trim());
-    await _db.shopSettingsDao.setSetting('telegram_chat_id', chatId.trim());
+    await _configStore.saveCredentials(botToken: botToken, chatId: chatId);
+    try {
+      await _db.customStatement(
+        "DELETE FROM shop_settings WHERE key IN ('telegram_bot_token', 'telegram_chat_id');",
+      );
+    } catch (_) {}
   }
 
-  /// এক্সপোর্ট ডিরেক্টরি নির্ণয় (অ্যান্ড্রয়েড ও অন্যান্য ডিভাইসে নিরাপদ পথ)
+  /// এক্সপোর্ট ডিরেক্টরি নির্ণয় (অ্যান্ড্রয়েড ১০/১১+ ও অন্যান্য ডিভাইসে নিরাপদ পথ)
   static Future<Directory> getExportDirectory() async {
     if (Platform.isAndroid) {
       try {
@@ -418,7 +481,13 @@ class BackupRepository {
 
       final publicDownload = Directory('/storage/emulated/0/Download');
       if (publicDownload.existsSync()) {
-        return publicDownload;
+        try {
+          // অ্যান্ড্রয়েড ১১+ Scoped Storage-এ সরাসরি লেখার পারমিশন পরীক্ষা
+          final probe = File(p.join(publicDownload.path, '.rojob_write_probe'));
+          probe.writeAsStringSync('probe');
+          probe.deleteSync();
+          return publicDownload;
+        } catch (_) {}
       }
     }
 
@@ -430,6 +499,83 @@ class BackupRepository {
     } catch (_) {}
 
     return await getApplicationDocumentsDirectory();
+  }
+
+  /// পুরনো ব্যাকআপ প্রুনিং (সর্বোচ্চ [maxKeep] টি ব্যাকআপ ফাইল রেখে অতিরিক্ত পুরনো ফাইল মুছে ফেলা)
+  static void _pruneOldBackups(Directory dir, {int maxKeep = 5}) {
+    try {
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) =>
+              p.basename(f.path).startsWith('rojob_backup_') &&
+              f.path.endsWith('.db'))
+          .toList();
+
+      if (files.length <= maxKeep) return;
+
+      // সর্বশেষ পরিবর্তনের সময় অনুসারে সাজানো (নতুন থেকে পুরনো)
+      files.sort((a, b) =>
+          b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+
+      // অতিরিক্ত পুরনো ফাইলগুলো ডিলিট করা
+      for (int i = maxKeep; i < files.length; i++) {
+        try {
+          files[i].deleteSync();
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  /// ভুল রিস্টোরের বিপরীতে লাইভ ডেটাবেজের স্থায়ী টাইমস্ট্যাম্পড নিরাপত্তা আর্কাইভ কপি রাখা
+  static void _archivePreRestoreSnapshot(
+      File sourceDb, Directory targetDir, {int maxKeep = 3}) {
+    try {
+      final now = DateTime.now();
+      final ts =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_'
+          '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+      final archiveFile =
+          File(p.join(targetDir.path, 'rojob_bhumi_pre_restore_$ts.sqlite'));
+      sourceDb.copySync(archiveFile.path);
+
+      // ৩টির বেশি পুরনো প্রাক-রিস্টোর কপি থাকলে প্রুন করা
+      final oldArchives = targetDir
+          .listSync()
+          .whereType<File>()
+          .where((f) =>
+              p.basename(f.path).startsWith('rojob_bhumi_pre_restore_') &&
+              f.path.endsWith('.sqlite'))
+          .toList();
+
+      if (oldArchives.length > maxKeep) {
+        oldArchives.sort((a, b) =>
+            b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+        for (int i = maxKeep; i < oldArchives.length; i++) {
+          try {
+            oldArchives[i].deleteSync();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// সাময়িক টেম্প ব্যাকআপ ফাইল মুছে পরিষ্কার করা
+  static void _cleanupOrphanedTempBackups(Directory tempDir) {
+    try {
+      final orphaned = tempDir
+          .listSync()
+          .whereType<File>()
+          .where((f) =>
+              p.basename(f.path).startsWith('rojob_backup_') &&
+              f.path.endsWith('.db'))
+          .toList();
+      for (final f in orphaned) {
+        try {
+          f.deleteSync();
+        } catch (_) {}
+      }
+    } catch (_) {}
   }
 
   /// ব্যাকগ্রাউন্ড আইসোলেটে SQLite ফাইলের অখণ্ডতা পরীক্ষা
@@ -518,6 +664,31 @@ class BackupRepository {
           }
         } catch (_) {}
 
+        // স্কিমা সংস্করণ বর্তমান অ্যাপের চেয়ে বেশি হলে রিজেক্ট করা
+        if (schemaVersion > AppDatabase.currentSchemaVersion) {
+          return BackupValidationResult.invalid(
+            'বাছাইকৃত ব্যাকআপ ফাইলটি অ্যাপের নতুন সংস্করণ (Version $schemaVersion) থেকে তৈরি। '
+            'ফাইলটি রিস্টোর করতে অনুগ্রহ করে অ্যাপটি প্লে-স্টোর থেকে সর্বশেষ সংস্করণে আপডেট করুন।',
+          );
+        }
+
+        // ৫. হালকা ব্যাকআপ শনাক্তকরণ (ডকুমেন্টস টেবিলের সব বাইনারি ব্লব শূন্য কিনা)
+        bool isLightweight = false;
+        try {
+          final docStats = testDb.select(
+            "SELECT COUNT(*) as total_docs, "
+            "SUM(CASE WHEN length(file_data) = 0 THEN 1 ELSE 0 END) as empty_docs "
+            "FROM documents WHERE deleted_at IS NULL;",
+          );
+          if (docStats.isNotEmpty) {
+            final totalDocs = (docStats.first['total_docs'] as int?) ?? 0;
+            final emptyDocs = (docStats.first['empty_docs'] as int?) ?? 0;
+            if (totalDocs > 0 && emptyDocs == totalDocs) {
+              isLightweight = true;
+            }
+          }
+        } catch (_) {}
+
         return BackupValidationResult(
           isValid: true,
           fileSizeBytes: size,
@@ -527,6 +698,7 @@ class BackupRepository {
           totalPersons: personCount,
           totalReferences: refCount,
           schemaVersion: schemaVersion,
+          isLightweight: isLightweight,
           backupDate: file.lastModifiedSync(),
         );
       } catch (e) {

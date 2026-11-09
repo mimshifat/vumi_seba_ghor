@@ -7,6 +7,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:bhumi_kajer_hisab/core/database/app_database.dart';
 import 'package:bhumi_kajer_hisab/core/database/database_seeder.dart';
 import 'package:bhumi_kajer_hisab/core/errors/app_failure.dart';
+import 'package:bhumi_kajer_hisab/features/backup/data/datasources/telegram_config_store.dart';
 import 'package:bhumi_kajer_hisab/features/backup/data/repositories/backup_repository.dart';
 
 void main() {
@@ -15,6 +16,7 @@ void main() {
   late Directory tempDir;
   late File liveDbFile;
   late AppDatabase db;
+  late TelegramConfigStore configStore;
   late BackupRepository repo;
 
   setUp(() async {
@@ -22,7 +24,10 @@ void main() {
     liveDbFile = File('${tempDir.path}/rojob_bhumi.sqlite');
     db = AppDatabase(NativeDatabase(liveDbFile));
     await DatabaseSeeder.seed(db);
-    repo = BackupRepository(db);
+    configStore = TelegramConfigStore.createForTesting(
+      File('${tempDir.path}/telegram_config.json'),
+    );
+    repo = BackupRepository(db, configStore: configStore);
   });
 
   tearDown(() async {
@@ -195,14 +200,21 @@ void main() {
   });
 
   group('Phase 4: টেলিগ্রাম সেটিংস ও প্রাকৃতিক বাংলা ফরম্যাটিং', () {
-    test('টেলিগ্রাম বট সেটিংস সংরক্ষণ ও পুনরুদ্ধার', () async {
+    test('টেলিগ্রাম বট সেটিংস সংরক্ষণ ও পুনরুদ্ধার (App-Private File-এ সংরক্ষিত, SQLite-এ নয়)', () async {
       await repo.saveTelegramConfig(
         botToken: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11',
         chatId: '987654321',
       );
 
-      final token = await db.shopSettingsDao.getSetting('telegram_bot_token');
-      final chat = await db.shopSettingsDao.getSetting('telegram_chat_id');
+      // নিশ্চিত করা যে SQLite ডেটাবেজের shop_settings-এ টোকেন নেই
+      final tokenInDb = await db.shopSettingsDao.getSetting('telegram_bot_token');
+      final chatInDb = await db.shopSettingsDao.getSetting('telegram_chat_id');
+      expect(tokenInDb, isNull);
+      expect(chatInDb, isNull);
+
+      // কনফিগ স্টোরে টোকেন নিরাপদে সংরক্ষিত
+      final token = await repo.configStore.getSetting('telegram_bot_token');
+      final chat = await repo.configStore.getSetting('telegram_chat_id');
 
       expect(token, '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11');
       expect(chat, '987654321');
@@ -224,7 +236,7 @@ void main() {
       expect(formatted, contains('বিকাল ০৩:৩০'));
     });
 
-    test('stripPdfsAndCompact পিডিএফ বাইনারি ব্লব খালি করে কিন্তু অন্যান্য রেকর্ড অক্ষত রাখে', () async {
+    test('stripDocumentsAndCompact পিডিএফ ও ছবি উভয় বাইনারি ব্লব খালি করে যাতে ৫০MB লিমিট না ভাঙে', () async {
       final exportDir = Directory('${tempDir.path}/strip_test');
       final backupFile = await repo.exportBackup(customDestinationDir: exportDir.path);
 
@@ -240,8 +252,8 @@ void main() {
       ''');
       sqlite.close();
 
-      // stripPdfsAndCompact কল করি
-      BackupRepository.stripPdfsAndCompact(backupFile);
+      // stripDocumentsAndCompact কল করি
+      BackupRepository.stripDocumentsAndCompact(backupFile);
 
       // ফাইল পুনরায় খুলে যাচাই করি
       final verifyDb = sqlite3.open(backupFile.path, mode: OpenMode.readOnly);
@@ -250,16 +262,103 @@ void main() {
       expect(pdfBytes.length, 0); // পিডিএফ বাইনারি ০ বাইট হয়েছে
       expect(pdfDoc['file_name'], 'porcha.pdf'); // ফাইলের নাম ও মেটাডেটা অক্ষত
 
-      final imgDoc = verifyDb.select("SELECT file_data FROM documents WHERE id='doc-img-1';").first;
+      final imgDoc = verifyDb.select("SELECT file_data, file_name FROM documents WHERE id='doc-img-1';").first;
       final imgBytes = imgDoc['file_data'] as List<int>;
-      expect(imgBytes.length, 1024 * 10); // ইমেজ বাইনারি অক্ষত আছে
+      expect(imgBytes.length, 0); // দলিলের ক্যামেরা ছবিও ০ বাইট হয়েছে (৫০MB সুরক্ষা)
+      expect(imgDoc['file_name'], 'photo.jpg');
 
       verifyDb.close();
+
+      // আইসোলেট ভ্যালিডেশনে এটি হালকা ক্লাউড ব্যাকআপ হিসেবে চিহ্নিত হয় কিনা
+      final validation = await repo.validateBackupFile(backupFile.path);
+      expect(validation.isValid, isTrue);
+      expect(validation.isLightweight, isTrue);
+    });
+
+    test('ভবিষ্যতের নতুন স্কিমা ভার্সনের ফাইল রিজেক্ট করে এবং আপডেট নোটিশ দেয়', () async {
+      final exportDir = Directory('${tempDir.path}/schema_test');
+      final backupFile = await repo.exportBackup(customDestinationDir: exportDir.path);
+
+      // ম্যানুয়ালি স্কিমা সংস্করণ ২ করে দিই
+      final sqlite = sqlite3.open(backupFile.path);
+      sqlite.execute('PRAGMA user_version = 99;');
+      sqlite.close();
+
+      final validation = await repo.validateBackupFile(backupFile.path);
+      expect(validation.isValid, isFalse);
+      expect(validation.errorMessage, contains('নতুন সংস্করণ (Version 99)'));
+    });
+
+    test('অন্যের ব্যাকআপ রিস্টোর করলেও নিজের ডিভাইসের টেলিগ্রাম সেটিংস অক্ষত থাকে এবং ব্যাকআপের টোকেন মুছে যায়', () async {
+      // ডিভাইসে পূর্বের টেলিগ্রাম সেটিংস সেভ করি
+      await repo.saveTelegramConfig(
+        botToken: 'MY_DEVICE_SECRET_TOKEN',
+        chatId: 'MY_DEVICE_CHAT_ID',
+      );
+
+      final exportDir = Directory('${tempDir.path}/preserve_test');
+      final foreignBackupFile = await repo.exportBackup(customDestinationDir: exportDir.path);
+
+      // এবার ফাইলে অন্য কারো টেলিগ্রাম সেটিংস ইনজেক্ট করি
+      final sqlite = sqlite3.open(foreignBackupFile.path);
+      sqlite.execute('''
+        INSERT OR REPLACE INTO shop_settings ("key", value, created_at, updated_at)
+        VALUES ('telegram_bot_token', 'HACKED_FOREIGN_TOKEN', 1700000000, 1700000000),
+               ('telegram_chat_id', 'FOREIGN_CHAT_ID', 1700000000, 1700000000);
+      ''');
+      sqlite.close();
+
+      // রিস্টোর সম্পন্ন করি preserveCurrentSettings: true সহ
+      AppDatabase? reopenedDb;
+      await repo.restoreBackup(
+        foreignBackupFile.path,
+        customLiveDbFile: liveDbFile,
+        databaseOpener: () => AppDatabase(NativeDatabase(liveDbFile)),
+        preserveCurrentSettings: true,
+        onDatabaseReopened: (newDb) {
+          reopenedDb = newDb;
+        },
+      );
+
+      expect(reopenedDb, isNotNull);
+      // SQLite-এ কোনো টোকেন নেই
+      final tokenInDb = await reopenedDb!.shopSettingsDao.getSetting('telegram_bot_token');
+      expect(tokenInDb, isNull);
+
+      // কনফিগ স্টোরে নিজের আসল টোকেন অক্ষত রয়েছে
+      final tokenInStore = await repo.configStore.getSetting('telegram_bot_token');
+      final chatInStore = await repo.configStore.getSetting('telegram_chat_id');
+
+      expect(tokenInStore, 'MY_DEVICE_SECRET_TOKEN');
+      expect(chatInStore, 'MY_DEVICE_CHAT_ID');
+
+      await reopenedDb!.close();
+    });
+
+    test('রিস্টোরের পর লাইভ ডেটাবেজের টাইমস্ট্যাম্পযুক্ত সেফটি আর্কাইভ ফাইল সংরক্ষিত থাকে', () async {
+      final exportDir = Directory('${tempDir.path}/archive_test');
+      final backupFile = await repo.exportBackup(customDestinationDir: exportDir.path);
+
+      await repo.restoreBackup(
+        backupFile.path,
+        customLiveDbFile: liveDbFile,
+        databaseOpener: () => AppDatabase(NativeDatabase(liveDbFile)),
+        onDatabaseReopened: (_) {},
+      );
+
+      // লাইভ ডিবি ডিরেক্টরিতে rojob_bhumi_pre_restore_*.sqlite ফাইল সংরক্ষিত আছে কিনা যাচাই
+      final safetyArchives = liveDbFile.parent
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.contains('rojob_bhumi_pre_restore_'))
+          .toList();
+
+      expect(safetyArchives, isNotEmpty);
     });
 
     test('দৈনিক অটো-ব্যাকআপ সেটিং ও চেকার সঠিকভাবে আচরণ করে', () async {
       await repo.setAutoBackupTelegram(true);
-      final isEnabled = await db.shopSettingsDao.getSetting('auto_backup_telegram');
+      final isEnabled = await repo.configStore.getSetting('auto_backup_telegram');
       expect(isEnabled, 'true');
 
       // বট টোকেন ছাড়া checkAndRunDailyTelegramBackup false রিটার্ন করে

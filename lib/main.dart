@@ -27,6 +27,9 @@ void main() async {
   // রেন্ডারিং ত্রুটি হলে মৃত্যুর পর্দা না দেখিয়ে পুনরায় চেষ্টার কার্ড দেখানো।
   ErrorWidget.builder = buildErrorRecoveryWidget;
 
+  // রিস্টোর ব্যর্থতাজনিত কোনো ক্র্যাশ থাকলে স্বয়ংক্রিয় প্রাক-রিস্টোর ব্যাকআপ পুনরুদ্ধার
+  await AppDatabase.checkAndRecoverPreRestoreSnapshot();
+
   // ডেটাবেজ সংযোগ ও প্রাথমিক সিডিং (যদি নতুন/খালি হয়)
   final db = AppDatabase.open();
   try {

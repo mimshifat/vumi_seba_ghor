@@ -10,8 +10,8 @@
 | **Backend Phase 1** | Drift DAOs, Repository Layer & Human Error Mapping | ✅ Completed (131/131 Tests Green) |
 | **Backend Phase 2** | Riverpod Providers & State Management (Double-tap lock & Reactive state) | ✅ Completed (146/146 Tests Green) |
 | **Backend Phase 3** | UI Screen Migration to Live Providers | ✅ Completed (146/146 Tests Green) |
-| **Backend Phase 4** | Backup, Restore & Data Migration Safety (Lightweight Telegram & Daily Auto-Backup) | ✅ Completed (175/175 Tests Green) |
-| **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ✅ Completed (175/175 Tests Green) |
+| **Backend Phase 4** | Backup, Restore & Data Migration Safety (Lightweight Telegram & Daily Auto-Backup) | ✅ Completed (178/178 Tests Green) |
+| **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ✅ Completed (178/178 Tests Green) |
 
 ---
 
@@ -361,40 +361,42 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
 
 ---
 
-## Backend Phase 4: Backup, Restore & Data Migration Safety (Completed)
+## Backend Phase 4: Backup, Restore & Data Migration Safety (Completed & Hardened)
 
 ### Scope Completed
 1. **SQLite Offline Database Export (`PRAGMA wal_checkpoint(TRUNCATE)` & `VACUUM INTO`):**
    - Implemented `exportBackup()` in `BackupRepository` which flushes WAL pages to disk and executes native SQLite `VACUUM INTO` to produce an unfragmented, standalone, clean `.db` file in the device's Downloads directory (with fallback to Documents).
    - Generates unique timestamped filenames (e.g. `rojob_backup_YYYYMMDD_HHmmss.db`).
    - Automatically records `last_backup_time` in `shop_settings`.
+   - **Storage Auto-Pruning:** Retains strictly the latest 5 backup files (`rojob_backup_*.db`) and prunes older ones automatically to prevent disk space leaks over time.
 2. **Background Isolate Integrity & Schema Verification (`validateBackupFile`):**
    - Complete validation executed in a dedicated background `Isolate.run()` to guarantee zero UI freeze or ANR.
    - Executes `PRAGMA integrity_check;` and `PRAGMA quick_check;`.
    - Verifies the presence of all core tables (`applications`, `payments`, `expenses`, `persons`, `references`, `offices`, `shop_settings`).
    - Gathers exact record statistics (applications, payments, expenses, customers, references, schema version) to preview for user confirmation.
    - Throws human-friendly Bengali `AppFailure.corruptBackup` on corrupted or alien database files without touching the live database.
-3. **Zero Data Loss & Safe Restore with Automatic Rollback (`restoreBackup`):**
+3. **Zero Data Loss & Safe Restore with Pre-Restore Safety Archiving (`restoreBackup`):**
    - Validates candidate file in isolate prior to any live database modification.
-   - Automatically creates a safety snapshot copy of the current live database (`rojob_bhumi_pre_restore.sqlite`).
+   - **Accidental Overwrite Protection:** Automatically creates a timestamped safety archive copy (`rojob_bhumi_pre_restore_[timestamp].sqlite`) preserved across app sessions (retains latest 3 safety archives). If a user accidentally restores an older or wrong backup, the live data remains recoverable.
    - Closes live connection to release OS file locks, purges stale `-wal` and `-shm` journals, and swaps the file.
    - Performs post-restore integrity check on the newly placed database file.
    - If any step fails, automatically rolls back from `rojob_bhumi_pre_restore.sqlite` and reopens the original database.
+   - Cleanses any stale foreign Telegram credentials found in the newly restored database.
    - Notifies Riverpod via `rootAppKey.currentState?.replaceDatabase(newDb)`, cleanly remounting `ProviderScope` with fresh streams and zero zombie connections.
 4. **Telegram Bot Cloud Backup Integration (`exportBackupToTelegram`):**
-   - Persists bot token and chat ID in `shop_settings`.
-   - **Lightweight PDF Stripping & VACUUM:** To prevent exceeding Telegram's 50 MB per-file upload limit and avoid slow mobile network timeouts, the backup strips heavy PDF binary blobs (`UPDATE documents SET file_data = zeroblob(0) WHERE LOWER(TRIM(file_type)) = 'pdf'`) on a temporary snapshot, preserves all document metadata and histories, and runs SQLite `VACUUM;` to shrink file size from hundreds of MBs to a mere ~200–500 KB.
+   - **App-Private Credential Storage:** Replaced SQLite storage with dedicated `TelegramConfigStore` (app-private file `rojob_telegram_config.json`). The SQLite database file never contains the bot token or chat ID, completely protecting credentials during database exports, transfers, and restores.
+   - **Lightweight Document Stripping & VACUUM:** To prevent exceeding Telegram's 50 MB per-file upload limit and avoid slow mobile network timeouts, the backup strips heavy document binary blobs (`UPDATE documents SET file_data = zeroblob(0)`) on a temporary snapshot, preserves all document metadata and histories, and runs SQLite `VACUUM;` to shrink file size from hundreds of MBs to a mere ~200–500 KB.
    - **Zero-RAM Memory-Safe Streaming:** Replaced in-memory `readAsBytesSync()` with chunked disk streaming (`request.addStream(backupFile.openRead())`), completely eliminating `OutOfMemoryError` risks on low-end Android devices.
    - **Everyday Background Auto-Backup:** Implemented `checkAndRunDailyTelegramBackup()` triggered silently on application startup via `MainShellScreen`. Ensures idempotent daily execution (`last_telegram_auto_backup_date == todayStr`) without spamming Telegram or interrupting the user with error popups on network drops.
-   - **Unlimited Cloud Storage vs 50 MB Limit:** Documented that Telegram provides unlimited overall cloud storage, with the 50 MB constraint applying strictly per individual file upload.
 5. **UI Screen Integration (`BackupRestoreScreen`):**
+   - Restricted file picker to `.db` and `.sqlite` formats only (`FileType.custom`), preventing accidental selection of images, audio, or invalid documents.
    - Replaced dummy delay timers with live `backupControllerProvider` and reactive stream providers.
    - Added adaptive toggle switch for "প্রতিদিন স্বয়ংক্রিয় ব্যাকআপ (পিডিএফ ব্যতীত হালকা ফাইল)" with live status indicators and automatic configuration dialog prompt.
-   - Added detailed restore confirmation dialog displaying exact record counts and file size in Bengali.
+   - Added detailed restore confirmation dialog displaying exact record counts and file size in Bengali, with explicit assurance of safety archiving.
    - Human-friendly SnackBars on export, import, and telegram upload success/failure.
 6. **Verification & Testing:**
-   - Added `test/unit/phase_four_backup_test.dart` covering 13 critical test scenarios (offline export, isolate validation, corrupt file rejection, alien file rejection, atomic restore, rollback safety, telegram config, Bengali date formatting, `stripPdfsAndCompact` verification, and idempotent daily auto-backup).
-   - Full Test Suite: **175 / 175 tests passed!** (100% green).
+   - Updated `test/unit/phase_four_backup_test.dart` covering 16 critical test scenarios including credential isolation from SQLite, safety archive verification, storage pruning, and daily auto-backup idempotency.
+   - Full Test Suite: **178 / 178 tests passed!** (100% green).
    - Static Analysis: 0 errors.
 
 ---

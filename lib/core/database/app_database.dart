@@ -5,6 +5,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/common.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import 'tables/applications_table.dart';
 import 'tables/documents_table.dart';
@@ -122,8 +123,54 @@ class AppDatabase extends _$AppDatabase {
     ];
   }
 
+  /// যদি রিস্টোর চলাকালীন কোনো ক্র্যাশ বা বিদ্যুৎ বিভ্রাটের কারণে
+  /// মূল ডেটাবেজ ক্ষতিগ্রস্ত বা খালি হয়, তাহলে প্রাক-রিস্টোর ব্যাকআপ
+  /// (`rojob_bhumi_pre_restore.sqlite`) থেকে স্বয়ংক্রিয়ভাবে লাইভ ডেটাবেজ পুনরুদ্ধার করে।
+  static Future<bool> checkAndRecoverPreRestoreSnapshot() async {
+    try {
+      final liveDb = await getDatabaseFile();
+      final preRestoreBackup =
+          File(p.join(liveDb.parent.path, 'rojob_bhumi_pre_restore.sqlite'));
+
+      if (!preRestoreBackup.existsSync() || preRestoreBackup.lengthSync() == 0) {
+        return false;
+      }
+
+      bool needsRecovery = false;
+      if (!liveDb.existsSync() || liveDb.lengthSync() == 0) {
+        needsRecovery = true;
+      } else {
+        try {
+          final testDb = sqlite3.open(liveDb.path, mode: OpenMode.readOnly);
+          final res = testDb.select('PRAGMA quick_check;');
+          testDb.dispose();
+          if (res.isEmpty || res.first.values.first != 'ok') {
+            needsRecovery = true;
+          }
+        } catch (_) {
+          needsRecovery = true;
+        }
+      }
+
+      if (needsRecovery) {
+        final wal = File('${liveDb.path}-wal');
+        final shm = File('${liveDb.path}-shm');
+        if (wal.existsSync()) wal.deleteSync();
+        if (shm.existsSync()) shm.deleteSync();
+        preRestoreBackup.copySync(liveDb.path);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// বর্তমান অ্যাপের ডেটাবেজ স্কিমা সংস্করণ
+  static const int currentSchemaVersion = 1;
+
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => currentSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(

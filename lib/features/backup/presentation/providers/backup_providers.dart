@@ -5,44 +5,71 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/database/database_provider.dart';
 import '../../../../core/providers/mutation_controller.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../data/datasources/telegram_config_store.dart';
 import '../../data/repositories/backup_repository.dart';
 import '../../domain/models/backup_validation_result.dart';
 
+export '../../data/datasources/telegram_config_store.dart';
 export '../../data/repositories/backup_repository.dart';
 export '../../domain/models/backup_validation_result.dart';
+
+/// টেলিগ্রাম অ্যাপ-প্রাইভেট কনফিগ স্টোর প্রোভাইডার
+final telegramConfigStoreProvider = Provider<TelegramConfigStore>((ref) {
+  return TelegramConfigStore.instance;
+});
 
 /// ব্যাকআপ ও রিস্টোর রিপোজিটরি প্রোভাইডার
 final backupRepositoryProvider = Provider<BackupRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  return BackupRepository(db);
+  final store = ref.watch(telegramConfigStoreProvider);
+  return BackupRepository(db, configStore: store);
 });
 
-/// সর্বশেষ ব্যাকআপ সময়ের রিয়েক্টিভ ওয়াচ
+/// সর্বশেষ ব্যাকআপ সময়ের রিয়েক্টিভ ওয়াচ (SQLite shop_settings)
 final lastBackupTimeStreamProvider = StreamProvider<String?>((ref) {
   return ref.watch(shopSettingProvider('last_backup_time').stream);
 });
 
-/// টেলিগ্রাম বট টোকেন ওয়াচ
+/// টেলিগ্রাম বট টোকেন ওয়াচ (App-Private File Storage)
 final telegramBotTokenStreamProvider = StreamProvider<String?>((ref) {
-  return ref.watch(shopSettingProvider('telegram_bot_token').stream);
+  final store = ref.watch(telegramConfigStoreProvider);
+  return store.watchSetting('telegram_bot_token');
 });
 
-/// টেলিগ্রাম চ্যাট আইডি ওয়াচ
+/// টেলিগ্রাম চ্যাট আইডি ওয়াচ (App-Private File Storage)
 final telegramChatIdStreamProvider = StreamProvider<String?>((ref) {
-  return ref.watch(shopSettingProvider('telegram_chat_id').stream);
+  final store = ref.watch(telegramConfigStoreProvider);
+  return store.watchSetting('telegram_chat_id');
 });
 
 /// টেলিগ্রাম অটো-ব্যাকআপ সক্রিয়তা ওয়াচ
 final autoBackupTelegramStreamProvider = StreamProvider<bool>((ref) {
-  return ref
-      .watch(shopSettingProvider('auto_backup_telegram').stream)
-      .map((val) => val == 'true');
+  final store = ref.watch(telegramConfigStoreProvider);
+  return store.watchBoolSetting('auto_backup_telegram');
 });
 
 /// সর্বশেষ স্বয়ংক্রিয় ক্লাউড ব্যাকআপের তারিখ
 final lastTelegramAutoBackupDateStreamProvider = StreamProvider<String?>((ref) {
-  return ref
-      .watch(shopSettingProvider('last_telegram_auto_backup_date').stream);
+  final store = ref.watch(telegramConfigStoreProvider);
+  return store.watchSetting('last_telegram_auto_backup_date');
+});
+
+/// সর্বশেষ স্বয়ংক্রিয় ক্লাউড ব্যাকআপের স্ট্যাটাস ('success' বা 'failed')
+final lastTelegramAutoBackupStatusStreamProvider = StreamProvider<String?>((ref) {
+  final store = ref.watch(telegramConfigStoreProvider);
+  return store.watchSetting('last_telegram_auto_backup_status');
+});
+
+/// সর্বশেষ স্বয়ংক্রিয় ক্লাউড ব্যাকআপ ব্যর্থতার বিবরণ
+final lastTelegramAutoBackupErrorStreamProvider = StreamProvider<String?>((ref) {
+  final store = ref.watch(telegramConfigStoreProvider);
+  return store.watchSetting('last_telegram_auto_backup_error');
+});
+
+/// সর্বশেষ স্বয়ংক্রিয় ব্যাকআপ প্রচেষ্টার সময়
+final lastTelegramAutoBackupAttemptTimeStreamProvider = StreamProvider<String?>((ref) {
+  final store = ref.watch(telegramConfigStoreProvider);
+  return store.watchSetting('last_telegram_auto_backup_attempt_time');
 });
 
 /// ব্যাকআপ ও রিস্টোর মিউটেশন কন্ট্রোলার (Mutation Controller)
@@ -74,12 +101,14 @@ class BackupController extends MutationController {
     required void Function(AppDatabase newDb) onDatabaseReopened,
     File? customLiveDbFile,
     AppDatabase Function()? databaseOpener,
+    bool preserveCurrentSettings = true,
   }) {
     return execute(() => _repo.restoreBackup(
           filePath,
           onDatabaseReopened: onDatabaseReopened,
           customLiveDbFile: customLiveDbFile,
           databaseOpener: databaseOpener,
+          preserveCurrentSettings: preserveCurrentSettings,
         ));
   }
 
