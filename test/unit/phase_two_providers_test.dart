@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:bhumi_kajer_hisab/core/database/app_database.dart';
-import 'package:bhumi_kajer_hisab/core/database/database_provider.dart';
 import 'package:bhumi_kajer_hisab/core/errors/app_failure.dart';
 import 'package:bhumi_kajer_hisab/core/providers/app_providers.dart';
 import 'package:bhumi_kajer_hisab/core/utils/money.dart';

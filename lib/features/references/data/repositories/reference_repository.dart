@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/database/app_database.dart';
-import '../../../../core/database/daos/reference_dao.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/validators.dart';
 

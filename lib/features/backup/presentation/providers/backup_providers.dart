@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/database/database_provider.dart';
 import '../../../../core/providers/mutation_controller.dart';
-import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/datasources/telegram_config_store.dart';
 import '../../data/repositories/backup_repository.dart';
 import '../../domain/models/backup_validation_result.dart';
@@ -27,7 +26,8 @@ final backupRepositoryProvider = Provider<BackupRepository>((ref) {
 
 /// সর্বশেষ ব্যাকআপ সময়ের রিয়েক্টিভ ওয়াচ (SQLite shop_settings)
 final lastBackupTimeStreamProvider = StreamProvider<String?>((ref) {
-  return ref.watch(shopSettingProvider('last_backup_time').stream);
+  final db = ref.watch(appDatabaseProvider);
+  return db.shopSettingsDao.watchSetting('last_backup_time');
 });
 
 /// টেলিগ্রাম বট টোকেন ওয়াচ (App-Private File Storage)

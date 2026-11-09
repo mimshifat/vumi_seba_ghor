@@ -94,6 +94,7 @@ class _ReferenceSelectorSheetState
         widget.onSelected(demo);
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),

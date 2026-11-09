@@ -17,7 +17,7 @@ class TelegramConfigStore {
   static TelegramConfigStore get instance =>
       _instance ??= TelegramConfigStore();
 
-  File? _customFile;
+  final File? _customFile;
   Map<String, String> _cache = {};
   bool _isLoaded = false;
 
@@ -33,7 +33,7 @@ class TelegramConfigStore {
 
   /// ডেডিকেটেড কনফিগ ফাইলের অবস্থান নির্ণয়
   Future<File> _getConfigFile() async {
-    if (_customFile != null) return _customFile!;
+    if (_customFile != null) return _customFile;
     try {
       final dir = await getApplicationSupportDirectory();
       return File(p.join(dir.path, 'rojob_telegram_config.json'));

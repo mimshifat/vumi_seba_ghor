@@ -38,7 +38,7 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
     return '';
   }
 
-  Future<void> _confirmDelete(BuildContext context, String name) async {
+  Future<void> _confirmDelete(String name) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => const ConfirmDialog(
@@ -143,7 +143,7 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline, color: AppColors.rose),
             tooltip: 'মুছে ফেলুন',
-            onPressed: () => _confirmDelete(context, name),
+            onPressed: () => _confirmDelete(name),
           ),
         ],
       ),

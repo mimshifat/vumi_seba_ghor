@@ -158,8 +158,9 @@ class _ReferenceDetailScreenState
                                     : null,
                               );
 
-                          if (!mounted) return;
+                          if (!ctx.mounted) return;
                           Navigator.pop(ctx);
+                          if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('রেফারেন্স তথ্য আপডেট করা হয়েছে'),

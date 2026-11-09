@@ -2,11 +2,6 @@ import 'package:drift/drift.dart';
 
 import '../../utils/money.dart';
 import '../app_database.dart';
-import '../tables/applications_table.dart';
-import '../tables/expenses_table.dart';
-import '../tables/independent_incomes_table.dart';
-import '../tables/payments_table.dart';
-import '../tables/status_history_table.dart';
 
 part 'finance_dao.g.dart';
 

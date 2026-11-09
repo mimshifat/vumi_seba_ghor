@@ -385,7 +385,7 @@ class BackupRepository {
       }
     } catch (_) {
     } finally {
-      tempDb?.dispose();
+      tempDb?.close();
     }
   }
 
@@ -706,7 +706,7 @@ class BackupRepository {
           'বাছাইকৃত ফাইলটি সঠিক ব্যাকআপ ফাইল নয় অথবা ফাইলটি নষ্ট হয়ে গেছে। আপনার বর্তমান কোনো তথ্য পরিবর্তন হয়নি।',
         );
       } finally {
-        testDb?.dispose();
+        testDb?.close();
       }
     });
   }

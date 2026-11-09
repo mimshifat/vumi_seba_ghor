@@ -3,9 +3,6 @@ import 'package:drift/drift.dart';
 import '../../utils/bengali_digits.dart';
 import '../../utils/money.dart';
 import '../app_database.dart';
-import '../tables/applications_table.dart';
-import '../tables/payments_table.dart';
-import '../tables/references_table.dart';
 
 part 'reference_dao.g.dart';
 

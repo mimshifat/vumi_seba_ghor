@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 import '../app_database.dart';
-import '../tables/shop_settings_table.dart';
 
 part 'shop_settings_dao.g.dart';
 

@@ -143,8 +143,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             DemoStore.shopPhone = phone;
                             DemoStore.shopAddress = address;
 
-                            if (!mounted) return;
+                            if (!ctx.mounted) return;
                             Navigator.pop(ctx);
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('প্রতিষ্ঠানের তথ্য সফলভাবে সংরক্ষিত হয়েছে'),
@@ -412,7 +413,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: _useBengaliDigits ? 'বাংলা সংখ্যায় (১২৩৪৫)' : 'ইংরেজি সংখ্যায় (12345)',
             trailing: Switch.adaptive(
               value: _useBengaliDigits,
-              activeColor: AppColors.primary,
+              activeTrackColor: AppColors.primary,
               onChanged: (val) {
                 setState(() => _useBengaliDigits = val);
               },

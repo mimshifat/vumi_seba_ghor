@@ -3,10 +3,6 @@ import 'package:drift/drift.dart';
 import '../../../features/applications/domain/models/application_with_financials.dart';
 import '../../utils/bengali_digits.dart';
 import '../app_database.dart';
-import '../tables/applications_table.dart';
-import '../tables/expenses_table.dart';
-import '../tables/payments_table.dart';
-import '../tables/status_history_table.dart';
 
 part 'application_dao.g.dart';
 
@@ -267,7 +263,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
   /// নির্দিষ্ট আবেদনের সম্পূর্ণ আর্থিক হিসেবসহ তথ্য
   Future<ApplicationWithFinancials?> getApplicationWithFinancialsById(
       String id) async {
-    final sql = '''
+    const sql = '''
       SELECT 
         a.id,
         a.applicant_id,

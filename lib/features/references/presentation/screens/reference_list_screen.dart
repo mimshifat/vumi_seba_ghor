@@ -156,8 +156,9 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                                     : null,
                               );
 
-                          if (!mounted) return;
+                          if (!ctx.mounted) return;
                           Navigator.pop(ctx);
+                          if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('রেফারেন্স ব্যক্তি "$name" সফলভাবে যোগ হয়েছে'),

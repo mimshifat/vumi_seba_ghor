@@ -98,8 +98,9 @@ class _CategoryManagementScreenState
                       .createWorkType(name: text);
                 }
 
-                if (!mounted) return;
+                if (!ctx.mounted) return;
                 Navigator.pop(ctx);
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(isEditing
@@ -269,8 +270,9 @@ class _CategoryManagementScreenState
                         );
                   }
 
-                  if (!mounted) return;
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(isEditing

@@ -2,8 +2,6 @@ import 'package:drift/drift.dart';
 
 import '../../utils/bengali_digits.dart';
 import '../app_database.dart';
-import '../tables/applications_table.dart';
-import '../tables/persons_table.dart';
 
 part 'person_dao.g.dart';
 

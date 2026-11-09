@@ -6,7 +6,6 @@ import 'package:bhumi_kajer_hisab/core/utils/validators.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqlite3/common.dart';
 
 AppDatabase createTestDb() {
   return AppDatabase(

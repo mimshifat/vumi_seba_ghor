@@ -59,8 +59,9 @@ class _OfficeManagementScreenState
                       .read(officeControllerProvider.notifier)
                       .updateOffice(id: office.id, name: text);
 
-                  if (!mounted) return;
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('অফিসের নাম পরিবর্তন করা হয়েছে।'),
@@ -72,8 +73,9 @@ class _OfficeManagementScreenState
                       .read(officeControllerProvider.notifier)
                       .createOffice(name: text);
 
-                  if (!mounted) return;
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('নতুন অফিস "$text" যুক্ত হয়েছে।'),

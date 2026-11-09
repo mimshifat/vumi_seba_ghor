@@ -112,7 +112,7 @@ class MoreMenuScreen extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Text(
+                const Text(
                   'রজব ভূমি সেবা ঘর • সংস্করণ ১.০.০',
                   style: TextStyle(
                     fontSize: 12.5,
@@ -120,8 +120,8 @@ class MoreMenuScreen extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                SizedBox(height: 4),
-                Row(
+                const SizedBox(height: 4),
+                const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.code_rounded, size: 14, color: AppColors.primary),

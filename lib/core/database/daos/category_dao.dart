@@ -2,9 +2,6 @@ import 'package:drift/drift.dart';
 
 import '../../errors/app_failure.dart';
 import '../app_database.dart';
-import '../tables/expense_categories_table.dart';
-import '../tables/income_categories_table.dart';
-import '../tables/work_types_table.dart';
 
 part 'category_dao.g.dart';
 

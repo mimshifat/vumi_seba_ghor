@@ -143,7 +143,7 @@ class AppDatabase extends _$AppDatabase {
         try {
           final testDb = sqlite3.open(liveDb.path, mode: OpenMode.readOnly);
           final res = testDb.select('PRAGMA quick_check;');
-          testDb.dispose();
+          testDb.close();
           if (res.isEmpty || res.first.values.first != 'ok') {
             needsRecovery = true;
           }

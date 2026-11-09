@@ -417,7 +417,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.primarySurface,
                 shape: BoxShape.circle,
               ),
@@ -595,10 +595,10 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
                       }
                     },
                     itemBuilder: (ctx) => [
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'edit',
                         child: Row(
-                          children: const [
+                          children: [
                             Icon(Icons.edit_outlined, size: 16),
                             SizedBox(width: 8),
                             Text('সম্পাদনা করুন',
@@ -636,10 +636,10 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
                               Text('সম্পন্ন', style: TextStyle(fontSize: 12.5)),
                         ),
                       const PopupMenuDivider(),
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'delete',
                         child: Row(
-                          children: const [
+                          children: [
                             Icon(Icons.delete_outline,
                                 size: 16, color: AppColors.rose),
                             SizedBox(width: 8),

@@ -507,7 +507,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                         ],
                       ),
                       value: isAutoBackup,
-                      activeColor: AppColors.primary,
+                      activeTrackColor: AppColors.primary,
                       onChanged: (val) async {
                         final token = ref
                             .read(telegramBotTokenStreamProvider)

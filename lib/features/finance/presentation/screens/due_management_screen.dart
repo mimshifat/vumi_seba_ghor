@@ -120,7 +120,7 @@ class _DueManagementScreenState extends ConsumerState<DueManagementScreen> {
           // List of Due Applications
           Expanded(
             child: dueApplications.isEmpty
-                ? EmptyState(
+                ? const EmptyState(
                     icon: Icons.check_circle_outline,
                     title: 'কোনো বকেয়া পাওনা নেই!',
                     message:
