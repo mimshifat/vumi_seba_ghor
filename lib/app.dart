@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
-import 'features/main_shell_screen.dart';
+import 'features/splash/presentation/screens/splash_screen.dart';
 
 class BhumiKajerHisabApp extends StatelessWidget {
   const BhumiKajerHisabApp({super.key});
@@ -23,7 +23,7 @@ class BhumiKajerHisabApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       locale: const Locale('bn', 'BD'),
-      home: const MainShellScreen(),
+      home: const SplashScreen(),
     );
   }
 }
