@@ -455,11 +455,25 @@ class DemoStore {
   ];
 
   static List<DemoOffice> offices = [
-    const DemoOffice(id: 'off-1', name: 'উপজেলা ভূমি অফিস, সাভার', activeApplications: 12),
-    const DemoOffice(id: 'off-2', name: 'ইউনিয়ন ভূমি অফিস, কাউন্দিয়া', activeApplications: 6),
-    const DemoOffice(id: 'off-3', name: 'সহকারী কমিশনার (ভূমি) কার্যালয়, কেরানীগঞ্জ', activeApplications: 8),
-    const DemoOffice(id: 'off-4', name: 'জেলা প্রশাসকের কার্যালয়, ঢাকা', activeApplications: 3),
-    const DemoOffice(id: 'off-5', name: 'উপজেলা ভূমি অফিস, ধামরাই', activeApplications: 4),
+    const DemoOffice(id: 'off-1', name: 'জেলা প্রশাসকের কার্যালয়, চাঁপাইনবাবগঞ্জ', activeApplications: 0),
+    const DemoOffice(id: 'off-2', name: 'উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর', activeApplications: 0),
+    const DemoOffice(id: 'off-3', name: 'পৌর ভূমি অফিস, চাঁপাইনবাবগঞ্জ', activeApplications: 0),
+    const DemoOffice(id: 'off-4', name: 'উপজেলা সেটেলমেন্ট অফিস, চাঁপাইনবাবগঞ্জ সদর', activeApplications: 0),
+    const DemoOffice(id: 'off-5', name: 'সাব-রেজিস্ট্রি অফিস, চাঁপাইনবাবগঞ্জ সদর', activeApplications: 0),
+    const DemoOffice(id: 'off-6', name: 'ইউনিয়ন ভূমি অফিস, আলাতুলী', activeApplications: 0),
+    const DemoOffice(id: 'off-7', name: 'ইউনিয়ন ভূমি অফিস, ইসলামপুর', activeApplications: 0),
+    const DemoOffice(id: 'off-8', name: 'ইউনিয়ন ভূমি অফিস, গোবরাতলা', activeApplications: 0),
+    const DemoOffice(id: 'off-9', name: 'ইউনিয়ন ভূমি অফিস, চর অনুপনগর', activeApplications: 0),
+    const DemoOffice(id: 'off-10', name: 'ইউনিয়ন ভূমি অফিস, চরবাগডাঙ্গা', activeApplications: 0),
+    const DemoOffice(id: 'off-11', name: 'ইউনিয়ন ভূমি অফিস, ঝিলিম', activeApplications: 0),
+    const DemoOffice(id: 'off-12', name: 'ইউনিয়ন ভূমি অফিস, দেবীনগর', activeApplications: 0),
+    const DemoOffice(id: 'off-13', name: 'ইউনিয়ন ভূমি অফিস, নারায়ণপুর', activeApplications: 0),
+    const DemoOffice(id: 'off-14', name: 'ইউনিয়ন ভূমি অফিস, বারঘরিয়া', activeApplications: 0),
+    const DemoOffice(id: 'off-15', name: 'ইউনিয়ন ভূমি অফিস, বালিয়াডাঙ্গা', activeApplications: 0),
+    const DemoOffice(id: 'off-16', name: 'ইউনিয়ন ভূমি অফিস, মহারাজপুর', activeApplications: 0),
+    const DemoOffice(id: 'off-17', name: 'ইউনিয়ন ভূমি অফিস, রানীহাটি', activeApplications: 0),
+    const DemoOffice(id: 'off-18', name: 'ইউনিয়ন ভূমি অফিস, শাহজাহানপুর', activeApplications: 0),
+    const DemoOffice(id: 'off-19', name: 'ইউনিয়ন ভূমি অফিস, সুন্দরপুর', activeApplications: 0),
   ];
 
   static List<String> applicationExpenseCategories = [

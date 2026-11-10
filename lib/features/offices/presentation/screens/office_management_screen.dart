@@ -37,7 +37,7 @@ class _OfficeManagementScreenState
           autofocus: true,
           decoration: const InputDecoration(
             label: AppFieldLabel.inline(label: 'অফিসের নাম', isRequired: true),
-            hintText: 'যেমন: উপজেলা ভূমি অফিস, সাভার',
+            hintText: 'যেমন: উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর',
           ),
         ),
         actionsPadding: const EdgeInsets.fromLTRB(

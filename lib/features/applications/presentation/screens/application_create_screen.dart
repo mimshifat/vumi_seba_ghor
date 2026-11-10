@@ -51,7 +51,7 @@ class _ApplicationCreateScreenState
 
   // Step 2: Work & Office Information
   String _selectedWorkType = 'নামজারি';
-  String _selectedOffice = 'উপজেলা ভূমি অফিস, সাভার';
+  String _selectedOffice = 'উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর';
   DateTime _applicationDate = DateTime.now();
   final _mouzaController = TextEditingController();
   final _appNumberController = TextEditingController();
@@ -333,7 +333,7 @@ class _ApplicationCreateScreenState
           controller: controller,
           decoration: const InputDecoration(
             label: AppFieldLabel.inline(label: 'অফিসের নাম', isRequired: true),
-            hintText: 'যেমন: উপজেলা ভূমি অফিস, ধামরাই',
+            hintText: 'যেমন: উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর',
           ),
         ),
         actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
@@ -545,6 +545,7 @@ class _ApplicationCreateScreenState
               fileData: _attachedFileBytes!,
               fileSize: _attachedFileSize ?? '1 MB',
             );
+        if (!mounted) return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
