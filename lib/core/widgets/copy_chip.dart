@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
+import '../utils/case_number_formatter.dart';
 
 /// Interactive chip that copies a value to the clipboard and provides
 /// elegant inline visual feedback (transitions to '✓ কপি হয়েছে') without
@@ -36,8 +37,16 @@ class _CopyChipState extends State<CopyChip> {
     super.dispose();
   }
 
+  String get _resolvedDisplayValue {
+    final raw = widget.value.trim();
+    if (widget.label.contains('কেস')) {
+      return CaseNumberFormatter.formatDisplay(raw);
+    }
+    return raw;
+  }
+
   void _handleCopy() {
-    final textToCopy = widget.copyText ?? widget.value;
+    final textToCopy = widget.copyText ?? _resolvedDisplayValue;
     Clipboard.setData(ClipboardData(text: textToCopy));
 
     setState(() => _copied = true);
@@ -51,11 +60,7 @@ class _CopyChipState extends State<CopyChip> {
 
   @override
   Widget build(BuildContext context) {
-    // Clean up duplicate prefix if value already contains 'কেস নং'
-    String displayValue = widget.value.trim();
-    if (widget.label.contains('কেস') && displayValue.startsWith('কেস নং')) {
-      displayValue = displayValue.replaceFirst(RegExp(r'^কেস নং[:\s]*'), '');
-    }
+    final displayValue = _resolvedDisplayValue;
 
     return Material(
       color: Colors.transparent,

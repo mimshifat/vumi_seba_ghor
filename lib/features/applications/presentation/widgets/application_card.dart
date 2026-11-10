@@ -4,6 +4,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/widgets/copy_chip.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../screens/application_detail_screen.dart';
@@ -189,7 +190,9 @@ class ApplicationCard extends StatelessWidget {
                             if (application.caseNumber != null && application.caseNumber!.isNotEmpty)
                               CopyChip(
                                 label: 'কেস',
-                                value: application.caseNumber!,
+                                value: CaseNumberFormatter.formatDisplay(
+                                  application.caseNumber,
+                                ),
                                 prefixIcon: Icons.tag,
                               ),
                           ],

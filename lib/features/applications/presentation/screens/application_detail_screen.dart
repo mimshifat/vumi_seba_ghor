@@ -11,6 +11,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -1133,8 +1134,10 @@ class _ApplicationDetailScreenState
             ),
             _buildDetailRow(
               'কেস নম্বর',
-              _app.caseNumber ?? 'দেওয়া হয়নি',
-              isCopyable: _app.caseNumber != null,
+              (_app.caseNumber != null && _app.caseNumber!.trim().isNotEmpty)
+                  ? CaseNumberFormatter.formatDisplay(_app.caseNumber)
+                  : 'দেওয়া হয়নি',
+              isCopyable: _app.caseNumber != null && _app.caseNumber!.trim().isNotEmpty,
             ),
           ],
         ),

@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../domain/models/application_with_financials.dart';
 
@@ -203,7 +204,7 @@ class ApplicationRepository {
             officeName: finalOfficeName,
             mouza: Value(mouza?.trim()),
             appNumber: Value(cleanAppNum),
-            caseNumber: Value(caseNumber?.trim()),
+            caseNumber: Value(CaseNumberFormatter.normalizeIfStructured(caseNumber)),
             workType: cleanWorkType,
             applicationDate: appDateMs,
             status: status,
@@ -323,7 +324,7 @@ class ApplicationRepository {
       }
 
       final now = DateTime.now().millisecondsSinceEpoch;
-      final trimmedCase = caseNumber?.trim();
+      final trimmedCase = CaseNumberFormatter.normalizeIfStructured(caseNumber);
       final hadNoCaseBefore =
           existing.caseNumber == null || existing.caseNumber!.trim().isEmpty;
       final hasCaseNow = trimmedCase != null && trimmedCase.isNotEmpty;

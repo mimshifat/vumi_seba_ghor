@@ -6,11 +6,13 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/case_number_field.dart';
 import '../../../../core/widgets/money_field.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../providers/application_providers.dart';
@@ -52,7 +54,11 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
     _addressController = TextEditingController(text: app.applicantAddress ?? '');
     _mouzaController = TextEditingController(text: app.mouza ?? '');
     _appNumberController = TextEditingController(text: app.appNumber ?? '');
-    _caseNumberController = TextEditingController(text: app.caseNumber ?? '');
+    _caseNumberController = TextEditingController(
+      text: app.caseNumber != null && app.caseNumber!.trim().isNotEmpty
+          ? CaseNumberFormatter.formatDisplay(app.caseNumber)
+          : '',
+    );
     _agreedAmountController = TextEditingController(text: app.agreedAmount.inTaka.toString());
     _useSamePhoneForPortal = app.portalPhone == null ||
         app.portalPhone!.trim().isEmpty ||
@@ -81,6 +87,17 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
   }
 
   Future<void> _saveChanges() async {
+    final rawCase = _caseNumberController.text.trim();
+    if (rawCase.isNotEmpty) {
+      final formattedCase = CaseNumberFormatter.format(
+        rawCase,
+        referenceDate: widget.application.applicationDate,
+      );
+      if (formattedCase != null && formattedCase != _caseNumberController.text) {
+        _caseNumberController.text = formattedCase;
+      }
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     final agreedTaka = int.tryParse(BengaliDigits.toEnglish(
@@ -106,7 +123,10 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                 ? _appNumberController.text.trim()
                 : null,
             caseNumber: _caseNumberController.text.trim().isNotEmpty
-                ? _caseNumberController.text.trim()
+                ? CaseNumberFormatter.format(
+                    _caseNumberController.text,
+                    referenceDate: widget.application.applicationDate,
+                  )
                 : null,
             agreedAmountPaisa: agreedPaisa,
             portalPhone: portalPhoneToSave,
@@ -264,22 +284,15 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                   prefixIcon: const Icon(Icons.map_outlined, size: 18, color: AppColors.slate400),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: 'আবেদন নম্বর',
-                        controller: _appNumberController,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: AppTextField(
-                        label: 'কেস নম্বর',
-                        controller: _caseNumberController,
-                      ),
-                    ),
-                  ],
+                AppTextField(
+                  label: 'আবেদন নম্বর',
+                  controller: _appNumberController,
+                  prefixIcon: const Icon(Icons.tag, size: 18, color: AppColors.slate400),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                CaseNumberField(
+                  controller: _caseNumberController,
+                  referenceDate: widget.application.applicationDate,
                 ),
               ],
             ),

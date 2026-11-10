@@ -5,6 +5,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
@@ -134,9 +135,14 @@ class _TaskCreateEditScreenState extends ConsumerState<TaskCreateEditScreen> {
             final filteredApps = apps.where((a) {
               if (searchQuery.trim().isEmpty) return true;
               final q = searchQuery.toLowerCase();
+              final enQ = BengaliDigits.toEnglish(q);
+              final bnQ = BengaliDigits.toBengali(q);
               return a.applicantName.toLowerCase().contains(q) ||
                   a.applicantPhone.contains(q) ||
+                  a.applicantPhone.contains(enQ) ||
                   (a.caseNumber?.toLowerCase().contains(q) ?? false) ||
+                  (a.caseNumber?.contains(enQ) ?? false) ||
+                  (a.caseNumber?.contains(bnQ) ?? false) ||
                   (a.appNumber?.toLowerCase().contains(q) ?? false);
             }).toList();
 
@@ -252,7 +258,7 @@ class _TaskCreateEditScreenState extends ConsumerState<TaskCreateEditScreen> {
                             ],
                           ),
                           subtitle: Text(
-                            'মৌজা: ${app.mouza} • কেস: ${app.caseNumber ?? app.appNumber ?? 'নির্ধারিত নয়'}',
+                            'মৌজা: ${app.mouza} • কেস: ${(app.caseNumber != null && app.caseNumber!.trim().isNotEmpty) ? CaseNumberFormatter.formatDisplay(app.caseNumber) : (app.appNumber ?? 'নির্ধারিত নয়')}',
                             style: AppTypography.bodySmall.copyWith(
                                 fontSize: 11.5,
                                 color: AppColors.textSecondary),

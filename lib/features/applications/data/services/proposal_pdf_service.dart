@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/pdf_letterhead_helper.dart';
 import '../../domain/models/proposal_print_models.dart';
 
@@ -112,7 +113,7 @@ class ProposalPdfService {
     for (var i = 0; i < rows.length; i++) {
       final row = rows[i];
       final caseText = (row.caseNumber?.trim().isNotEmpty == true)
-          ? row.caseNumber!.trim()
+          ? CaseNumberFormatter.formatDisplay(row.caseNumber)
           : '—';
 
       final serialPainter = _makePainter(

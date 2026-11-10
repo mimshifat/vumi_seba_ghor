@@ -182,7 +182,8 @@ final filteredApplicationsProvider =
                   app.appNumber!.contains(enQ));
           final caseNumMatch = app.caseNumber != null &&
               (app.caseNumber!.toLowerCase().contains(q) ||
-                  app.caseNumber!.contains(enQ));
+                  app.caseNumber!.contains(enQ) ||
+                  app.caseNumber!.contains(bnQ));
           final mouzaMatch =
               app.mouza != null && app.mouza!.toLowerCase().contains(q);
 

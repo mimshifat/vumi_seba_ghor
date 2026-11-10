@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/pdf_letterhead_helper.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -70,18 +71,12 @@ class _ProposalPrintQueueScreenState
         );
       case _ProposalSortMode.caseAsc:
         sorted.sort((a, b) {
-          final ac = BengaliDigits.toEnglish(
-            a.application.caseNumber?.trim() ?? '',
+          final cmp = CaseNumberFormatter.compareCaseNumbers(
+            a.application.caseNumber,
+            b.application.caseNumber,
           );
-          final bc = BengaliDigits.toEnglish(
-            b.application.caseNumber?.trim() ?? '',
-          );
-          if (ac.isEmpty && bc.isEmpty) {
-            return b.statusEnteredAt.compareTo(a.statusEnteredAt);
-          }
-          if (ac.isEmpty) return 1;
-          if (bc.isEmpty) return -1;
-          return ac.compareTo(bc);
+          if (cmp != 0) return cmp;
+          return b.statusEnteredAt.compareTo(a.statusEnteredAt);
         });
       case _ProposalSortMode.nameAsc:
         sorted.sort(
@@ -581,7 +576,7 @@ class _ProposalPrintQueueScreenState
                                     ),
                                     child: Text(
                                       hasCaseNo
-                                          ? 'কেস নং: $caseNo'
+                                          ? 'কেস নং: ${CaseNumberFormatter.formatDisplay(caseNo)}'
                                           : 'কেস নং নেই',
                                       style: AppTypography.bodySmall.copyWith(
                                         fontSize: 11.5,
@@ -753,7 +748,7 @@ class _ProposalPrintQueueScreenState
                             ),
                             Text(
                               items[i].caseNumberSnapshot?.isNotEmpty == true
-                                  ? 'কেস নং: ${items[i].caseNumberSnapshot}'
+                                  ? 'কেস নং: ${CaseNumberFormatter.formatDisplay(items[i].caseNumberSnapshot)}'
                                   : 'কেস নং: —',
                               style: AppTypography.bodySmall.copyWith(
                                 fontSize: 11,

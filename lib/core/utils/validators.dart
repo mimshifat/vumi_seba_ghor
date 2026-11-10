@@ -1,4 +1,5 @@
 import '../utils/bengali_digits.dart';
+import '../utils/case_number_formatter.dart';
 
 /// স্ক্রিন-পর্যায়ের যাচাইকারীর জন্য সম্পূর্ণ কেন্দ্রীভূত ভ্যালিডেটর সেট।
 class AppValidators {
@@ -137,6 +138,21 @@ class AppValidators {
   static String? validateExpenseCategory(String? value) {
     if (value == null || value.trim().isEmpty) return expenseCategoryRequired;
     return null;
+  }
+
+  /// কেস নম্বর যাচাই করে (`[ক্রমিক]/[রেজিস্টার]/[অর্থবছর]`, যেমন `৭০৯১/IX-I/২০২৫-২০২৬`)।
+  ///
+  /// কেস নম্বর ঐচ্ছিক হওয়ায় খালি থাকলে `null` ফেরত দেয়।
+  static String? validateCaseNumber(String? value) {
+    return CaseNumberFormatter.validate(value);
+  }
+
+  /// কেস নম্বরকে আদর্শ ফরম্যাটে রূপান্তর করে।
+  static String? standardizeCaseNumber(
+    String? value, {
+    DateTime? referenceDate,
+  }) {
+    return CaseNumberFormatter.format(value, referenceDate: referenceDate);
   }
 
   /// ব্যবহারকারীর ইনপুট থেকে পয়সা (integer) পড়ে।

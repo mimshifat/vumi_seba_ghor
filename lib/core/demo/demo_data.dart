@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../utils/case_number_formatter.dart';
 import '../utils/money.dart';
 
 class DemoReference {
@@ -697,7 +698,10 @@ class DemoStore {
       referencePersonName: 'হাজি মোখলেছুর রহমান',
       mouza: 'বাগবাড়ী (জে.এল নং ৪৫)',
       appNumber: 'SAV-MUT-2026-8841',
-      caseNumber: 'কেস নং ৪২/২০২৬',
+      caseNumber: CaseNumberFormatter.format(
+        '42',
+        referenceDate: DateTime.now().subtract(const Duration(days: 4)),
+      ),
       workType: 'নামজারি',
       officeName: 'উপজেলা ভূমি অফিস, সাভার',
       applicationDate: DateTime.now().subtract(const Duration(days: 4)),
@@ -788,7 +792,10 @@ class DemoStore {
       referencePersonName: 'জলিল মোল্লা',
       mouza: 'জিনজিরা',
       appNumber: 'KER-JAM-2026-3012',
-      caseNumber: 'কেস নং ১৫/২০২৬',
+      caseNumber: CaseNumberFormatter.format(
+        '15',
+        referenceDate: DateTime.now().subtract(const Duration(days: 8)),
+      ),
       workType: 'জমাভাগ',
       officeName: 'সহকারী কমিশনার (ভূমি) কার্যালয়, কেরানীগঞ্জ',
       applicationDate: DateTime.now().subtract(const Duration(days: 8)),
@@ -845,7 +852,10 @@ class DemoStore {
       applicantPhone: '01912345678',
       mouza: 'কাউন্দিয়া',
       appNumber: 'DHK-KHOT-2026-119',
-      caseNumber: 'কেস নং ৮৯/২০২৬',
+      caseNumber: CaseNumberFormatter.format(
+        '89',
+        referenceDate: DateTime.now().subtract(const Duration(days: 15)),
+      ),
       workType: 'খতিয়ান সংশোধন',
       officeName: 'জেলা প্রশাসকের কার্যালয়, ঢাকা',
       applicationDate: DateTime.now().subtract(const Duration(days: 15)),
@@ -963,7 +973,10 @@ class DemoStore {
       referencePersonName: 'করিম মিয়া',
       mouza: 'কেওড়া',
       appNumber: 'SAV-MUT-2026-9011',
-      caseNumber: 'কেস নং ৯/২০২৬',
+      caseNumber: CaseNumberFormatter.format(
+        '9',
+        referenceDate: DateTime.now().subtract(const Duration(days: 12)),
+      ),
       workType: 'নামজারি',
       officeName: 'উপজেলা ভূমি অফিস, সাভার',
       applicationDate: DateTime.now().subtract(const Duration(days: 12)),
@@ -1022,7 +1035,10 @@ class DemoStore {
       referencePersonName: 'হাজি মোখলেছুর রহমান',
       mouza: 'বাগবাড়ী',
       appNumber: 'SAV-MUT-2026-7712',
-      caseNumber: 'কেস নং ১৯/২০২৬',
+      caseNumber: CaseNumberFormatter.format(
+        '19',
+        referenceDate: DateTime.now().subtract(const Duration(days: 20)),
+      ),
       workType: 'নামজারি',
       officeName: 'উপজেলা ভূমি অফিস, সাভার',
       applicationDate: DateTime.now().subtract(const Duration(days: 20)),
@@ -1062,7 +1078,10 @@ class DemoStore {
       referencePersonName: 'করিম মিয়া',
       mouza: 'কেরানীগঞ্জ',
       appNumber: 'KER-MIS-2026-105',
-      caseNumber: 'কেস নং ৩/২০২৬',
+      caseNumber: CaseNumberFormatter.format(
+        '3',
+        referenceDate: DateTime.now().subtract(const Duration(days: 6)),
+      ),
       workType: 'মিস কেস',
       officeName: 'সহকারী কমিশনার (ভূমি) কার্যালয়, কেরানীগঞ্জ',
       applicationDate: DateTime.now().subtract(const Duration(days: 6)),

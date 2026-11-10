@@ -113,6 +113,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
         searchPredicates.add(tbl.appNumber.contains(enTerm));
         searchPredicates.add(tbl.appNumber.contains(rawTerm));
         searchPredicates.add(tbl.caseNumber.contains(enTerm));
+        searchPredicates.add(tbl.caseNumber.contains(bnTerm));
         searchPredicates.add(tbl.caseNumber.contains(rawTerm));
 
         Expression<bool>? combined;
