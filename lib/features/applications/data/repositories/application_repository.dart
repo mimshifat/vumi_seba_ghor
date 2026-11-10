@@ -301,23 +301,40 @@ class ApplicationRepository {
       }
 
       final now = DateTime.now().millisecondsSinceEpoch;
-      await _db.applicationDao.updateApplication(
-        existing.toCompanion(true).copyWith(
-          applicantName: Value(cleanName ?? existing.applicantName),
-          applicantPhone: Value(cleanPhone ?? existing.applicantPhone),
-          applicantAddress: Value(applicantAddress?.trim() ?? existing.applicantAddress),
-          referenceId: Value(referenceId ?? existing.referenceId),
-          referenceName: Value(referenceName?.trim() ?? existing.referenceName),
-          officeId: Value(officeId ?? existing.officeId),
-          officeName: Value(officeName?.trim() ?? existing.officeName),
-          mouza: Value(mouza?.trim() ?? existing.mouza),
-          appNumber: Value(cleanAppNum ?? existing.appNumber),
-          caseNumber: Value(caseNumber?.trim() ?? existing.caseNumber),
-          agreedAmount: Value(agreedAmountPaisa ?? existing.agreedAmount),
-          notes: Value(notes?.trim() ?? existing.notes),
-          updatedAt: Value(now),
-        ),
-      );
+      final trimmedCase = caseNumber?.trim();
+      final hadNoCaseBefore =
+          existing.caseNumber == null || existing.caseNumber!.trim().isEmpty;
+      final hasCaseNow = trimmedCase != null && trimmedCase.isNotEmpty;
+
+      await _db.transaction(() async {
+        await _db.applicationDao.updateApplication(
+          existing.toCompanion(true).copyWith(
+            applicantName: Value(cleanName ?? existing.applicantName),
+            applicantPhone: Value(cleanPhone ?? existing.applicantPhone),
+            applicantAddress:
+                Value(applicantAddress?.trim() ?? existing.applicantAddress),
+            referenceId: Value(referenceId ?? existing.referenceId),
+            referenceName:
+                Value(referenceName?.trim() ?? existing.referenceName),
+            officeId: Value(officeId ?? existing.officeId),
+            officeName: Value(officeName?.trim() ?? existing.officeName),
+            mouza: Value(mouza?.trim() ?? existing.mouza),
+            appNumber: Value(cleanAppNum ?? existing.appNumber),
+            caseNumber: Value(trimmedCase ?? existing.caseNumber),
+            agreedAmount: Value(agreedAmountPaisa ?? existing.agreedAmount),
+            notes: Value(notes?.trim() ?? existing.notes),
+            updatedAt: Value(now),
+          ),
+        );
+
+        // কেস নম্বর ছাড়াই আগে প্রিন্ট হয়ে থাকলে, নতুন কেস নম্বর বসানোর পর
+        // আবার 'প্রিন্ট বাকি' তালিকায় নিয়ে আসা।
+        if (existing.status == 'প্রস্তাব প্রেরণ' &&
+            hadNoCaseBefore &&
+            hasCaseNow) {
+          await _db.proposalPrintDao.requeueIfPrintedWithoutCaseNumber(id);
+        }
+      });
     } catch (e, s) {
       throw AppFailure.fromException(e, s);
     }

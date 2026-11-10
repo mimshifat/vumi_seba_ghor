@@ -81,6 +81,8 @@ void main() {
           'expense_categories',
           'income_categories',
           'shop_settings',
+          'proposal_print_batches',
+          'proposal_print_batch_items',
         ]),
       );
     });
@@ -532,9 +534,10 @@ void main() {
   });
 
   group('মাইগ্রেশন', () {
-    test('schemaVersion ১', () async {
+    test('schemaVersion ২', () async {
       final db = createTestDatabase();
-      expect(db.schemaVersion, 1);
+      expect(db.schemaVersion, AppDatabase.currentSchemaVersion);
+      expect(db.schemaVersion, 2);
       await db.close();
     });
 

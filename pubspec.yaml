@@ -27,6 +27,12 @@ dependencies:
   path: ^1.9.1
   url_launcher: ^6.3.3
   share_plus: ^12.0.2
+  pdf: ^3.12.0
+  printing: ^5.14.3
+
+dependency_overrides:
+  # image 4.11.0 calls ZLibDecoder.decodeLazy (missing in archive 4.0.9 required by pdf 3.12.0)
+  image: ">=4.1.0 <4.11.0"
 
 dev_dependencies:
   flutter_test:

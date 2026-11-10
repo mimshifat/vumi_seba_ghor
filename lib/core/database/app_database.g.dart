@@ -8964,6 +8964,1267 @@ class ShopSettingsCompanion extends UpdateCompanion<ShopSetting> {
   }
 }
 
+class $ProposalPrintBatchesTable extends ProposalPrintBatches
+    with TableInfo<$ProposalPrintBatchesTable, ProposalPrintBatch> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProposalPrintBatchesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _officeFilterMeta = const VerificationMeta(
+    'officeFilter',
+  );
+  @override
+  late final GeneratedColumn<String> officeFilter = GeneratedColumn<String>(
+    'office_filter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _printedAtMeta = const VerificationMeta(
+    'printedAt',
+  );
+  @override
+  late final GeneratedColumn<int> printedAt = GeneratedColumn<int>(
+    'printed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemCountMeta = const VerificationMeta(
+    'itemCount',
+  );
+  @override
+  late final GeneratedColumn<int> itemCount = GeneratedColumn<int>(
+    'item_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    officeFilter,
+    printedAt,
+    itemCount,
+    note,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'proposal_print_batches';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProposalPrintBatch> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('office_filter')) {
+      context.handle(
+        _officeFilterMeta,
+        officeFilter.isAcceptableOrUnknown(
+          data['office_filter']!,
+          _officeFilterMeta,
+        ),
+      );
+    }
+    if (data.containsKey('printed_at')) {
+      context.handle(
+        _printedAtMeta,
+        printedAt.isAcceptableOrUnknown(data['printed_at']!, _printedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_printedAtMeta);
+    }
+    if (data.containsKey('item_count')) {
+      context.handle(
+        _itemCountMeta,
+        itemCount.isAcceptableOrUnknown(data['item_count']!, _itemCountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemCountMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProposalPrintBatch map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProposalPrintBatch(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      officeFilter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}office_filter'],
+      ),
+      printedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}printed_at'],
+      )!,
+      itemCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}item_count'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $ProposalPrintBatchesTable createAlias(String alias) {
+    return $ProposalPrintBatchesTable(attachedDatabase, alias);
+  }
+}
+
+class ProposalPrintBatch extends DataClass
+    implements Insertable<ProposalPrintBatch> {
+  final String id;
+  final String? title;
+
+  /// অফিস ফিল্টার প্রয়োগ করে প্রিন্ট করা হলে অফিসের নাম।
+  final String? officeFilter;
+
+  /// প্রিন্ট / জমা সম্পন্ন হওয়ার Unix epoch milliseconds।
+  final int printedAt;
+
+  /// ব্যাচে মোট অন্তর্ভুক্ত কেস সংখ্যা।
+  final int itemCount;
+  final String? note;
+
+  /// Unix epoch milliseconds।
+  final int createdAt;
+
+  /// Unix epoch milliseconds।
+  final int updatedAt;
+
+  /// সফট ডিলিট টাইমস্ট্যাম্প। NULL মানে রেকর্ড সক্রিয়।
+  final int? deletedAt;
+  const ProposalPrintBatch({
+    required this.id,
+    this.title,
+    this.officeFilter,
+    required this.printedAt,
+    required this.itemCount,
+    this.note,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || officeFilter != null) {
+      map['office_filter'] = Variable<String>(officeFilter);
+    }
+    map['printed_at'] = Variable<int>(printedAt);
+    map['item_count'] = Variable<int>(itemCount);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  ProposalPrintBatchesCompanion toCompanion(bool nullToAbsent) {
+    return ProposalPrintBatchesCompanion(
+      id: Value(id),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      officeFilter: officeFilter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(officeFilter),
+      printedAt: Value(printedAt),
+      itemCount: Value(itemCount),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory ProposalPrintBatch.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProposalPrintBatch(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String?>(json['title']),
+      officeFilter: serializer.fromJson<String?>(json['officeFilter']),
+      printedAt: serializer.fromJson<int>(json['printedAt']),
+      itemCount: serializer.fromJson<int>(json['itemCount']),
+      note: serializer.fromJson<String?>(json['note']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String?>(title),
+      'officeFilter': serializer.toJson<String?>(officeFilter),
+      'printedAt': serializer.toJson<int>(printedAt),
+      'itemCount': serializer.toJson<int>(itemCount),
+      'note': serializer.toJson<String?>(note),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  ProposalPrintBatch copyWith({
+    String? id,
+    Value<String?> title = const Value.absent(),
+    Value<String?> officeFilter = const Value.absent(),
+    int? printedAt,
+    int? itemCount,
+    Value<String?> note = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => ProposalPrintBatch(
+    id: id ?? this.id,
+    title: title.present ? title.value : this.title,
+    officeFilter: officeFilter.present ? officeFilter.value : this.officeFilter,
+    printedAt: printedAt ?? this.printedAt,
+    itemCount: itemCount ?? this.itemCount,
+    note: note.present ? note.value : this.note,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  ProposalPrintBatch copyWithCompanion(ProposalPrintBatchesCompanion data) {
+    return ProposalPrintBatch(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      officeFilter: data.officeFilter.present
+          ? data.officeFilter.value
+          : this.officeFilter,
+      printedAt: data.printedAt.present ? data.printedAt.value : this.printedAt,
+      itemCount: data.itemCount.present ? data.itemCount.value : this.itemCount,
+      note: data.note.present ? data.note.value : this.note,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProposalPrintBatch(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('officeFilter: $officeFilter, ')
+          ..write('printedAt: $printedAt, ')
+          ..write('itemCount: $itemCount, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    officeFilter,
+    printedAt,
+    itemCount,
+    note,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProposalPrintBatch &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.officeFilter == this.officeFilter &&
+          other.printedAt == this.printedAt &&
+          other.itemCount == this.itemCount &&
+          other.note == this.note &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class ProposalPrintBatchesCompanion
+    extends UpdateCompanion<ProposalPrintBatch> {
+  final Value<String> id;
+  final Value<String?> title;
+  final Value<String?> officeFilter;
+  final Value<int> printedAt;
+  final Value<int> itemCount;
+  final Value<String?> note;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const ProposalPrintBatchesCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.officeFilter = const Value.absent(),
+    this.printedAt = const Value.absent(),
+    this.itemCount = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProposalPrintBatchesCompanion.insert({
+    required String id,
+    this.title = const Value.absent(),
+    this.officeFilter = const Value.absent(),
+    required int printedAt,
+    required int itemCount,
+    this.note = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       printedAt = Value(printedAt),
+       itemCount = Value(itemCount),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ProposalPrintBatch> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<String>? officeFilter,
+    Expression<int>? printedAt,
+    Expression<int>? itemCount,
+    Expression<String>? note,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (officeFilter != null) 'office_filter': officeFilter,
+      if (printedAt != null) 'printed_at': printedAt,
+      if (itemCount != null) 'item_count': itemCount,
+      if (note != null) 'note': note,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProposalPrintBatchesCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? title,
+    Value<String?>? officeFilter,
+    Value<int>? printedAt,
+    Value<int>? itemCount,
+    Value<String?>? note,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return ProposalPrintBatchesCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      officeFilter: officeFilter ?? this.officeFilter,
+      printedAt: printedAt ?? this.printedAt,
+      itemCount: itemCount ?? this.itemCount,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (officeFilter.present) {
+      map['office_filter'] = Variable<String>(officeFilter.value);
+    }
+    if (printedAt.present) {
+      map['printed_at'] = Variable<int>(printedAt.value);
+    }
+    if (itemCount.present) {
+      map['item_count'] = Variable<int>(itemCount.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProposalPrintBatchesCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('officeFilter: $officeFilter, ')
+          ..write('printedAt: $printedAt, ')
+          ..write('itemCount: $itemCount, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ProposalPrintBatchItemsTable extends ProposalPrintBatchItems
+    with TableInfo<$ProposalPrintBatchItemsTable, ProposalPrintBatchItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProposalPrintBatchItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _batchIdMeta = const VerificationMeta(
+    'batchId',
+  );
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+    'batch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES proposal_print_batches (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _applicationIdMeta = const VerificationMeta(
+    'applicationId',
+  );
+  @override
+  late final GeneratedColumn<String> applicationId = GeneratedColumn<String>(
+    'application_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES applications (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _statusHistoryIdMeta = const VerificationMeta(
+    'statusHistoryId',
+  );
+  @override
+  late final GeneratedColumn<String> statusHistoryId = GeneratedColumn<String>(
+    'status_history_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES status_history (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _applicantNameSnapshotMeta =
+      const VerificationMeta('applicantNameSnapshot');
+  @override
+  late final GeneratedColumn<String> applicantNameSnapshot =
+      GeneratedColumn<String>(
+        'applicant_name_snapshot',
+        aliasedName,
+        false,
+        additionalChecks: GeneratedColumn.checkTextLength(
+          minTextLength: 1,
+          maxTextLength: 120,
+        ),
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _caseNumberSnapshotMeta =
+      const VerificationMeta('caseNumberSnapshot');
+  @override
+  late final GeneratedColumn<String> caseNumberSnapshot =
+      GeneratedColumn<String>(
+        'case_number_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _officeNameSnapshotMeta =
+      const VerificationMeta('officeNameSnapshot');
+  @override
+  late final GeneratedColumn<String> officeNameSnapshot =
+      GeneratedColumn<String>(
+        'office_name_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    batchId,
+    applicationId,
+    statusHistoryId,
+    applicantNameSnapshot,
+    caseNumberSnapshot,
+    officeNameSnapshot,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'proposal_print_batch_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProposalPrintBatchItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('batch_id')) {
+      context.handle(
+        _batchIdMeta,
+        batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('application_id')) {
+      context.handle(
+        _applicationIdMeta,
+        applicationId.isAcceptableOrUnknown(
+          data['application_id']!,
+          _applicationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_applicationIdMeta);
+    }
+    if (data.containsKey('status_history_id')) {
+      context.handle(
+        _statusHistoryIdMeta,
+        statusHistoryId.isAcceptableOrUnknown(
+          data['status_history_id']!,
+          _statusHistoryIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('applicant_name_snapshot')) {
+      context.handle(
+        _applicantNameSnapshotMeta,
+        applicantNameSnapshot.isAcceptableOrUnknown(
+          data['applicant_name_snapshot']!,
+          _applicantNameSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_applicantNameSnapshotMeta);
+    }
+    if (data.containsKey('case_number_snapshot')) {
+      context.handle(
+        _caseNumberSnapshotMeta,
+        caseNumberSnapshot.isAcceptableOrUnknown(
+          data['case_number_snapshot']!,
+          _caseNumberSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('office_name_snapshot')) {
+      context.handle(
+        _officeNameSnapshotMeta,
+        officeNameSnapshot.isAcceptableOrUnknown(
+          data['office_name_snapshot']!,
+          _officeNameSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProposalPrintBatchItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProposalPrintBatchItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      batchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_id'],
+      )!,
+      applicationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}application_id'],
+      )!,
+      statusHistoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status_history_id'],
+      ),
+      applicantNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}applicant_name_snapshot'],
+      )!,
+      caseNumberSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}case_number_snapshot'],
+      ),
+      officeNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}office_name_snapshot'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $ProposalPrintBatchItemsTable createAlias(String alias) {
+    return $ProposalPrintBatchItemsTable(attachedDatabase, alias);
+  }
+}
+
+class ProposalPrintBatchItem extends DataClass
+    implements Insertable<ProposalPrintBatchItem> {
+  final String id;
+  final String batchId;
+  final String applicationId;
+  final String? statusHistoryId;
+
+  /// প্রিন্টের সময়কার আবেদনকারীর নামের স্ন্যাপশট।
+  final String applicantNameSnapshot;
+
+  /// প্রিন্টের সময়কার কেস নম্বরের স্ন্যাপশট।
+  final String? caseNumberSnapshot;
+
+  /// প্রিন্টের সময়কার ভূমি অফিসের নামের স্ন্যাপশট।
+  final String? officeNameSnapshot;
+
+  /// Unix epoch milliseconds।
+  final int createdAt;
+
+  /// Unix epoch milliseconds।
+  final int updatedAt;
+
+  /// সফট ডিলিট টাইমস্ট্যাম্প। NULL মানে রেকর্ড সক্রিয়।
+  final int? deletedAt;
+  const ProposalPrintBatchItem({
+    required this.id,
+    required this.batchId,
+    required this.applicationId,
+    this.statusHistoryId,
+    required this.applicantNameSnapshot,
+    this.caseNumberSnapshot,
+    this.officeNameSnapshot,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['batch_id'] = Variable<String>(batchId);
+    map['application_id'] = Variable<String>(applicationId);
+    if (!nullToAbsent || statusHistoryId != null) {
+      map['status_history_id'] = Variable<String>(statusHistoryId);
+    }
+    map['applicant_name_snapshot'] = Variable<String>(applicantNameSnapshot);
+    if (!nullToAbsent || caseNumberSnapshot != null) {
+      map['case_number_snapshot'] = Variable<String>(caseNumberSnapshot);
+    }
+    if (!nullToAbsent || officeNameSnapshot != null) {
+      map['office_name_snapshot'] = Variable<String>(officeNameSnapshot);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  ProposalPrintBatchItemsCompanion toCompanion(bool nullToAbsent) {
+    return ProposalPrintBatchItemsCompanion(
+      id: Value(id),
+      batchId: Value(batchId),
+      applicationId: Value(applicationId),
+      statusHistoryId: statusHistoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(statusHistoryId),
+      applicantNameSnapshot: Value(applicantNameSnapshot),
+      caseNumberSnapshot: caseNumberSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(caseNumberSnapshot),
+      officeNameSnapshot: officeNameSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(officeNameSnapshot),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory ProposalPrintBatchItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProposalPrintBatchItem(
+      id: serializer.fromJson<String>(json['id']),
+      batchId: serializer.fromJson<String>(json['batchId']),
+      applicationId: serializer.fromJson<String>(json['applicationId']),
+      statusHistoryId: serializer.fromJson<String?>(json['statusHistoryId']),
+      applicantNameSnapshot: serializer.fromJson<String>(
+        json['applicantNameSnapshot'],
+      ),
+      caseNumberSnapshot: serializer.fromJson<String?>(
+        json['caseNumberSnapshot'],
+      ),
+      officeNameSnapshot: serializer.fromJson<String?>(
+        json['officeNameSnapshot'],
+      ),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'batchId': serializer.toJson<String>(batchId),
+      'applicationId': serializer.toJson<String>(applicationId),
+      'statusHistoryId': serializer.toJson<String?>(statusHistoryId),
+      'applicantNameSnapshot': serializer.toJson<String>(applicantNameSnapshot),
+      'caseNumberSnapshot': serializer.toJson<String?>(caseNumberSnapshot),
+      'officeNameSnapshot': serializer.toJson<String?>(officeNameSnapshot),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  ProposalPrintBatchItem copyWith({
+    String? id,
+    String? batchId,
+    String? applicationId,
+    Value<String?> statusHistoryId = const Value.absent(),
+    String? applicantNameSnapshot,
+    Value<String?> caseNumberSnapshot = const Value.absent(),
+    Value<String?> officeNameSnapshot = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => ProposalPrintBatchItem(
+    id: id ?? this.id,
+    batchId: batchId ?? this.batchId,
+    applicationId: applicationId ?? this.applicationId,
+    statusHistoryId: statusHistoryId.present
+        ? statusHistoryId.value
+        : this.statusHistoryId,
+    applicantNameSnapshot: applicantNameSnapshot ?? this.applicantNameSnapshot,
+    caseNumberSnapshot: caseNumberSnapshot.present
+        ? caseNumberSnapshot.value
+        : this.caseNumberSnapshot,
+    officeNameSnapshot: officeNameSnapshot.present
+        ? officeNameSnapshot.value
+        : this.officeNameSnapshot,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  ProposalPrintBatchItem copyWithCompanion(
+    ProposalPrintBatchItemsCompanion data,
+  ) {
+    return ProposalPrintBatchItem(
+      id: data.id.present ? data.id.value : this.id,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      applicationId: data.applicationId.present
+          ? data.applicationId.value
+          : this.applicationId,
+      statusHistoryId: data.statusHistoryId.present
+          ? data.statusHistoryId.value
+          : this.statusHistoryId,
+      applicantNameSnapshot: data.applicantNameSnapshot.present
+          ? data.applicantNameSnapshot.value
+          : this.applicantNameSnapshot,
+      caseNumberSnapshot: data.caseNumberSnapshot.present
+          ? data.caseNumberSnapshot.value
+          : this.caseNumberSnapshot,
+      officeNameSnapshot: data.officeNameSnapshot.present
+          ? data.officeNameSnapshot.value
+          : this.officeNameSnapshot,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProposalPrintBatchItem(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('applicationId: $applicationId, ')
+          ..write('statusHistoryId: $statusHistoryId, ')
+          ..write('applicantNameSnapshot: $applicantNameSnapshot, ')
+          ..write('caseNumberSnapshot: $caseNumberSnapshot, ')
+          ..write('officeNameSnapshot: $officeNameSnapshot, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    batchId,
+    applicationId,
+    statusHistoryId,
+    applicantNameSnapshot,
+    caseNumberSnapshot,
+    officeNameSnapshot,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProposalPrintBatchItem &&
+          other.id == this.id &&
+          other.batchId == this.batchId &&
+          other.applicationId == this.applicationId &&
+          other.statusHistoryId == this.statusHistoryId &&
+          other.applicantNameSnapshot == this.applicantNameSnapshot &&
+          other.caseNumberSnapshot == this.caseNumberSnapshot &&
+          other.officeNameSnapshot == this.officeNameSnapshot &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class ProposalPrintBatchItemsCompanion
+    extends UpdateCompanion<ProposalPrintBatchItem> {
+  final Value<String> id;
+  final Value<String> batchId;
+  final Value<String> applicationId;
+  final Value<String?> statusHistoryId;
+  final Value<String> applicantNameSnapshot;
+  final Value<String?> caseNumberSnapshot;
+  final Value<String?> officeNameSnapshot;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const ProposalPrintBatchItemsCompanion({
+    this.id = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.applicationId = const Value.absent(),
+    this.statusHistoryId = const Value.absent(),
+    this.applicantNameSnapshot = const Value.absent(),
+    this.caseNumberSnapshot = const Value.absent(),
+    this.officeNameSnapshot = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProposalPrintBatchItemsCompanion.insert({
+    required String id,
+    required String batchId,
+    required String applicationId,
+    this.statusHistoryId = const Value.absent(),
+    required String applicantNameSnapshot,
+    this.caseNumberSnapshot = const Value.absent(),
+    this.officeNameSnapshot = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       batchId = Value(batchId),
+       applicationId = Value(applicationId),
+       applicantNameSnapshot = Value(applicantNameSnapshot),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ProposalPrintBatchItem> custom({
+    Expression<String>? id,
+    Expression<String>? batchId,
+    Expression<String>? applicationId,
+    Expression<String>? statusHistoryId,
+    Expression<String>? applicantNameSnapshot,
+    Expression<String>? caseNumberSnapshot,
+    Expression<String>? officeNameSnapshot,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (batchId != null) 'batch_id': batchId,
+      if (applicationId != null) 'application_id': applicationId,
+      if (statusHistoryId != null) 'status_history_id': statusHistoryId,
+      if (applicantNameSnapshot != null)
+        'applicant_name_snapshot': applicantNameSnapshot,
+      if (caseNumberSnapshot != null)
+        'case_number_snapshot': caseNumberSnapshot,
+      if (officeNameSnapshot != null)
+        'office_name_snapshot': officeNameSnapshot,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProposalPrintBatchItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? batchId,
+    Value<String>? applicationId,
+    Value<String?>? statusHistoryId,
+    Value<String>? applicantNameSnapshot,
+    Value<String?>? caseNumberSnapshot,
+    Value<String?>? officeNameSnapshot,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return ProposalPrintBatchItemsCompanion(
+      id: id ?? this.id,
+      batchId: batchId ?? this.batchId,
+      applicationId: applicationId ?? this.applicationId,
+      statusHistoryId: statusHistoryId ?? this.statusHistoryId,
+      applicantNameSnapshot:
+          applicantNameSnapshot ?? this.applicantNameSnapshot,
+      caseNumberSnapshot: caseNumberSnapshot ?? this.caseNumberSnapshot,
+      officeNameSnapshot: officeNameSnapshot ?? this.officeNameSnapshot,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (applicationId.present) {
+      map['application_id'] = Variable<String>(applicationId.value);
+    }
+    if (statusHistoryId.present) {
+      map['status_history_id'] = Variable<String>(statusHistoryId.value);
+    }
+    if (applicantNameSnapshot.present) {
+      map['applicant_name_snapshot'] = Variable<String>(
+        applicantNameSnapshot.value,
+      );
+    }
+    if (caseNumberSnapshot.present) {
+      map['case_number_snapshot'] = Variable<String>(caseNumberSnapshot.value);
+    }
+    if (officeNameSnapshot.present) {
+      map['office_name_snapshot'] = Variable<String>(officeNameSnapshot.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProposalPrintBatchItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('applicationId: $applicationId, ')
+          ..write('statusHistoryId: $statusHistoryId, ')
+          ..write('applicantNameSnapshot: $applicantNameSnapshot, ')
+          ..write('caseNumberSnapshot: $caseNumberSnapshot, ')
+          ..write('officeNameSnapshot: $officeNameSnapshot, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8999,6 +10260,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $ShopSettingsTable shopSettings = $ShopSettingsTable(this);
+  late final $ProposalPrintBatchesTable proposalPrintBatches =
+      $ProposalPrintBatchesTable(this);
+  late final $ProposalPrintBatchItemsTable proposalPrintBatchItems =
+      $ProposalPrintBatchItemsTable(this);
   late final Index idxApplicationsActive = Index(
     'idx_applications_active',
     'CREATE INDEX idx_applications_active ON applications (deleted_at)',
@@ -9111,6 +10376,30 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_tasks_active',
     'CREATE INDEX idx_tasks_active ON tasks (deleted_at)',
   );
+  late final Index idxProposalPrintBatchesActive = Index(
+    'idx_proposal_print_batches_active',
+    'CREATE INDEX idx_proposal_print_batches_active ON proposal_print_batches (deleted_at)',
+  );
+  late final Index idxProposalPrintBatchesPrintedAt = Index(
+    'idx_proposal_print_batches_printed_at',
+    'CREATE INDEX idx_proposal_print_batches_printed_at ON proposal_print_batches (printed_at)',
+  );
+  late final Index idxProposalBatchItemsActive = Index(
+    'idx_proposal_batch_items_active',
+    'CREATE INDEX idx_proposal_batch_items_active ON proposal_print_batch_items (deleted_at)',
+  );
+  late final Index idxProposalBatchItemsBatch = Index(
+    'idx_proposal_batch_items_batch',
+    'CREATE INDEX idx_proposal_batch_items_batch ON proposal_print_batch_items (batch_id)',
+  );
+  late final Index idxProposalBatchItemsApp = Index(
+    'idx_proposal_batch_items_app',
+    'CREATE INDEX idx_proposal_batch_items_app ON proposal_print_batch_items (application_id)',
+  );
+  late final Index idxProposalBatchItemsStatusHistory = Index(
+    'idx_proposal_batch_items_status_history',
+    'CREATE INDEX idx_proposal_batch_items_status_history ON proposal_print_batch_items (status_history_id)',
+  );
   late final ApplicationDao applicationDao = ApplicationDao(
     this as AppDatabase,
   );
@@ -9121,6 +10410,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final OfficeDao officeDao = OfficeDao(this as AppDatabase);
   late final CategoryDao categoryDao = CategoryDao(this as AppDatabase);
   late final ShopSettingsDao shopSettingsDao = ShopSettingsDao(
+    this as AppDatabase,
+  );
+  late final ProposalPrintDao proposalPrintDao = ProposalPrintDao(
     this as AppDatabase,
   );
   @override
@@ -9146,6 +10438,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     expenseCategories,
     incomeCategories,
     shopSettings,
+    proposalPrintBatches,
+    proposalPrintBatchItems,
     idxApplicationsActive,
     idxApplicationsApplicant,
     idxApplicationsReference,
@@ -9174,6 +10468,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxTasksStatus,
     idxTasksApplication,
     idxTasksActive,
+    idxProposalPrintBatchesActive,
+    idxProposalPrintBatchesPrintedAt,
+    idxProposalBatchItemsActive,
+    idxProposalBatchItemsBatch,
+    idxProposalBatchItemsApp,
+    idxProposalBatchItemsStatusHistory,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -9225,6 +10525,24 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('tasks', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'proposal_print_batches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('proposal_print_batch_items', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'status_history',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('proposal_print_batch_items', kind: UpdateKind.update),
+      ],
     ),
   ]);
 }
@@ -10484,6 +11802,32 @@ final class $$ApplicationsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $ProposalPrintBatchItemsTable,
+    List<ProposalPrintBatchItem>
+  >
+  _proposalPrintBatchItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.proposalPrintBatchItems,
+        aliasName:
+            'applications__id__proposal_print_batch_items__application_id',
+      );
+
+  $$ProposalPrintBatchItemsTableProcessedTableManager
+  get proposalPrintBatchItemsRefs {
+    final manager = $$ProposalPrintBatchItemsTableTableManager(
+      $_db,
+      $_db.proposalPrintBatchItems,
+    ).filter((f) => f.applicationId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _proposalPrintBatchItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ApplicationsTableFilterComposer
@@ -10776,6 +12120,32 @@ class $$ApplicationsTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> proposalPrintBatchItemsRefs(
+    Expression<bool> Function($$ProposalPrintBatchItemsTableFilterComposer f) f,
+  ) {
+    final $$ProposalPrintBatchItemsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.proposalPrintBatchItems,
+          getReferencedColumn: (t) => t.applicationId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchItemsTableFilterComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatchItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -11223,6 +12593,33 @@ class $$ApplicationsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> proposalPrintBatchItemsRefs<T extends Object>(
+    Expression<T> Function($$ProposalPrintBatchItemsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$ProposalPrintBatchItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.proposalPrintBatchItems,
+          getReferencedColumn: (t) => t.applicationId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatchItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ApplicationsTableTableManager
@@ -11247,6 +12644,7 @@ class $$ApplicationsTableTableManager
             bool expensesRefs,
             bool documentsRefs,
             bool tasksRefs,
+            bool proposalPrintBatchItemsRefs,
           })
         > {
   $$ApplicationsTableTableManager(_$AppDatabase db, $ApplicationsTable table)
@@ -11374,6 +12772,7 @@ class $$ApplicationsTableTableManager
                 expensesRefs = false,
                 documentsRefs = false,
                 tasksRefs = false,
+                proposalPrintBatchItemsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -11383,6 +12782,7 @@ class $$ApplicationsTableTableManager
                     if (expensesRefs) db.expenses,
                     if (documentsRefs) db.documents,
                     if (tasksRefs) db.tasks,
+                    if (proposalPrintBatchItemsRefs) db.proposalPrintBatchItems,
                   ],
                   addJoins:
                       <
@@ -11555,6 +12955,27 @@ class $$ApplicationsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (proposalPrintBatchItemsRefs)
+                        await $_getPrefetchedData<
+                          Application,
+                          $ApplicationsTable,
+                          ProposalPrintBatchItem
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ApplicationsTableReferences
+                              ._proposalPrintBatchItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ApplicationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).proposalPrintBatchItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.applicationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -11584,6 +13005,7 @@ typedef $$ApplicationsTableProcessedTableManager =
         bool expensesRefs,
         bool documentsRefs,
         bool tasksRefs,
+        bool proposalPrintBatchItemsRefs,
       })
     >;
 typedef $$StatusHistoryTableCreateCompanionBuilder =
@@ -11671,6 +13093,35 @@ final class $$StatusHistoryTableReferences
     );
 
     final cache = $_typedResult.readTableOrNull(_expensesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ProposalPrintBatchItemsTable,
+    List<ProposalPrintBatchItem>
+  >
+  _proposalPrintBatchItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.proposalPrintBatchItems,
+        aliasName:
+            'status_history__id__proposal_print_batch_items__status_history_id',
+      );
+
+  $$ProposalPrintBatchItemsTableProcessedTableManager
+  get proposalPrintBatchItemsRefs {
+    final manager =
+        $$ProposalPrintBatchItemsTableTableManager(
+          $_db,
+          $_db.proposalPrintBatchItems,
+        ).filter(
+          (f) => f.statusHistoryId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _proposalPrintBatchItemsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -11796,6 +13247,32 @@ class $$StatusHistoryTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> proposalPrintBatchItemsRefs(
+    Expression<bool> Function($$ProposalPrintBatchItemsTableFilterComposer f) f,
+  ) {
+    final $$ProposalPrintBatchItemsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.proposalPrintBatchItems,
+          getReferencedColumn: (t) => t.statusHistoryId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchItemsTableFilterComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatchItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -11980,6 +13457,33 @@ class $$StatusHistoryTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> proposalPrintBatchItemsRefs<T extends Object>(
+    Expression<T> Function($$ProposalPrintBatchItemsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$ProposalPrintBatchItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.proposalPrintBatchItems,
+          getReferencedColumn: (t) => t.statusHistoryId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatchItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$StatusHistoryTableTableManager
@@ -11999,6 +13503,7 @@ class $$StatusHistoryTableTableManager
             bool applicationId,
             bool paymentsRefs,
             bool expensesRefs,
+            bool proposalPrintBatchItemsRefs,
           })
         > {
   $$StatusHistoryTableTableManager(_$AppDatabase db, $StatusHistoryTable table)
@@ -12073,12 +13578,14 @@ class $$StatusHistoryTableTableManager
                 applicationId = false,
                 paymentsRefs = false,
                 expensesRefs = false,
+                proposalPrintBatchItemsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (paymentsRefs) db.payments,
                     if (expensesRefs) db.expenses,
+                    if (proposalPrintBatchItemsRefs) db.proposalPrintBatchItems,
                   ],
                   addJoins:
                       <
@@ -12158,6 +13665,27 @@ class $$StatusHistoryTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (proposalPrintBatchItemsRefs)
+                        await $_getPrefetchedData<
+                          StatusHistoryData,
+                          $StatusHistoryTable,
+                          ProposalPrintBatchItem
+                        >(
+                          currentTable: table,
+                          referencedTable: $$StatusHistoryTableReferences
+                              ._proposalPrintBatchItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$StatusHistoryTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).proposalPrintBatchItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.statusHistoryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -12182,6 +13710,7 @@ typedef $$StatusHistoryTableProcessedTableManager =
         bool applicationId,
         bool paymentsRefs,
         bool expensesRefs,
+        bool proposalPrintBatchItemsRefs,
       })
     >;
 typedef $$PaymentsTableCreateCompanionBuilder =
@@ -15350,6 +16879,1052 @@ typedef $$ShopSettingsTableProcessedTableManager =
       ShopSetting,
       PrefetchHooks Function()
     >;
+typedef $$ProposalPrintBatchesTableCreateCompanionBuilder =
+    ProposalPrintBatchesCompanion Function({
+      required String id,
+      Value<String?> title,
+      Value<String?> officeFilter,
+      required int printedAt,
+      required int itemCount,
+      Value<String?> note,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$ProposalPrintBatchesTableUpdateCompanionBuilder =
+    ProposalPrintBatchesCompanion Function({
+      Value<String> id,
+      Value<String?> title,
+      Value<String?> officeFilter,
+      Value<int> printedAt,
+      Value<int> itemCount,
+      Value<String?> note,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$ProposalPrintBatchesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ProposalPrintBatchesTable,
+          ProposalPrintBatch
+        > {
+  $$ProposalPrintBatchesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $ProposalPrintBatchItemsTable,
+    List<ProposalPrintBatchItem>
+  >
+  _proposalPrintBatchItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.proposalPrintBatchItems,
+        aliasName:
+            'proposal_print_batches__id__proposal_print_batch_items__batch_id',
+      );
+
+  $$ProposalPrintBatchItemsTableProcessedTableManager
+  get proposalPrintBatchItemsRefs {
+    final manager = $$ProposalPrintBatchItemsTableTableManager(
+      $_db,
+      $_db.proposalPrintBatchItems,
+    ).filter((f) => f.batchId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _proposalPrintBatchItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ProposalPrintBatchesTableFilterComposer
+    extends Composer<_$AppDatabase, $ProposalPrintBatchesTable> {
+  $$ProposalPrintBatchesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get officeFilter => $composableBuilder(
+    column: $table.officeFilter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get printedAt => $composableBuilder(
+    column: $table.printedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get itemCount => $composableBuilder(
+    column: $table.itemCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> proposalPrintBatchItemsRefs(
+    Expression<bool> Function($$ProposalPrintBatchItemsTableFilterComposer f) f,
+  ) {
+    final $$ProposalPrintBatchItemsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.proposalPrintBatchItems,
+          getReferencedColumn: (t) => t.batchId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchItemsTableFilterComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatchItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ProposalPrintBatchesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProposalPrintBatchesTable> {
+  $$ProposalPrintBatchesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get officeFilter => $composableBuilder(
+    column: $table.officeFilter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get printedAt => $composableBuilder(
+    column: $table.printedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get itemCount => $composableBuilder(
+    column: $table.itemCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProposalPrintBatchesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProposalPrintBatchesTable> {
+  $$ProposalPrintBatchesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get officeFilter => $composableBuilder(
+    column: $table.officeFilter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get printedAt =>
+      $composableBuilder(column: $table.printedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get itemCount =>
+      $composableBuilder(column: $table.itemCount, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> proposalPrintBatchItemsRefs<T extends Object>(
+    Expression<T> Function($$ProposalPrintBatchItemsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$ProposalPrintBatchItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.proposalPrintBatchItems,
+          getReferencedColumn: (t) => t.batchId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatchItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ProposalPrintBatchesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProposalPrintBatchesTable,
+          ProposalPrintBatch,
+          $$ProposalPrintBatchesTableFilterComposer,
+          $$ProposalPrintBatchesTableOrderingComposer,
+          $$ProposalPrintBatchesTableAnnotationComposer,
+          $$ProposalPrintBatchesTableCreateCompanionBuilder,
+          $$ProposalPrintBatchesTableUpdateCompanionBuilder,
+          (ProposalPrintBatch, $$ProposalPrintBatchesTableReferences),
+          ProposalPrintBatch,
+          PrefetchHooks Function({bool proposalPrintBatchItemsRefs})
+        > {
+  $$ProposalPrintBatchesTableTableManager(
+    _$AppDatabase db,
+    $ProposalPrintBatchesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProposalPrintBatchesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProposalPrintBatchesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ProposalPrintBatchesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String?> officeFilter = const Value.absent(),
+                Value<int> printedAt = const Value.absent(),
+                Value<int> itemCount = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProposalPrintBatchesCompanion(
+                id: id,
+                title: title,
+                officeFilter: officeFilter,
+                printedAt: printedAt,
+                itemCount: itemCount,
+                note: note,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> title = const Value.absent(),
+                Value<String?> officeFilter = const Value.absent(),
+                required int printedAt,
+                required int itemCount,
+                Value<String?> note = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProposalPrintBatchesCompanion.insert(
+                id: id,
+                title: title,
+                officeFilter: officeFilter,
+                printedAt: printedAt,
+                itemCount: itemCount,
+                note: note,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ProposalPrintBatchesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({proposalPrintBatchItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (proposalPrintBatchItemsRefs) db.proposalPrintBatchItems,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (proposalPrintBatchItemsRefs)
+                    await $_getPrefetchedData<
+                      ProposalPrintBatch,
+                      $ProposalPrintBatchesTable,
+                      ProposalPrintBatchItem
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ProposalPrintBatchesTableReferences
+                          ._proposalPrintBatchItemsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ProposalPrintBatchesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).proposalPrintBatchItemsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.batchId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ProposalPrintBatchesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProposalPrintBatchesTable,
+      ProposalPrintBatch,
+      $$ProposalPrintBatchesTableFilterComposer,
+      $$ProposalPrintBatchesTableOrderingComposer,
+      $$ProposalPrintBatchesTableAnnotationComposer,
+      $$ProposalPrintBatchesTableCreateCompanionBuilder,
+      $$ProposalPrintBatchesTableUpdateCompanionBuilder,
+      (ProposalPrintBatch, $$ProposalPrintBatchesTableReferences),
+      ProposalPrintBatch,
+      PrefetchHooks Function({bool proposalPrintBatchItemsRefs})
+    >;
+typedef $$ProposalPrintBatchItemsTableCreateCompanionBuilder =
+    ProposalPrintBatchItemsCompanion Function({
+      required String id,
+      required String batchId,
+      required String applicationId,
+      Value<String?> statusHistoryId,
+      required String applicantNameSnapshot,
+      Value<String?> caseNumberSnapshot,
+      Value<String?> officeNameSnapshot,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$ProposalPrintBatchItemsTableUpdateCompanionBuilder =
+    ProposalPrintBatchItemsCompanion Function({
+      Value<String> id,
+      Value<String> batchId,
+      Value<String> applicationId,
+      Value<String?> statusHistoryId,
+      Value<String> applicantNameSnapshot,
+      Value<String?> caseNumberSnapshot,
+      Value<String?> officeNameSnapshot,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$ProposalPrintBatchItemsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ProposalPrintBatchItemsTable,
+          ProposalPrintBatchItem
+        > {
+  $$ProposalPrintBatchItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ProposalPrintBatchesTable _batchIdTable(_$AppDatabase db) =>
+      db.proposalPrintBatches.createAlias(
+        'proposal_print_batch_items__batch_id__proposal_print_batches__id',
+      );
+
+  $$ProposalPrintBatchesTableProcessedTableManager get batchId {
+    final $_column = $_itemColumn<String>('batch_id')!;
+
+    final manager = $$ProposalPrintBatchesTableTableManager(
+      $_db,
+      $_db.proposalPrintBatches,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_batchIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ApplicationsTable _applicationIdTable(_$AppDatabase db) =>
+      db.applications.createAlias(
+        'proposal_print_batch_items__application_id__applications__id',
+      );
+
+  $$ApplicationsTableProcessedTableManager get applicationId {
+    final $_column = $_itemColumn<String>('application_id')!;
+
+    final manager = $$ApplicationsTableTableManager(
+      $_db,
+      $_db.applications,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_applicationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $StatusHistoryTable _statusHistoryIdTable(_$AppDatabase db) =>
+      db.statusHistory.createAlias(
+        'proposal_print_batch_items__status_history_id__status_history__id',
+      );
+
+  $$StatusHistoryTableProcessedTableManager? get statusHistoryId {
+    final $_column = $_itemColumn<String>('status_history_id');
+    if ($_column == null) return null;
+    final manager = $$StatusHistoryTableTableManager(
+      $_db,
+      $_db.statusHistory,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_statusHistoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ProposalPrintBatchItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $ProposalPrintBatchItemsTable> {
+  $$ProposalPrintBatchItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get applicantNameSnapshot => $composableBuilder(
+    column: $table.applicantNameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get caseNumberSnapshot => $composableBuilder(
+    column: $table.caseNumberSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get officeNameSnapshot => $composableBuilder(
+    column: $table.officeNameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ProposalPrintBatchesTableFilterComposer get batchId {
+    final $$ProposalPrintBatchesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.batchId,
+      referencedTable: $db.proposalPrintBatches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProposalPrintBatchesTableFilterComposer(
+            $db: $db,
+            $table: $db.proposalPrintBatches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ApplicationsTableFilterComposer get applicationId {
+    final $$ApplicationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.applicationId,
+      referencedTable: $db.applications,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ApplicationsTableFilterComposer(
+            $db: $db,
+            $table: $db.applications,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$StatusHistoryTableFilterComposer get statusHistoryId {
+    final $$StatusHistoryTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.statusHistoryId,
+      referencedTable: $db.statusHistory,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StatusHistoryTableFilterComposer(
+            $db: $db,
+            $table: $db.statusHistory,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProposalPrintBatchItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProposalPrintBatchItemsTable> {
+  $$ProposalPrintBatchItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get applicantNameSnapshot => $composableBuilder(
+    column: $table.applicantNameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get caseNumberSnapshot => $composableBuilder(
+    column: $table.caseNumberSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get officeNameSnapshot => $composableBuilder(
+    column: $table.officeNameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ProposalPrintBatchesTableOrderingComposer get batchId {
+    final $$ProposalPrintBatchesTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.batchId,
+          referencedTable: $db.proposalPrintBatches,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchesTableOrderingComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatches,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$ApplicationsTableOrderingComposer get applicationId {
+    final $$ApplicationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.applicationId,
+      referencedTable: $db.applications,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ApplicationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.applications,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$StatusHistoryTableOrderingComposer get statusHistoryId {
+    final $$StatusHistoryTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.statusHistoryId,
+      referencedTable: $db.statusHistory,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StatusHistoryTableOrderingComposer(
+            $db: $db,
+            $table: $db.statusHistory,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProposalPrintBatchItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProposalPrintBatchItemsTable> {
+  $$ProposalPrintBatchItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get applicantNameSnapshot => $composableBuilder(
+    column: $table.applicantNameSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get caseNumberSnapshot => $composableBuilder(
+    column: $table.caseNumberSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get officeNameSnapshot => $composableBuilder(
+    column: $table.officeNameSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$ProposalPrintBatchesTableAnnotationComposer get batchId {
+    final $$ProposalPrintBatchesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.batchId,
+          referencedTable: $db.proposalPrintBatches,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ProposalPrintBatchesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.proposalPrintBatches,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$ApplicationsTableAnnotationComposer get applicationId {
+    final $$ApplicationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.applicationId,
+      referencedTable: $db.applications,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ApplicationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.applications,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$StatusHistoryTableAnnotationComposer get statusHistoryId {
+    final $$StatusHistoryTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.statusHistoryId,
+      referencedTable: $db.statusHistory,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StatusHistoryTableAnnotationComposer(
+            $db: $db,
+            $table: $db.statusHistory,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProposalPrintBatchItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProposalPrintBatchItemsTable,
+          ProposalPrintBatchItem,
+          $$ProposalPrintBatchItemsTableFilterComposer,
+          $$ProposalPrintBatchItemsTableOrderingComposer,
+          $$ProposalPrintBatchItemsTableAnnotationComposer,
+          $$ProposalPrintBatchItemsTableCreateCompanionBuilder,
+          $$ProposalPrintBatchItemsTableUpdateCompanionBuilder,
+          (ProposalPrintBatchItem, $$ProposalPrintBatchItemsTableReferences),
+          ProposalPrintBatchItem,
+          PrefetchHooks Function({
+            bool batchId,
+            bool applicationId,
+            bool statusHistoryId,
+          })
+        > {
+  $$ProposalPrintBatchItemsTableTableManager(
+    _$AppDatabase db,
+    $ProposalPrintBatchItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProposalPrintBatchItemsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ProposalPrintBatchItemsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ProposalPrintBatchItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> batchId = const Value.absent(),
+                Value<String> applicationId = const Value.absent(),
+                Value<String?> statusHistoryId = const Value.absent(),
+                Value<String> applicantNameSnapshot = const Value.absent(),
+                Value<String?> caseNumberSnapshot = const Value.absent(),
+                Value<String?> officeNameSnapshot = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProposalPrintBatchItemsCompanion(
+                id: id,
+                batchId: batchId,
+                applicationId: applicationId,
+                statusHistoryId: statusHistoryId,
+                applicantNameSnapshot: applicantNameSnapshot,
+                caseNumberSnapshot: caseNumberSnapshot,
+                officeNameSnapshot: officeNameSnapshot,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String batchId,
+                required String applicationId,
+                Value<String?> statusHistoryId = const Value.absent(),
+                required String applicantNameSnapshot,
+                Value<String?> caseNumberSnapshot = const Value.absent(),
+                Value<String?> officeNameSnapshot = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProposalPrintBatchItemsCompanion.insert(
+                id: id,
+                batchId: batchId,
+                applicationId: applicationId,
+                statusHistoryId: statusHistoryId,
+                applicantNameSnapshot: applicantNameSnapshot,
+                caseNumberSnapshot: caseNumberSnapshot,
+                officeNameSnapshot: officeNameSnapshot,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ProposalPrintBatchItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                batchId = false,
+                applicationId = false,
+                statusHistoryId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (batchId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.batchId,
+                                    referencedTable:
+                                        $$ProposalPrintBatchItemsTableReferences
+                                            ._batchIdTable(db),
+                                    referencedColumn:
+                                        $$ProposalPrintBatchItemsTableReferences
+                                            ._batchIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (applicationId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.applicationId,
+                                    referencedTable:
+                                        $$ProposalPrintBatchItemsTableReferences
+                                            ._applicationIdTable(db),
+                                    referencedColumn:
+                                        $$ProposalPrintBatchItemsTableReferences
+                                            ._applicationIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (statusHistoryId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.statusHistoryId,
+                                    referencedTable:
+                                        $$ProposalPrintBatchItemsTableReferences
+                                            ._statusHistoryIdTable(db),
+                                    referencedColumn:
+                                        $$ProposalPrintBatchItemsTableReferences
+                                            ._statusHistoryIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ProposalPrintBatchItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProposalPrintBatchItemsTable,
+      ProposalPrintBatchItem,
+      $$ProposalPrintBatchItemsTableFilterComposer,
+      $$ProposalPrintBatchItemsTableOrderingComposer,
+      $$ProposalPrintBatchItemsTableAnnotationComposer,
+      $$ProposalPrintBatchItemsTableCreateCompanionBuilder,
+      $$ProposalPrintBatchItemsTableUpdateCompanionBuilder,
+      (ProposalPrintBatchItem, $$ProposalPrintBatchItemsTableReferences),
+      ProposalPrintBatchItem,
+      PrefetchHooks Function({
+        bool batchId,
+        bool applicationId,
+        bool statusHistoryId,
+      })
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -15382,4 +17957,11 @@ class $AppDatabaseManager {
       $$IncomeCategoriesTableTableManager(_db, _db.incomeCategories);
   $$ShopSettingsTableTableManager get shopSettings =>
       $$ShopSettingsTableTableManager(_db, _db.shopSettings);
+  $$ProposalPrintBatchesTableTableManager get proposalPrintBatches =>
+      $$ProposalPrintBatchesTableTableManager(_db, _db.proposalPrintBatches);
+  $$ProposalPrintBatchItemsTableTableManager get proposalPrintBatchItems =>
+      $$ProposalPrintBatchItemsTableTableManager(
+        _db,
+        _db.proposalPrintBatchItems,
+      );
 }

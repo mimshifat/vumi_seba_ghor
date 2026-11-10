@@ -89,7 +89,7 @@ void main() {
       expect(result.totalApplications, greaterThan(0));
       expect(result.totalPayments, greaterThan(0));
       expect(result.fileSizeBytes, greaterThan(0));
-      expect(result.schemaVersion, 1);
+      expect(result.schemaVersion, AppDatabase.currentSchemaVersion);
     });
 
     test('করাপ্ট বা নষ্ট ফাইলে isValid false হয় এবং সম্মানজনক বাংলা বার্তা দেয়', () async {

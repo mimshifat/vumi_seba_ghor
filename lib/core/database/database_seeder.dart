@@ -124,6 +124,8 @@ class DatabaseSeeder {
   /// সমস্ত ডেমো বা পরীক্ষামূলক ব্যবসায়িক ডেটা মুছে ফেলা (আবেদন, ব্যক্তি, রেফারেন্স, কাজ, লেনদেন)
   static Future<void> clearAllDemoData(AppDatabase db) async {
     await db.transaction(() async {
+      await db.delete(db.proposalPrintBatchItems).go();
+      await db.delete(db.proposalPrintBatches).go();
       await db.delete(db.documents).go();
       await db.delete(db.tasks).go();
       await db.delete(db.payments).go();

@@ -16,6 +16,8 @@ import 'tables/independent_incomes_table.dart';
 import 'tables/offices_table.dart';
 import 'tables/payments_table.dart';
 import 'tables/persons_table.dart';
+import 'tables/proposal_print_batch_items_table.dart';
+import 'tables/proposal_print_batches_table.dart';
 import 'tables/references_table.dart';
 import 'tables/shop_settings_table.dart';
 import 'tables/status_history_table.dart';
@@ -27,6 +29,7 @@ import 'daos/category_dao.dart';
 import 'daos/finance_dao.dart';
 import 'daos/office_dao.dart';
 import 'daos/person_dao.dart';
+import 'daos/proposal_print_dao.dart';
 import 'daos/reference_dao.dart';
 import 'daos/shop_settings_dao.dart';
 import 'daos/task_dao.dart';
@@ -36,6 +39,7 @@ export 'daos/category_dao.dart';
 export 'daos/finance_dao.dart';
 export 'daos/office_dao.dart';
 export 'daos/person_dao.dart';
+export 'daos/proposal_print_dao.dart';
 export 'daos/reference_dao.dart';
 export 'daos/shop_settings_dao.dart';
 export 'daos/task_dao.dart';
@@ -49,6 +53,8 @@ export 'tables/independent_incomes_table.dart';
 export 'tables/offices_table.dart';
 export 'tables/payments_table.dart';
 export 'tables/persons_table.dart';
+export 'tables/proposal_print_batch_items_table.dart';
+export 'tables/proposal_print_batches_table.dart';
 export 'tables/references_table.dart';
 export 'tables/shop_settings_table.dart';
 export 'tables/status_history_table.dart';
@@ -74,6 +80,8 @@ part 'app_database.g.dart';
     ExpenseCategories,
     IncomeCategories,
     ShopSettings,
+    ProposalPrintBatches,
+    ProposalPrintBatchItems,
   ],
   daos: [
     ApplicationDao,
@@ -84,6 +92,7 @@ part 'app_database.g.dart';
     OfficeDao,
     CategoryDao,
     ShopSettingsDao,
+    ProposalPrintDao,
   ],
   include: {
     'unified_transactions_view.drift',
@@ -167,7 +176,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// বর্তমান অ্যাপের ডেটাবেজ স্কিমা সংস্করণ
-  static const int currentSchemaVersion = 1;
+  static const int currentSchemaVersion = 2;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -178,21 +187,29 @@ class AppDatabase extends _$AppDatabase {
           await _createSchema(m);
         },
         onUpgrade: (Migrator m, int from, int to) async {
-          // Phase 1 হলো প্রথম স্কিমা সংস্করণ — তাই এখনো কোনো আপগ্রেড
-          // পথ নেই। স্কিমা সংস্করণ বাড়লে এখানে সংস্করণ-ভিত্তিক ধাপ যোগ
-          // করতে হবে (`if (from < 2) { ... }`)।
-          //
-          // ⚠️ ইচ্ছাকৃতভাবে কিছুই করা হচ্ছে না: `m.createAll()`-এর মতো
-          // অকৃত অপশন পুরো স্কিমা পুনরায় তৈরির চেষ্টা করলে ইনডেক্স ও
-          // ট্রিগার ইতিমধ্যে থাকায় "already exists" ত্রুটি হয়। সঠিক
-          // পদ্ধতি হলো প্রতিটি সংস্করণের জন্য আলাদা ধাপ লেখা, যেখানে
-          // প্রয়োজন হলে `m.addColumn()` / `m.alterTable()` / `m.create()`।
-          //
-          // কখনোই ব্যবহারকারীর ডেটা ধ্বংস করা হবে না।
+          if (from < 2) {
+            await m.createTable(proposalPrintBatches);
+            await m.createTable(proposalPrintBatchItems);
+            for (final index in allSchemaEntities.whereType<Index>()) {
+              if (index.entityName.contains('proposal_print_batch') ||
+                  index.entityName.contains('proposal_batch')) {
+                await m.create(index);
+              }
+            }
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
           await customStatement('PRAGMA journal_mode = WAL');
+          if (details.versionNow >= 2) {
+            await customStatement(
+              "CREATE UNIQUE INDEX IF NOT EXISTS "
+              "idx_proposal_batch_items_unique_active "
+              "ON proposal_print_batch_items "
+              "(application_id, COALESCE(status_history_id, '')) "
+              "WHERE deleted_at IS NULL",
+            );
+          }
         },
       );
 

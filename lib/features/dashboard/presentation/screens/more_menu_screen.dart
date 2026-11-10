@@ -3,6 +3,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/app_launcher.dart';
+import '../../../applications/presentation/screens/proposal_print_queue_screen.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
 import '../../../offices/presentation/screens/office_management_screen.dart';
 import '../../../persons/presentation/screens/person_list_screen.dart';
@@ -28,6 +29,19 @@ class MoreMenuScreen extends StatelessWidget {
           _buildMenuSection(
             title: 'দৈনিক ব্যবস্থাপনা ও খাতা',
             items: [
+              _MenuItem(
+                title: 'প্রস্তাব প্রেরণ PDF তালিকা',
+                subtitle: 'নতুন কেস নম্বর PDF প্রিন্ট ও পূর্বের ব্যাচ',
+                icon: Icons.picture_as_pdf_outlined,
+                color: AppColors.rose,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => const ProposalPrintQueueScreen(),
+                    ),
+                  );
+                },
+              ),
               _MenuItem(
                 title: 'করণীয় কাজ ও শিডিউল',
                 subtitle: 'দৈনিক শিডিউল, শুনানি ও কাজের রিমাইন্ডার',

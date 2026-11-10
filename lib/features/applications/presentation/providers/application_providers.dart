@@ -10,6 +10,7 @@ import '../../../../core/widgets/filter_bottom_sheet.dart';
 import '../../../finance/presentation/providers/finance_providers.dart';
 import '../../../tasks/presentation/providers/task_providers.dart';
 import '../../domain/models/application_with_financials.dart';
+import 'proposal_print_providers.dart';
 
 /// আবেদনের সার্চ ও ফিল্টারিং স্টেট (Search & Filter Criteria State)
 class ApplicationFilterState {
@@ -316,6 +317,8 @@ class ApplicationController extends MutationController {
       _ref.invalidate(financialOverviewProvider);
       _ref.invalidate(todayFinancialSnapshotProvider);
       _ref.invalidate(thisMonthFinancialSnapshotProvider);
+      _ref.invalidate(pendingProposalCandidatesStreamProvider);
+      _ref.invalidate(printedProposalBatchesStreamProvider);
     }
   }
 

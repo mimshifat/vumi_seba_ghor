@@ -12,8 +12,10 @@ import '../../../../core/widgets/filter_bottom_sheet.dart';
 import '../../../offices/presentation/providers/office_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../providers/application_providers.dart';
+import '../providers/proposal_print_providers.dart';
 import '../widgets/application_card.dart';
 import 'application_create_screen.dart';
+import 'proposal_print_queue_screen.dart';
 
 class ApplicationListScreen extends ConsumerStatefulWidget {
   final String? initialStatusFilter;
@@ -100,12 +102,59 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
     final dueCount = allApps.where((a) => a.effectiveDue.isPositive).length;
     final completedCount =
         allApps.where((a) => a.application.status == 'সম্পন্ন').length;
+    final pendingProposalCount =
+        ref.watch(pendingProposalCandidatesStreamProvider).valueOrNull?.length ??
+            0;
+    final isProposalFilterActive =
+        filterState.quickFilterKey == 'প্রস্তাব প্রেরণ' ||
+            filterState.selectedStatus == 'প্রস্তাব প্রেরণ';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('সকল আবেদন ও ফাইল'),
         actions: [
+          IconButton(
+            tooltip: 'প্রস্তাব প্রেরণ PDF তালিকা',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                    builder: (ctx) => const ProposalPrintQueueScreen()),
+              );
+            },
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color: AppColors.primary,
+                ),
+                if (pendingProposalCount > 0)
+                  Positioned(
+                    right: -5,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.rose,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        BengaliDigits.toBengali(pendingProposalCount),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
             tooltip: 'নতুন আবেদন',
@@ -277,6 +326,62 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
                       'রিসেট',
                       style: AppTypography.bodySmall.copyWith(
                           color: AppColors.rose, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // প্রস্তাব প্রেরণ স্ট্যাটাস সিলেক্ট করা থাকলে PDF প্রিন্ট ব্যানার
+          if (isProposalFilterActive)
+            Container(
+              margin: const EdgeInsets.fromLTRB(
+                AppSpacing.base,
+                AppSpacing.sm,
+                AppSpacing.base,
+                0,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primarySurface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.picture_as_pdf_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      pendingProposalCount > 0
+                          ? 'প্রিন্ট বাকি আছে: নতুন ${BengaliDigits.toBengali(pendingProposalCount)} টি কেস'
+                          : 'প্রস্তাব প্রেরণের সব কেস আগে প্রিন্ট করা হয়েছে',
+                      style: AppTypography.bodySmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (ctx) => const ProposalPrintQueueScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'PDF প্রিন্ট',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
