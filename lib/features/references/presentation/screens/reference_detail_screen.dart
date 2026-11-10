@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -12,7 +10,10 @@ import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/phone_input_formatter.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_field_label.dart';
+import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
@@ -38,6 +39,8 @@ class ReferenceDetailScreen extends ConsumerStatefulWidget {
 
 class _ReferenceDetailScreenState
     extends ConsumerState<ReferenceDetailScreen> {
+  bool _isUpdatingPhoto = false;
+
   String get _referenceId {
     if (widget.referenceId != null) return widget.referenceId!;
     if (widget.reference is Reference) return (widget.reference as Reference).id;
@@ -55,6 +58,9 @@ class _ReferenceDetailScreenState
     final notesController = TextEditingController(text: current.notes ?? '');
     Uint8List? selectedPhoto = current.photo;
     bool photoChanged = false;
+    var isPickingPhoto = false;
+    var isSaving = false;
+    String? inlineError;
 
     showModalBottomSheet(
       context: context,
@@ -64,7 +70,26 @@ class _ReferenceDetailScreenState
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
+        builder: (ctx, setModalState) {
+          Future<void> pickPhoto() async {
+            if (isPickingPhoto) return;
+            isPickingPhoto = true;
+            try {
+              final picked = await AttachmentPickerSheet.pickImage(
+                ctx,
+                title: 'রেফারেন্স ব্যক্তির ছবি নির্বাচন করুন',
+              );
+              if (picked == null || !ctx.mounted) return;
+              setModalState(() {
+                selectedPhoto = picked.bytes;
+                photoChanged = true;
+              });
+            } finally {
+              isPickingPhoto = false;
+            }
+          }
+
+          return Padding(
           padding: EdgeInsets.only(
             left: AppSpacing.base,
             right: AppSpacing.base,
@@ -97,25 +122,7 @@ class _ReferenceDetailScreenState
                   child: Stack(
                     children: [
                       GestureDetector(
-                        onTap: () async {
-                          final result = await FilePicker.platform.pickFiles(
-                            type: FileType.image,
-                            withData: true,
-                          );
-                          if (result != null && result.files.isNotEmpty) {
-                            final f = result.files.first;
-                            Uint8List? bytes = f.bytes;
-                            if (bytes == null && f.path != null) {
-                              bytes = await File(f.path!).readAsBytes();
-                            }
-                            if (bytes != null) {
-                              setModalState(() {
-                                selectedPhoto = bytes;
-                                photoChanged = true;
-                              });
-                            }
-                          }
-                        },
+                        onTap: pickPhoto,
                         child: Container(
                           width: 76,
                           height: 76,
@@ -131,7 +138,15 @@ class _ReferenceDetailScreenState
                                     selectedPhoto!,
                                     width: 76,
                                     height: 76,
+                                    cacheWidth: 256,
                                     fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Center(
+                                      child: Icon(
+                                        Icons.handshake_outlined,
+                                        color: Color(0xFFD97706),
+                                        size: 36,
+                                      ),
+                                    ),
                                   ),
                                 )
                               : const Center(
@@ -147,31 +162,14 @@ class _ReferenceDetailScreenState
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
-                          onTap: () async {
+                          onTap: () {
                             if (selectedPhoto != null) {
                               setModalState(() {
                                 selectedPhoto = null;
                                 photoChanged = true;
                               });
                             } else {
-                              final result =
-                                  await FilePicker.platform.pickFiles(
-                                type: FileType.image,
-                                withData: true,
-                              );
-                              if (result != null && result.files.isNotEmpty) {
-                                final f = result.files.first;
-                                Uint8List? bytes = f.bytes;
-                                if (bytes == null && f.path != null) {
-                                  bytes = await File(f.path!).readAsBytes();
-                                }
-                                if (bytes != null) {
-                                  setModalState(() {
-                                    selectedPhoto = bytes;
-                                    photoChanged = true;
-                                  });
-                                }
-                              }
+                              pickPhoto();
                             }
                           },
                           child: Container(
@@ -219,6 +217,7 @@ class _ReferenceDetailScreenState
                 TextField(
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [BdPhoneInputFormatter()],
                   decoration: const InputDecoration(
                     label: AppFieldLabel.inline(
                         label: 'মোবাইল নম্বর', isRequired: true),
@@ -242,12 +241,43 @@ class _ReferenceDetailScreenState
                     hintText: 'পরিচিতি বা কাজের বিবরণ',
                   ),
                 ),
+                if (inlineError != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.roseSurface,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      border: Border.all(color: AppColors.roseLight),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 16, color: AppColors.roseDark),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            inlineError!,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.roseDark,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xl),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
+                        onPressed: isSaving ? null : () => Navigator.pop(ctx),
                         child: const Text('বাতিল'),
                       ),
                     ),
@@ -258,51 +288,96 @@ class _ReferenceDetailScreenState
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () async {
-                          final newName = nameController.text.trim();
-                          final newPhone = phoneController.text.trim();
-                          if (newName.isEmpty || newPhone.isEmpty) return;
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                final newName = nameController.text.trim();
+                                final newPhone = phoneController.text.trim();
+                                if (newName.isEmpty || newPhone.isEmpty) {
+                                  setModalState(() {
+                                    inlineError = 'নাম এবং মোবাইল নম্বর আবশ্যক।';
+                                  });
+                                  return;
+                                }
+                                final phoneErr = AppValidators.validatePhone(newPhone);
+                                if (phoneErr != null) {
+                                  setModalState(() {
+                                    inlineError = phoneErr;
+                                  });
+                                  return;
+                                }
 
-                          try {
-                            await ref
-                                .read(referenceControllerProvider.notifier)
-                                .updateReference(
-                                  id: _referenceId,
-                                  name: newName,
-                                  phone: newPhone,
-                                  address:
-                                      addressController.text.trim().isNotEmpty
-                                          ? addressController.text.trim()
-                                          : null,
-                                  photo: selectedPhoto,
-                                  updatePhoto: photoChanged,
-                                  notes: notesController.text.trim().isNotEmpty
-                                      ? notesController.text.trim()
-                                      : null,
-                                );
+                                setModalState(() {
+                                  isSaving = true;
+                                  inlineError = null;
+                                });
 
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx);
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('রেফারেন্স তথ্য আপডেট করা হয়েছে'),
-                                backgroundColor: AppColors.emerald,
-                              ),
-                            );
-                          } catch (e) {
-                            if (!mounted) return;
-                            final msg = e is AppFailure
-                                ? e.message
-                                : 'রেফারেন্স আপডেট করা যায়নি।';
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(msg),
-                                  backgroundColor: AppColors.rose),
-                            );
-                          }
-                        },
-                        child: const Text('সংরক্ষণ করুন'),
+                                try {
+                                  await ref
+                                      .read(referenceControllerProvider.notifier)
+                                      .updateReference(
+                                        id: _referenceId,
+                                        name: newName,
+                                        phone: newPhone,
+                                        address: addressController.text
+                                                .trim()
+                                                .isNotEmpty
+                                            ? addressController.text.trim()
+                                            : null,
+                                        photo: selectedPhoto,
+                                        updatePhoto: photoChanged,
+                                        notes: notesController.text
+                                                .trim()
+                                                .isNotEmpty
+                                            ? notesController.text.trim()
+                                            : null,
+                                      );
+
+                                  if (!ctx.mounted) return;
+                                  final ctrlState =
+                                      ref.read(referenceControllerProvider);
+                                  if (ctrlState.hasError) {
+                                    final failure = ctrlState.error;
+                                    final msg = failure is AppFailure
+                                        ? failure.message
+                                        : 'রেফারেন্স আপডেট করা যায়নি।';
+                                    setModalState(() {
+                                      isSaving = false;
+                                      inlineError = msg;
+                                    });
+                                    return;
+                                  }
+
+                                  Navigator.pop(ctx);
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('রেফারেন্স তথ্য আপডেট করা হয়েছে'),
+                                      backgroundColor: AppColors.emerald,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  final msg = e is AppFailure
+                                      ? e.message
+                                      : 'রেফারেন্স আপডেট করা যায়নি।';
+                                  if (ctx.mounted) {
+                                    setModalState(() {
+                                      isSaving = false;
+                                      inlineError = msg;
+                                    });
+                                  }
+                                }
+                              },
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('সংরক্ষণ করুন'),
                       ),
                     ),
                   ],
@@ -310,7 +385,8 @@ class _ReferenceDetailScreenState
               ],
             ),
           ),
-        ),
+        );
+        },
       ),
     );
   }
@@ -685,7 +761,15 @@ class _ReferenceDetailScreenState
                       photo,
                       width: 68,
                       height: 68,
+                      cacheWidth: 256,
                       fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(
+                          Icons.handshake_outlined,
+                          color: Color(0xFFD97706),
+                          size: 34,
+                        ),
+                      ),
                     ),
                   )
                 : const Center(
@@ -772,43 +856,49 @@ class _ReferenceDetailScreenState
     String? address,
     String? notes,
   }) async {
+    if (_isUpdatingPhoto) return;
+    _isUpdatingPhoto = true;
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        withData: true,
-        dialogTitle: 'রেফারেন্সের প্রোফাইল ছবি নির্বাচন করুন',
+      final picked = await AttachmentPickerSheet.pickImage(
+        context,
+        title: 'রেফারেন্সের প্রোফাইল ছবি নির্বাচন করুন',
       );
-      if (result != null && result.files.isNotEmpty) {
-        final f = result.files.first;
-        Uint8List? bytes = f.bytes;
-        if (bytes == null && f.path != null) {
-          bytes = await File(f.path!).readAsBytes();
-        }
-        if (bytes != null) {
-          await ref.read(referenceControllerProvider.notifier).updateReference(
-                id: _referenceId,
-                name: name,
-                phone: phone,
-                address: address,
-                photo: bytes,
-                updatePhoto: true,
-                notes: notes,
-              );
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('প্রোফাইল ছবি সফলভাবে আপডেট হয়েছে।'),
-              backgroundColor: AppColors.emerald,
-            ),
+      if (picked == null || !mounted) return;
+
+      await ref.read(referenceControllerProvider.notifier).updateReference(
+            id: _referenceId,
+            name: name,
+            phone: phone,
+            address: address,
+            photo: picked.bytes,
+            updatePhoto: true,
+            notes: notes,
           );
-        }
+      if (!mounted) return;
+      final ctrlState = ref.read(referenceControllerProvider);
+      if (ctrlState.hasError) {
+        final failure = ctrlState.error;
+        final errMsg =
+            failure is AppFailure ? failure.message : 'ছবি আপডেট করা যায়নি।';
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(errMsg), backgroundColor: AppColors.rose),
+        );
+        return;
       }
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('প্রোফাইল ছবি সফলভাবে আপডেট হয়েছে।'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       final msg = e is AppFailure ? e.message : 'ছবি আপডেট করা যায়নি।';
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
       );
+    } finally {
+      _isUpdatingPhoto = false;
     }
   }
 

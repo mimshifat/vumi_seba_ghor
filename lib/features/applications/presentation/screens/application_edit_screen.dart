@@ -8,6 +8,7 @@ import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/phone_input_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
@@ -203,6 +204,7 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                   readOnly: true,
                   isRequired: true,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [BdPhoneInputFormatter()],
                   helperText: 'মূল গ্রাহকের নম্বর অপরিবর্তনীয়; পোর্টাল নম্বর নিচে বদলাতে পারবেন',
                   validator: (v) => v == null || v.trim().isEmpty ? 'মোবাইল নম্বর আবশ্যক' : null,
                 ),
@@ -329,6 +331,7 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                     hint: 'আবেদনে ব্যবহৃত আলাদা মোবাইল নম্বর',
                     controller: _portalPhoneController,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [BdPhoneInputFormatter()],
                     prefixIcon: const Icon(Icons.sim_card_outlined, size: 18, color: AppColors.slate400),
                     validator: (val) {
                       if (_useSamePhoneForPortal || val == null || val.trim().isEmpty) {

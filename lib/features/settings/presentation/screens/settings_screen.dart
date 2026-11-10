@@ -8,6 +8,8 @@ import '../../../../core/database/database_seeder.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/app_launcher.dart';
+import '../../../../core/utils/phone_input_formatter.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
@@ -92,6 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 TextField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [BdPhoneInputFormatter()],
                   decoration: const InputDecoration(
                     label: AppFieldLabel.inline(label: 'মোবাইল নম্বর', isRequired: true),
                     prefixIcon: Icon(Icons.phone_outlined, size: 20),
@@ -131,18 +134,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           final address = addressCtrl.text.trim();
 
                           if (name.isEmpty) return;
+                          final phoneErr = AppValidators.validatePhone(phone);
+                          if (phoneErr != null) {
+                            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                              SnackBar(
+                                content: Text(phoneErr),
+                                backgroundColor: AppColors.rose,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          final cleanPhone = AppValidators.standardizePhone(phone);
 
                           try {
                             final ctrl = ref.read(shopSettingsControllerProvider.notifier);
                             await ctrl.setSetting('shop_name', name);
                             await ctrl.setSetting('proprietor_name', owner);
-                            await ctrl.setSetting('shop_phone', phone);
+                            await ctrl.setSetting('shop_phone', cleanPhone);
                             await ctrl.setSetting('shop_address', address);
 
                             // Sync DemoStore as memory fallback
                             DemoStore.shopName = name;
                             DemoStore.proprietorName = owner;
-                            DemoStore.shopPhone = phone;
+                            DemoStore.shopPhone = cleanPhone;
                             DemoStore.shopAddress = address;
 
                             if (!ctx.mounted) return;

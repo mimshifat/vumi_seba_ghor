@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
 import 'app_field_label.dart';
@@ -9,6 +10,8 @@ class AppTextField extends StatelessWidget {
   final String? initialValue;
   final TextEditingController? controller;
   final TextInputType keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
   final int maxLines;
   final bool readOnly;
   final bool obscureText;
@@ -27,6 +30,8 @@ class AppTextField extends StatelessWidget {
     this.initialValue,
     this.controller,
     this.keyboardType = TextInputType.text,
+    this.inputFormatters,
+    this.maxLength,
     this.maxLines = 1,
     this.readOnly = false,
     this.obscureText = false,
@@ -53,6 +58,8 @@ class AppTextField extends StatelessWidget {
           controller: controller,
           initialValue: initialValue,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          maxLength: maxLength,
           maxLines: obscureText ? 1 : maxLines,
           readOnly: readOnly,
           obscureText: obscureText,

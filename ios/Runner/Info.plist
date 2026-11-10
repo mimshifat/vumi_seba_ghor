@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>আবেদনের ডকুমেন্ট বা দলিলের ছবি সরাসরি ক্যামেরা দিয়ে তোলার জন্য ক্যামেরা ব্যবহারের অনুমতি প্রয়োজন।</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>আবেদনের ডকুমেন্ট বা দলিলের ছবি গ্যালারি থেকে সংযুক্ত করার জন্য ফটো লাইব্রেরির অনুমতি প্রয়োজন।</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

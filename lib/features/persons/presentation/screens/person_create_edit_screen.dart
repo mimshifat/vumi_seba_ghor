@@ -5,6 +5,8 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/utils/phone_input_formatter.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../providers/person_providers.dart';
@@ -181,9 +183,8 @@ class _PersonCreateEditScreenState
                     controller: _phoneController,
                     isRequired: true,
                     keyboardType: TextInputType.phone,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'মোবাইল নম্বর আবশ্যক'
-                        : null,
+                    inputFormatters: [BdPhoneInputFormatter()],
+                    validator: AppValidators.validatePhone,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AppTextField(

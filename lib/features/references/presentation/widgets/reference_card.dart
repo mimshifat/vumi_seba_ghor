@@ -236,7 +236,15 @@ class ReferenceCard extends ConsumerWidget {
             photo,
             width: 46,
             height: 46,
+            cacheWidth: 184,
             fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const Center(
+              child: Icon(
+                Icons.handshake_outlined,
+                color: Color(0xFFD97706),
+                size: 22,
+              ),
+            ),
           ),
         ),
       );

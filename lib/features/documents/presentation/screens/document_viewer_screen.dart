@@ -126,6 +126,22 @@ class DocumentViewerScreen extends StatelessWidget {
                           child: Image.memory(
                             document.fileData!,
                             fit: BoxFit.contain,
+                            cacheWidth: 1920,
+                            errorBuilder: (_, __, ___) => const Padding(
+                              padding: EdgeInsets.all(AppSpacing.xl),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.broken_image_outlined,
+                                    size: 56,
+                                    color: AppColors.slate400,
+                                  ),
+                                  SizedBox(height: AppSpacing.sm),
+                                  Text('ছবিটি প্রদর্শন করা যায়নি।'),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       )

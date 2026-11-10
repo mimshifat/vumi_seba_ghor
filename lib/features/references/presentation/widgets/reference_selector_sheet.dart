@@ -1,11 +1,17 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/phone_input_formatter.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_field_label.dart';
+import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../providers/reference_providers.dart';
 
 class ReferenceSelectorSheet extends ConsumerStatefulWidget {
@@ -46,10 +52,15 @@ class _ReferenceSelectorSheetState
   final _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isCreatingNew = false;
+  bool _isSaving = false;
+  bool _isPickingPhoto = false;
+  String? _inlineError;
 
   final _newNameController = TextEditingController();
   final _newPhoneController = TextEditingController();
   final _newAddressController = TextEditingController();
+  final _newNotesController = TextEditingController();
+  Uint8List? _newPhoto;
 
   @override
   void dispose() {
@@ -57,22 +68,45 @@ class _ReferenceSelectorSheetState
     _newNameController.dispose();
     _newPhoneController.dispose();
     _newAddressController.dispose();
+    _newNotesController.dispose();
     super.dispose();
   }
 
+  Future<void> _pickNewPhoto() async {
+    if (_isPickingPhoto) return;
+    _isPickingPhoto = true;
+    try {
+      final picked = await AttachmentPickerSheet.pickImage(
+        context,
+        title: 'রেফারেন্স ব্যক্তির ছবি নির্বাচন করুন',
+      );
+      if (picked == null || !mounted) return;
+      setState(() {
+        _newPhoto = picked.bytes;
+      });
+    } finally {
+      _isPickingPhoto = false;
+    }
+  }
+
   Future<void> _saveAndSelectNewReference() async {
+    if (_isSaving) return;
     final name = _newNameController.text.trim();
     final phone = _newPhoneController.text.trim();
     if (name.isEmpty || phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('নাম এবং মোবাইল নম্বর আবশ্যক'),
-          backgroundColor: AppColors.rose,
-        ),
-      );
+      setState(() => _inlineError = 'নাম এবং মোবাইল নম্বর আবশ্যক।');
+      return;
+    }
+    final phoneErr = AppValidators.validatePhone(phone);
+    if (phoneErr != null) {
+      setState(() => _inlineError = phoneErr);
       return;
     }
 
+    setState(() {
+      _isSaving = true;
+      _inlineError = null;
+    });
     try {
       final created = await ref
           .read(referenceControllerProvider.notifier)
@@ -82,27 +116,41 @@ class _ReferenceSelectorSheetState
             address: _newAddressController.text.trim().isNotEmpty
                 ? _newAddressController.text.trim()
                 : null,
+            photo: _newPhoto,
+            notes: _newNotesController.text.trim().isNotEmpty
+                ? _newNotesController.text.trim()
+                : null,
           );
 
-      if (created != null) {
-        final demo = DemoReference(
-          id: created.id,
-          name: created.name,
-          phone: created.phone,
-          address: created.address,
-          photo: created.photo,
-          notes: created.notes,
-        );
-        widget.onSelected(demo);
+      if (!mounted) return;
+      if (created == null) {
+        final failure = ref.read(referenceControllerProvider).error;
+        final errMsg = failure is AppFailure
+            ? failure.message
+            : 'রেফারেন্স ব্যক্তি যোগ করা যায়নি।';
+        setState(() => _inlineError = errMsg);
+        return;
       }
+
+      final demo = DemoReference(
+        id: created.id,
+        name: created.name,
+        phone: created.phone,
+        address: created.address,
+        photo: created.photo,
+        notes: created.notes,
+      );
+      widget.onSelected(demo);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: AppColors.rose,
-        ),
-      );
+      final msg = e is AppFailure ? e.message : e.toString();
+      setState(() => _inlineError = msg);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      } else {
+        _isSaving = false;
+      }
     }
   }
 
@@ -154,13 +202,18 @@ class _ReferenceSelectorSheetState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _isCreatingNew
-                    ? 'নতুন রেফারেন্স যোগ করুন'
-                    : 'রেফারেন্স ব্যক্তি নির্বাচন',
-                style: AppTypography.headingSmall
-                    .copyWith(fontWeight: FontWeight.w700),
+              Expanded(
+                child: Text(
+                  _isCreatingNew
+                      ? 'নতুন রেফারেন্স যোগ করুন'
+                      : 'রেফারেন্স ব্যক্তি নির্বাচন',
+                  style: AppTypography.headingSmall
+                      .copyWith(fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: AppSpacing.xs),
               TextButton.icon(
                 icon: Icon(
                   _isCreatingNew ? Icons.list_alt : Icons.add_circle_outline,
@@ -173,7 +226,10 @@ class _ReferenceSelectorSheetState
                       .copyWith(color: AppColors.primary),
                 ),
                 onPressed: () {
-                  setState(() => _isCreatingNew = !_isCreatingNew);
+                  setState(() {
+                    _isCreatingNew = !_isCreatingNew;
+                    _inlineError = null;
+                  });
                 },
               ),
             ],
@@ -238,9 +294,27 @@ class _ReferenceSelectorSheetState
             // List of References
             ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.45,
+                maxHeight: MediaQuery.sizeOf(context).height * 0.45,
               ),
-              child: filtered.isEmpty
+              child: referencesAsync.isLoading && !referencesAsync.hasValue
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(AppSpacing.xl),
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    )
+                  : referencesAsync.hasError && !referencesAsync.hasValue
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            child: Text(
+                              'রেফারেন্স তালিকা লোড করা যায়নি।',
+                              style: AppTypography.bodySmall
+                                  .copyWith(color: AppColors.rose),
+                            ),
+                          ),
+                        )
+                      : filtered.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(AppSpacing.xl),
@@ -314,13 +388,7 @@ class _ReferenceSelectorSheetState
   }
 
   Widget _buildAvatar(DemoReference r) {
-    if (r.photo != null && r.photo!.isNotEmpty) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundImage: MemoryImage(r.photo!),
-      );
-    }
-    return CircleAvatar(
+    final fallback = CircleAvatar(
       radius: 18,
       backgroundColor: AppColors.primarySurface,
       child: Text(
@@ -332,52 +400,214 @@ class _ReferenceSelectorSheetState
         ),
       ),
     );
+
+    if (r.photo != null && r.photo!.isNotEmpty) {
+      return ClipOval(
+        child: Image.memory(
+          r.photo!,
+          width: 36,
+          height: 36,
+          cacheWidth: 144,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => fallback,
+        ),
+      );
+    }
+    return fallback;
   }
 
   Widget _buildCreateInlineForm() {
-    return Column(
-      children: [
-        TextField(
-          controller: _newNameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            label: AppFieldLabel.inline(
-                label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
-            hintText: 'যেমন: কামাল হোসেন মেম্বার',
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        TextField(
-          controller: _newPhoneController,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            label: AppFieldLabel.inline(
-                label: 'মোবাইল নম্বর', isRequired: true),
-            hintText: '০১৮১২৩৪৫৬৭৮',
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        TextField(
-          controller: _newAddressController,
-          decoration: const InputDecoration(
-            labelText: 'ঠিকানা / এলাকা (ঐচ্ছিক)',
-            hintText: 'যেমন: ভাটপাড়া, সাভার',
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(44),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.65,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Stack(
+                children: [
+                  GestureDetector(
+                    onTap: _pickNewPhoto,
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFEF3C7),
+                        border: Border.all(
+                            color: const Color(0xFFFDE68A), width: 2),
+                      ),
+                      child: _newPhoto != null
+                          ? ClipOval(
+                              child: Image.memory(
+                                _newPhoto!,
+                                width: 72,
+                                height: 72,
+                                cacheWidth: 256,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Center(
+                                  child: Icon(
+                                    Icons.handshake_outlined,
+                                    color: Color(0xFFD97706),
+                                    size: 32,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const Center(
+                              child: Icon(
+                                Icons.handshake_outlined,
+                                color: Color(0xFFD97706),
+                                size: 32,
+                              ),
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_newPhoto != null) {
+                          setState(() => _newPhoto = null);
+                        } else {
+                          _pickNewPhoto();
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: _newPhoto != null
+                              ? AppColors.rose
+                              : AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: Icon(
+                          _newPhoto != null ? Icons.close : Icons.camera_alt,
+                          size: 13,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          onPressed: _saveAndSelectNewReference,
-          child: const Text('সংরক্ষণ ও নির্বাচন করুন'),
+            const SizedBox(height: 6),
+            Text(
+              _newPhoto != null
+                  ? 'ছবি পরিবর্তন করতে ট্যাপ করুন'
+                  : 'প্রোফাইল ছবি যোগ করুন (ঐচ্ছিক)',
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.textMuted, fontSize: 11),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _newNameController,
+              autofocus: true,
+              onChanged: (_) {
+                if (_inlineError != null) setState(() => _inlineError = null);
+              },
+              decoration: const InputDecoration(
+                label: AppFieldLabel.inline(
+                    label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
+                hintText: 'যেমন: কামাল হোসেন মেম্বার',
+                prefixIcon: Icon(Icons.person_outline, size: 18),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _newPhoneController,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [BdPhoneInputFormatter()],
+              onChanged: (_) {
+                if (_inlineError != null) setState(() => _inlineError = null);
+              },
+              decoration: const InputDecoration(
+                label: AppFieldLabel.inline(
+                    label: 'মোবাইল নম্বর', isRequired: true),
+                hintText: '০১৮১২৩৪৫৬৭৮',
+                prefixIcon: Icon(Icons.phone_android, size: 18),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _newAddressController,
+              decoration: const InputDecoration(
+                labelText: 'ঠিকানা / এলাকা (ঐচ্ছিক)',
+                hintText: 'যেমন: ভাটপাড়া, সাভার',
+                prefixIcon: Icon(Icons.location_on_outlined, size: 18),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _newNotesController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'নোট বা মন্তব্য (ঐচ্ছিক)',
+                hintText: 'পরিচিতি বা কাজের বিবরণ',
+                prefixIcon: Icon(Icons.notes, size: 18),
+              ),
+            ),
+            if (_inlineError != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.roseSurface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  border: Border.all(color: AppColors.roseLight),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 16, color: AppColors.roseDark),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _inlineError!,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.roseDark,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+              ),
+              onPressed: _isSaving ? null : _saveAndSelectNewReference,
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('সংরক্ষণ ও নির্বাচন করুন'),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

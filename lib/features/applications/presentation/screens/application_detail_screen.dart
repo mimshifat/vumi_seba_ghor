@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,11 +7,13 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/status_badge.dart';
@@ -44,6 +44,7 @@ class _ApplicationDetailScreenState
   late DemoApplication _app;
   bool _showPortalPassword = false;
   bool _isOpeningPortal = false;
+  bool _isUploadingDocument = false;
 
   @override
   void initState() {
@@ -1984,85 +1985,71 @@ class _ApplicationDetailScreenState
   }
 
   Future<void> _pickAndUploadDocument() async {
+    if (_isUploadingDocument) return;
+    _isUploadingDocument = true;
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
-        withData: true,
-        dialogTitle: 'আবেদনের PDF বা ছবি নির্বাচন করুন',
-      );
+      final picked = await AttachmentPickerSheet.pick(context);
+      if (picked == null || !mounted) return;
 
-      if (result == null || result.files.isEmpty) return;
+      setState(() => _isUploadingDocument = true);
 
-      final pickedFile = result.files.first;
-      Uint8List? bytes = pickedFile.bytes;
-      if (bytes == null && pickedFile.path != null) {
-        final f = File(pickedFile.path!);
-        if (await f.exists()) {
-          bytes = await f.readAsBytes();
-        }
-      }
+      // ডাটাবেজে সংরক্ষণ
+      final savedDoc = await ref.read(applicationControllerProvider.notifier).addDocument(
+            applicationId: _app.id,
+            fileName: picked.fileName,
+            fileType: picked.fileType,
+            fileData: picked.bytes,
+            fileSize: picked.fileSize,
+          );
 
-      if (bytes == null || bytes.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ফাইলটি পড়া যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।'),
+      if (!mounted) return;
+      if (savedDoc == null) {
+        final failure = ref.read(applicationControllerProvider).error;
+        final errMsg = failure is AppFailure
+            ? failure.message
+            : 'ডকুমেন্ট ডেটাবেজে সংরক্ষণ করা যায়নি।';
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(errMsg),
             backgroundColor: AppColors.rose,
           ),
         );
         return;
       }
 
-      final ext = pickedFile.extension?.toLowerCase() ?? '';
-      final isPdf = ext == 'pdf';
-      final fileType = isPdf ? 'pdf' : 'image';
-
-      final bytesLen = bytes.length;
-      final String sizeStr;
-      if (bytesLen >= 1024 * 1024) {
-        sizeStr = '${(bytesLen / (1024 * 1024)).toStringAsFixed(1)} MB';
-      } else {
-        sizeStr = '${(bytesLen / 1024).toStringAsFixed(0)} KB';
-      }
-
-      // ডাটাবেজে সংরক্ষণ
-      await ref.read(applicationControllerProvider.notifier).addDocument(
-            applicationId: _app.id,
-            fileName: pickedFile.name,
-            fileType: fileType,
-            fileData: bytes,
-            fileSize: sizeStr,
-          );
-
       final newDoc = DemoDocument(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: pickedFile.name,
-        type: fileType,
-        size: sizeStr,
+        id: savedDoc.id,
+        name: picked.fileName,
+        type: picked.fileType,
+        size: picked.fileSize,
         uploadDate: DateTime.now(),
-        fileData: bytes,
+        fileData: picked.bytes,
       );
 
       setState(() {
         _app = _app.copyWith(documents: [newDoc, ..._app.documents]);
       });
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
-          content: Text('"${pickedFile.name}" সফলভাবে যুক্ত হয়েছে।'),
+          content: Text('"${picked.fileName}" সফলভাবে যুক্ত হয়েছে।'),
           backgroundColor: AppColors.emerald,
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
           content: Text('ফাইল আপলোড করা যায়নি: $e'),
           backgroundColor: AppColors.rose,
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingDocument = false);
+      } else {
+        _isUploadingDocument = false;
+      }
     }
   }
 
@@ -2092,8 +2079,20 @@ class _ApplicationDetailScreenState
               style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
             ),
             ElevatedButton.icon(
-              icon: const Icon(Icons.attach_file_rounded, size: 16),
-              label: const Text('ফাইল যোগ করুন', style: TextStyle(fontWeight: FontWeight.w600)),
+              icon: _isUploadingDocument
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.attach_file_rounded, size: 16),
+              label: Text(
+                _isUploadingDocument ? 'যুক্ত হচ্ছে...' : 'ফাইল যোগ করুন',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(0, 36),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -2104,7 +2103,7 @@ class _ApplicationDetailScreenState
                   borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
                 ),
               ),
-              onPressed: _pickAndUploadDocument,
+              onPressed: _isUploadingDocument ? null : _pickAndUploadDocument,
             ),
           ],
         ),
@@ -2115,98 +2114,219 @@ class _ApplicationDetailScreenState
             title: 'কোনো ডকুমেন্ট যুক্ত নেই',
             message: 'সরকারি আবেদন PDF, চালান বা দলিলে ছবি এখানে যুক্ত করে রাখতে পারেন।',
             actionText: 'ডকুমেন্ট যুক্ত করুন',
-            onAction: _pickAndUploadDocument,
+            onAction: _isUploadingDocument ? null : _pickAndUploadDocument,
           )
         else
-          ...docsList.map((doc) => Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(15, 23, 42, 0.02),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: doc.type == 'pdf' ? AppColors.roseSurface : AppColors.primarySurface,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    ),
-                    child: Icon(
-                      doc.type == 'pdf' ? Icons.picture_as_pdf_rounded : Icons.image_rounded,
-                      color: doc.type == 'pdf' ? AppColors.rose : AppColors.primary,
-                      size: 24,
-                    ),
-                  ),
-                  title: Text(
-                    doc.name,
-                    style: AppTypography.titleMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    '${doc.size} • আপলোড: ${BengaliDigits.toBengali('${doc.uploadDate.day}/${doc.uploadDate.month}/${doc.uploadDate.year}')}',
-                    style: AppTypography.bodySmall,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.visibility_outlined, color: AppColors.primary, size: 20),
-                        tooltip: 'দেখুন',
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (ctx) => DocumentViewerScreen(document: doc),
-                            ),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.slate400, size: 20),
-                        tooltip: 'মুছুন',
-                        onPressed: () async {
-                          final ok = await ConfirmDialog.show(
-                            context,
-                            title: 'ডকুমেন্ট মুছবেন?',
-                            message: '${doc.name} ফাইলটি স্থায়ীভাবে মুছে যাবে।',
-                            confirmText: 'মুছুন',
-                            isDestructive: true,
-                          );
-                          if (ok == true) {
-                            await ref.read(applicationControllerProvider.notifier).deleteDocument(
-                                  documentId: doc.id,
-                                  applicationId: _app.id,
-                                );
-                            setState(() {
-                              _app = _app.copyWith(
-                                documents: _app.documents.where((d) => d.id != doc.id).toList(),
-                              );
-                            });
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('ডকুমেন্টটি মুছে ফেলা হয়েছে।'),
-                                backgroundColor: AppColors.rose,
-                              ),
-                            );
-                          }
-                        },
+          ...docsList.map((doc) {
+                final isPdf = doc.type.trim().toLowerCase() == 'pdf' ||
+                    doc.name.trim().toLowerCase().endsWith('.pdf');
+                final hasImageBytes =
+                    !isPdf && doc.fileData != null && doc.fileData!.isNotEmpty;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color.fromRGBO(15, 23, 42, 0.02),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
                       ),
                     ],
                   ),
-                ),
-              )),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 4,
+                    ),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (ctx) => DocumentViewerScreen(document: doc),
+                        ),
+                      );
+                    },
+                    leading: hasImageBytes
+                        ? ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusSm),
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppColors.emeraldSurface,
+                                border: Border.all(
+                                  color: AppColors.emeraldLight,
+                                ),
+                                borderRadius:
+                                    BorderRadius.circular(AppSpacing.radiusSm),
+                              ),
+                              child: Image.memory(
+                                doc.fileData!,
+                                width: 48,
+                                height: 48,
+                                cacheWidth: 192,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.image_rounded,
+                                  color: AppColors.emeraldDark,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: isPdf
+                                  ? AppColors.roseSurface
+                                  : AppColors.emeraldSurface,
+                              border: Border.all(
+                                color: isPdf
+                                    ? AppColors.roseLight
+                                    : AppColors.emeraldLight,
+                              ),
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.radiusSm),
+                            ),
+                            child: Icon(
+                              isPdf
+                                  ? Icons.picture_as_pdf_rounded
+                                  : Icons.image_rounded,
+                              color: isPdf
+                                  ? AppColors.rose
+                                  : AppColors.emeraldDark,
+                              size: 24,
+                            ),
+                          ),
+                    title: Text(
+                      doc.name,
+                      style: AppTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isPdf
+                                  ? AppColors.roseSurface
+                                  : AppColors.emeraldSurface,
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.radiusPill),
+                              border: Border.all(
+                                color: isPdf
+                                    ? AppColors.roseLight
+                                    : AppColors.emeraldLight,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isPdf
+                                      ? Icons.picture_as_pdf_rounded
+                                      : Icons.photo_outlined,
+                                  size: 11,
+                                  color: isPdf
+                                      ? AppColors.roseDark
+                                      : AppColors.emeraldDark,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  isPdf ? 'PDF' : 'ছবি',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: isPdf
+                                        ? AppColors.roseDark
+                                        : AppColors.emeraldDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '${doc.size} • ${BengaliDigits.toBengali('${doc.uploadDate.day}/${doc.uploadDate.month}/${doc.uploadDate.year}')}',
+                            style: AppTypography.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.visibility_outlined,
+                              color: AppColors.primary, size: 20),
+                          tooltip: 'দেখুন',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (ctx) =>
+                                    DocumentViewerScreen(document: doc),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: AppColors.slate400, size: 20),
+                          tooltip: 'মুছুন',
+                          onPressed: () async {
+                            final ok = await ConfirmDialog.show(
+                              context,
+                              title: 'ডকুমেন্ট মুছবেন?',
+                              message:
+                                  '${doc.name} ফাইলটি স্থায়ীভাবে মুছে যাবে।',
+                              confirmText: 'মুছুন',
+                              isDestructive: true,
+                            );
+                            if (ok == true) {
+                              await ref
+                                  .read(applicationControllerProvider.notifier)
+                                  .deleteDocument(
+                                    documentId: doc.id,
+                                    applicationId: _app.id,
+                                  );
+                              if (!mounted) return;
+                              setState(() {
+                                _app = _app.copyWith(
+                                  documents: _app.documents
+                                      .where((d) => d.id != doc.id)
+                                      .toList(),
+                                );
+                              });
+                              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                                const SnackBar(
+                                  content: Text('ডকুমেন্টটি মুছে ফেলা হয়েছে।'),
+                                  backgroundColor: AppColors.rose,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
       ],
     );
   }

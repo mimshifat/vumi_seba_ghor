@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -12,11 +10,13 @@ import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/phone_input_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../../../../core/widgets/case_number_field.dart';
 import '../../../../core/widgets/money_field.dart';
 import '../../../finance/presentation/providers/finance_providers.dart';
@@ -70,6 +70,8 @@ class _ApplicationCreateScreenState
   String? _attachedFileName;
   Uint8List? _attachedFileBytes;
   String? _attachedFileSize;
+  String? _attachedFileType;
+  bool _isPickingAttachment = false;
   final _notesController = TextEditingController();
 
   static const _steps = [
@@ -586,10 +588,11 @@ class _ApplicationCreateScreenState
       }
 
       // সংযুক্ত ডকুমেন্ট থাকলে তা ডেটাবেজে সংরক্ষণ করি
+      var docSaveFailed = false;
       if (_attachedFileBytes != null && _attachedFileName != null) {
         final ext = _attachedFileName!.split('.').last.toLowerCase();
-        final fileType = ext == 'pdf' ? 'pdf' : 'image';
-        await ref.read(applicationControllerProvider.notifier).addDocument(
+        final fileType = _attachedFileType ?? (ext == 'pdf' ? 'pdf' : 'image');
+        final savedDoc = await ref.read(applicationControllerProvider.notifier).addDocument(
               applicationId: createdApp.id,
               fileName: _attachedFileName!,
               fileType: fileType,
@@ -597,13 +600,19 @@ class _ApplicationCreateScreenState
               fileSize: _attachedFileSize ?? '1 MB',
             );
         if (!mounted) return;
+        if (savedDoc == null) {
+          docSaveFailed = true;
+        }
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'আবেদন "$cleanName" সফলভাবে সংরক্ষিত হয়েছে!'),
-          backgroundColor: AppColors.emerald,
+            docSaveFailed
+                ? 'আবেদন "$cleanName" সংরক্ষিত হয়েছে, তবে সংযুক্ত ফাইলটি সেভ করা যায়নি।'
+                : 'আবেদন "$cleanName" সফলভাবে সংরক্ষিত হয়েছে!',
+          ),
+          backgroundColor: docSaveFailed ? AppColors.amberDark : AppColors.emerald,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -849,6 +858,7 @@ class _ApplicationCreateScreenState
                   controller: _phoneController,
                   isRequired: true,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [BdPhoneInputFormatter()],
                   prefixIcon: const Icon(Icons.phone_android_outlined, size: 18, color: AppColors.slate400),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) return 'মোবাইল নম্বর আবশ্যক';
@@ -960,6 +970,7 @@ class _ApplicationCreateScreenState
                     controller: _portalPhoneController,
                     isRequired: false,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [BdPhoneInputFormatter()],
                     prefixIcon: const Icon(Icons.sim_card_outlined, size: 18, color: AppColors.slate400),
                     validator: (val) {
                       if (_useSamePhoneForPortal || val == null || val.trim().isEmpty) {
@@ -1491,98 +1502,127 @@ class _ApplicationCreateScreenState
                 const SizedBox(height: AppSpacing.md),
 
                 // Document Attachment
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.slate50,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: _attachedFileName != null ? AppColors.emeraldSurface : AppColors.primarySurface,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _attachedFileName != null ? Icons.check_circle : Icons.upload_file,
-                          color: _attachedFileName != null ? AppColors.emerald : AppColors.primary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _attachedFileName ?? 'আবেদন PDF বা ছবি সংযুক্ত করুন',
-                              style: AppTypography.titleMedium.copyWith(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
+                InkWell(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  onTap: () {
+                    if (_attachedFileBytes != null &&
+                        _attachedFileType == 'image' &&
+                        _attachedFileName != null) {
+                      AttachmentPickerSheet.showImagePreviewDialog(
+                        context,
+                        bytes: _attachedFileBytes!,
+                        title: _attachedFileName!,
+                      );
+                    } else {
+                      _pickAttachment();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.slate50,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        if (_attachedFileBytes != null &&
+                            _attachedFileType == 'image')
+                          ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusSm),
+                            child: Image.memory(
+                              _attachedFileBytes!,
+                              width: 42,
+                              height: 42,
+                              cacheWidth: 168,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 42,
+                                height: 42,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.emeraldSurface,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.image_rounded,
+                                  color: AppColors.emerald,
+                                  size: 20,
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              _attachedFileName != null ? 'ফাইল নির্বাচিত হয়েছে' : 'ই-নামজারি অনলাইন কপি বা দলিল',
-                              style: AppTypography.bodySmall,
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: _attachedFileName != null
+                                  ? AppColors.emeraldSurface
+                                  : AppColors.primarySurface,
+                              shape: BoxShape.circle,
                             ),
-                          ],
+                            child: Icon(
+                              _attachedFileName != null
+                                  ? Icons.check_circle
+                                  : Icons.upload_file,
+                              color: _attachedFileName != null
+                                  ? AppColors.emerald
+                                  : AppColors.primary,
+                              size: 20,
+                            ),
+                          ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _attachedFileName ??
+                                    'আবেদন PDF বা ছবি সংযুক্ত করুন',
+                                style: AppTypography.titleMedium.copyWith(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                _attachedFileName != null
+                                    ? (_attachedFileType == 'image'
+                                        ? '${_attachedFileSize ?? ''} • দেখতে ট্যাপ করুন'
+                                        : '${_attachedFileSize ?? ''} • ফাইল নির্বাচিত হয়েছে')
+                                    : 'ফাইল ম্যানেজার, গ্যালারি বা ক্যামেরা থেকে যুক্ত করুন',
+                                style: AppTypography.bodySmall,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      if (_attachedFileName != null)
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 18, color: AppColors.slate400),
-                          tooltip: 'ফাইল বাতিল করুন',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: () {
-                            setState(() {
-                              _attachedFileName = null;
-                              _attachedFileBytes = null;
-                              _attachedFileSize = null;
-                            });
-                          },
-                        ),
-                      OutlinedButton(
-                        onPressed: () async {
-                          final result = await FilePicker.platform.pickFiles(
-                            type: FileType.custom,
-                            allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
-                            withData: true,
-                            dialogTitle: 'আবেদনের PDF বা ছবি নির্বাচন করুন',
-                          );
-                          if (result != null && result.files.isNotEmpty) {
-                            final picked = result.files.first;
-                            Uint8List? bytes = picked.bytes;
-                            if (bytes == null && picked.path != null) {
-                              final f = File(picked.path!);
-                              if (await f.exists()) {
-                                bytes = await f.readAsBytes();
-                              }
-                            }
-                            if (bytes != null) {
-                              final bytesLen = bytes.length;
-                              final sizeStr = bytesLen >= 1024 * 1024
-                                  ? '${(bytesLen / (1024 * 1024)).toStringAsFixed(1)} MB'
-                                  : '${(bytesLen / 1024).toStringAsFixed(0)} KB';
+                        if (_attachedFileName != null)
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                size: 18, color: AppColors.slate400),
+                            tooltip: 'ফাইল বাতিল করুন',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () {
                               setState(() {
-                                _attachedFileName = picked.name;
-                                _attachedFileBytes = bytes;
-                                _attachedFileSize = sizeStr;
+                                _attachedFileName = null;
+                                _attachedFileBytes = null;
+                                _attachedFileSize = null;
+                                _attachedFileType = null;
                               });
-                            }
-                          }
-                        },
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 34),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                            },
+                          ),
+                        OutlinedButton(
+                          onPressed: _pickAttachment,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                          ),
+                          child: Text(
+                              _attachedFileName != null ? 'বদলান' : 'ফাইল বাছুন'),
                         ),
-                        child: Text(_attachedFileName != null ? 'বদলান' : 'ফাইল বাছুন'),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
@@ -1603,6 +1643,23 @@ class _ApplicationCreateScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _pickAttachment() async {
+    if (_isPickingAttachment) return;
+    _isPickingAttachment = true;
+    try {
+      final picked = await AttachmentPickerSheet.pick(context);
+      if (picked == null || !mounted) return;
+      setState(() {
+        _attachedFileName = picked.fileName;
+        _attachedFileBytes = picked.bytes;
+        _attachedFileSize = picked.fileSize;
+        _attachedFileType = picked.fileType;
+      });
+    } finally {
+      _isPickingAttachment = false;
+    }
   }
 
   // -------------------------------------------------------------

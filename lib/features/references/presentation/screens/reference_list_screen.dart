@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -10,8 +8,11 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/phone_input_formatter.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_floating_button.dart';
+import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../providers/reference_providers.dart';
@@ -40,6 +41,9 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
     final addressController = TextEditingController();
     final notesController = TextEditingController();
     Uint8List? selectedPhoto;
+    var isPickingPhoto = false;
+    var isSaving = false;
+    String? inlineError;
 
     showModalBottomSheet(
       context: context,
@@ -49,7 +53,25 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
+        builder: (ctx, setModalState) {
+          Future<void> pickPhoto() async {
+            if (isPickingPhoto) return;
+            isPickingPhoto = true;
+            try {
+              final picked = await AttachmentPickerSheet.pickImage(
+                ctx,
+                title: 'রেফারেন্স ব্যক্তির ছবি নির্বাচন করুন',
+              );
+              if (picked == null || !ctx.mounted) return;
+              setModalState(() {
+                selectedPhoto = picked.bytes;
+              });
+            } finally {
+              isPickingPhoto = false;
+            }
+          }
+
+          return Padding(
           padding: EdgeInsets.only(
             left: AppSpacing.base,
             right: AppSpacing.base,
@@ -86,24 +108,7 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                   child: Stack(
                     children: [
                       GestureDetector(
-                        onTap: () async {
-                          final result = await FilePicker.platform.pickFiles(
-                            type: FileType.image,
-                            withData: true,
-                          );
-                          if (result != null && result.files.isNotEmpty) {
-                            final f = result.files.first;
-                            Uint8List? bytes = f.bytes;
-                            if (bytes == null && f.path != null) {
-                              bytes = await File(f.path!).readAsBytes();
-                            }
-                            if (bytes != null) {
-                              setModalState(() {
-                                selectedPhoto = bytes;
-                              });
-                            }
-                          }
-                        },
+                        onTap: pickPhoto,
                         child: Container(
                           width: 76,
                           height: 76,
@@ -118,7 +123,15 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                                     selectedPhoto!,
                                     width: 76,
                                     height: 76,
+                                    cacheWidth: 256,
                                     fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Center(
+                                      child: Icon(
+                                        Icons.handshake_outlined,
+                                        color: Color(0xFFD97706),
+                                        size: 36,
+                                      ),
+                                    ),
                                   ),
                                 )
                               : const Center(
@@ -134,28 +147,13 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
-                          onTap: () async {
+                          onTap: () {
                             if (selectedPhoto != null) {
                               setModalState(() {
                                 selectedPhoto = null;
                               });
                             } else {
-                              final result = await FilePicker.platform.pickFiles(
-                                type: FileType.image,
-                                withData: true,
-                              );
-                              if (result != null && result.files.isNotEmpty) {
-                                final f = result.files.first;
-                                Uint8List? bytes = f.bytes;
-                                if (bytes == null && f.path != null) {
-                                  bytes = await File(f.path!).readAsBytes();
-                                }
-                                if (bytes != null) {
-                                  setModalState(() {
-                                    selectedPhoto = bytes;
-                                  });
-                                }
-                              }
+                              pickPhoto();
                             }
                           },
                           child: Container(
@@ -186,6 +184,11 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                 const SizedBox(height: AppSpacing.base),
                 TextField(
                   controller: nameController,
+                  onChanged: (_) {
+                    if (inlineError != null) {
+                      setModalState(() => inlineError = null);
+                    }
+                  },
                   decoration: const InputDecoration(
                     label: AppFieldLabel.inline(label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
                     hintText: 'যেমন: করিম মিয়া',
@@ -196,6 +199,12 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                 TextField(
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [BdPhoneInputFormatter()],
+                  onChanged: (_) {
+                    if (inlineError != null) {
+                      setModalState(() => inlineError = null);
+                    }
+                  },
                   decoration: const InputDecoration(
                     label: AppFieldLabel.inline(label: 'মোবাইল নম্বর', isRequired: true),
                     hintText: '০১৭১১২২৩৩৪8',
@@ -221,12 +230,43 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                     prefixIcon: Icon(Icons.notes, size: 18),
                   ),
                 ),
+                if (inlineError != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.roseSurface,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      border: Border.all(color: AppColors.roseLight),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 16, color: AppColors.roseDark),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            inlineError!,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.roseDark,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xl),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
+                        onPressed: isSaving ? null : () => Navigator.pop(ctx),
                         child: const Text('বাতিল'),
                       ),
                     ),
@@ -237,54 +277,89 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () async {
-                          final name = nameController.text.trim();
-                          final phone = phoneController.text.trim();
-                          if (name.isEmpty || phone.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('নাম এবং মোবাইল নম্বর আবশ্যক'),
-                                backgroundColor: AppColors.rose,
-                              ),
-                            );
-                            return;
-                          }
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                final name = nameController.text.trim();
+                                final phone = phoneController.text.trim();
+                                if (name.isEmpty || phone.isEmpty) {
+                                  setModalState(() {
+                                    inlineError = 'নাম এবং মোবাইল নম্বর আবশ্যক।';
+                                  });
+                                  return;
+                                }
+                                final phoneErr = AppValidators.validatePhone(phone);
+                                if (phoneErr != null) {
+                                  setModalState(() {
+                                    inlineError = phoneErr;
+                                  });
+                                  return;
+                                }
 
-                          try {
-                            await ref
-                                .read(referenceControllerProvider.notifier)
-                                .createReference(
-                                  name: name,
-                                  phone: phone,
-                                  address: addressController.text.trim().isNotEmpty
-                                      ? addressController.text.trim()
-                                      : null,
-                                  photo: selectedPhoto,
-                                  notes: notesController.text.trim().isNotEmpty
-                                      ? notesController.text.trim()
-                                      : null,
-                                );
+                                setModalState(() {
+                                  isSaving = true;
+                                  inlineError = null;
+                                });
 
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx);
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('রেফারেন্স ব্যক্তি "$name" সফলভাবে যোগ হয়েছে'),
-                                backgroundColor: AppColors.emerald,
-                              ),
-                            );
-                          } catch (e) {
-                            if (!mounted) return;
-                            final msg = e is AppFailure
-                                ? e.message
-                                : 'রেফারেন্স ব্যক্তি যোগ করা যায়নি।';
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
-                            );
-                          }
-                        },
-                        child: const Text('সংরক্ষণ করুন'),
+                                try {
+                                  final created = await ref
+                                      .read(referenceControllerProvider.notifier)
+                                      .createReference(
+                                        name: name,
+                                        phone: phone,
+                                        address: addressController.text.trim().isNotEmpty
+                                            ? addressController.text.trim()
+                                            : null,
+                                        photo: selectedPhoto,
+                                        notes: notesController.text.trim().isNotEmpty
+                                            ? notesController.text.trim()
+                                            : null,
+                                      );
+
+                                  if (!ctx.mounted) return;
+                                  if (created == null) {
+                                    final failure =
+                                        ref.read(referenceControllerProvider).error;
+                                    final msg = failure is AppFailure
+                                        ? failure.message
+                                        : 'রেফারেন্স ব্যক্তি যোগ করা যায়নি।';
+                                    setModalState(() {
+                                      isSaving = false;
+                                      inlineError = msg;
+                                    });
+                                    return;
+                                  }
+
+                                  Navigator.pop(ctx);
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                                    SnackBar(
+                                      content: Text('রেফারেন্স ব্যক্তি "$name" সফলভাবে যোগ হয়েছে'),
+                                      backgroundColor: AppColors.emerald,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  final msg = e is AppFailure
+                                      ? e.message
+                                      : 'রেফারেন্স ব্যক্তি যোগ করা যায়নি।';
+                                  if (ctx.mounted) {
+                                    setModalState(() {
+                                      isSaving = false;
+                                      inlineError = msg;
+                                    });
+                                  }
+                                }
+                              },
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('সংরক্ষণ করুন'),
                       ),
                     ),
                   ],
@@ -292,7 +367,8 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
               ],
             ),
           ),
-        ),
+        );
+        },
       ),
     );
   }
