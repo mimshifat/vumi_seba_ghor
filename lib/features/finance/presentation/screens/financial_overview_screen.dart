@@ -361,6 +361,7 @@ class _FinancialOverviewScreenState
         return TransactionSource.independentIncome;
       case 'generalExpense':
         return TransactionSource.generalExpense;
+      case 'statusIncome':
       case 'statusFee':
         return TransactionSource.statusIncome;
       case 'statusExpense':

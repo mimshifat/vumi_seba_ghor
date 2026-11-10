@@ -248,9 +248,14 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                         .valueOrNull
                         ?.map((w) => w.name)
                         .toList();
-                    final types = (liveWorkTypes != null && liveWorkTypes.isNotEmpty)
+                    final baseTypes = (liveWorkTypes != null && liveWorkTypes.isNotEmpty)
                         ? liveWorkTypes
                         : DemoStore.workTypes;
+                    // সফট ডিলিট করা পুরনো কাজের ধরনও সম্পাদনার সময় নির্বাচনযোগ্য রাখুন
+                    final types = (_selectedWorkType.isNotEmpty &&
+                            !baseTypes.contains(_selectedWorkType))
+                        ? [...baseTypes, _selectedWorkType]
+                        : baseTypes;
 
                     return Wrap(
                       spacing: 8,

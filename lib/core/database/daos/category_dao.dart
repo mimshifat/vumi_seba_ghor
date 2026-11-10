@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 
-import '../../errors/app_failure.dart';
 import '../app_database.dart';
 
 part 'category_dao.g.dart';
@@ -63,14 +62,10 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
     return update(expenseCategories).replace(companion);
   }
 
-  /// খরচের খাত মোছা — ডিফল্ট সিস্টেম ক্যাটাগরি সুরক্ষিত (BACKEND_MASTER_PLAN.md §5)
+  /// খরচের খাত সফট ডিলিট — পুরনো খরচের স্ন্যাপশট অক্ষত রেখে তালিকা থেকে বাদ দেয়
   Future<bool> deleteExpenseCategory(String id) async {
     final cat = await getExpenseCategoryById(id);
     if (cat == null) return false;
-
-    if (cat.isDefault == 1) {
-      throw AppFailure.cannotDeleteDefaultCategory(cat.name);
-    }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final affected = await (update(expenseCategories)
@@ -123,14 +118,10 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
     return update(incomeCategories).replace(companion);
   }
 
-  /// স্বতন্ত্র আয়ের খাত মোছা — ডিফল্ট সিস্টেম ক্যাটাগরি সুরক্ষিত
+  /// স্বতন্ত্র আয়ের খাত সফট ডিলিট — পুরনো আয়ের স্ন্যাপশট অক্ষত রেখে তালিকা থেকে বাদ দেয়
   Future<bool> deleteIncomeCategory(String id) async {
     final cat = await getIncomeCategoryById(id);
     if (cat == null) return false;
-
-    if (cat.isDefault == 1) {
-      throw AppFailure.cannotDeleteDefaultCategory(cat.name);
-    }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final affected = await (update(incomeCategories)
@@ -183,14 +174,10 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
     return update(workTypes).replace(companion);
   }
 
-  /// কাজের ধরন মোছা — ডিফল্ট কাজের ধরন সুরক্ষিত
+  /// কাজের ধরন সফট ডিলিট — পুরনো আবেদনের স্ন্যাপশট অক্ষত রেখে তালিকা থেকে বাদ দেয়
   Future<bool> deleteWorkType(String id) async {
     final wt = await getWorkTypeById(id);
     if (wt == null) return false;
-
-    if (wt.isDefault == 1) {
-      throw AppFailure.cannotDeleteDefaultCategory(wt.name);
-    }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final affected =

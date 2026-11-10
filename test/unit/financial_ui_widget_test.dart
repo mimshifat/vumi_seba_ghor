@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:bhumi_kajer_hisab/core/database/app_database.dart';
 import 'package:bhumi_kajer_hisab/core/demo/demo_data.dart';
 import 'package:bhumi_kajer_hisab/core/theme/app_theme.dart';
 import 'package:bhumi_kajer_hisab/core/widgets/app_floating_button.dart';
@@ -9,6 +10,7 @@ import 'package:bhumi_kajer_hisab/features/applications/presentation/screens/app
 import 'package:bhumi_kajer_hisab/features/finance/presentation/providers/finance_providers.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/financial_overview_screen.dart';
 import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/income_form_screen.dart';
+import 'package:bhumi_kajer_hisab/features/finance/presentation/screens/transaction_history_screen.dart';
 import 'package:bhumi_kajer_hisab/features/offices/presentation/providers/office_providers.dart';
 import 'package:bhumi_kajer_hisab/features/persons/presentation/providers/person_providers.dart';
 import 'package:bhumi_kajer_hisab/features/references/presentation/providers/reference_providers.dart';
@@ -235,6 +237,54 @@ void main() {
       final restoredApp = settledApp.copyWith(isMarkedAsPaid: false);
       expect(restoredApp.dueAmount, Money.fromTaka(500));
       expect(restoredApp.dueAmount.isPositive, isTrue);
+    });
+
+    testWidgets('TransactionHistoryScreen shows status name for status change expense and status fee', (tester) async {
+      final nowMs = DateTime(2026, 11, 10).millisecondsSinceEpoch;
+      final txs = [
+        UnifiedTransactionsViewData(
+          id: 'tx-1',
+          type: 'expense',
+          source: 'statusExpense',
+          amount: 100000,
+          date: nowMs,
+          category: 'কাজের খরচ',
+          applicationId: 'app-1',
+          applicantName: 'জুয়েল',
+          statusHistoryId: 'sh-1',
+          statusName: 'শুনানি',
+        ),
+        UnifiedTransactionsViewData(
+          id: 'tx-2',
+          type: 'income',
+          source: 'statusIncome',
+          amount: 50000,
+          date: nowMs,
+          category: 'অবস্থা পরিবর্তন ফি',
+          applicationId: 'app-1',
+          applicantName: 'রজব',
+          paymentMethod: 'নগদ',
+          statusHistoryId: 'sh-2',
+          statusName: 'প্রস্তাব প্রেরণ',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
+            allUnifiedTransactionsStreamProvider.overrideWith((ref) => Stream.value(txs)),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const TransactionHistoryScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('অবস্থা পরিবর্তন খরচ (শুনানি)'), findsOneWidget);
+      expect(find.text('অবস্থা পরিবর্তন ফি (প্রস্তাব প্রেরণ)'), findsOneWidget);
     });
   });
 }

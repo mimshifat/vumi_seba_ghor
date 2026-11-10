@@ -63,6 +63,7 @@ class _TransactionHistoryScreenState
         return TransactionSource.independentIncome;
       case 'generalExpense':
         return TransactionSource.generalExpense;
+      case 'statusIncome':
       case 'statusFee':
         return TransactionSource.statusIncome;
       case 'statusExpense':
@@ -360,7 +361,9 @@ class _TransactionHistoryScreenState
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      tx.sourceDisplayName,
+                      (tx.statusName != null && tx.statusName!.trim().isNotEmpty)
+                          ? '${tx.sourceDisplayName} (${tx.statusName!.trim()})'
+                          : tx.sourceDisplayName,
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textSecondary,
                         fontSize: 11,

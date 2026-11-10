@@ -57,12 +57,19 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
   }
 
   void _openFilterBottomSheet() {
-    final workTypes = ref
+    final activeWorkTypes = ref
             .read(workTypesStreamProvider)
             .valueOrNull
             ?.map((w) => w.name)
             .toList() ??
         DemoStore.workTypes;
+    final usedWorkTypes = (ref
+                .read(applicationsWithFinancialsStreamProvider)
+                .valueOrNull ??
+            [])
+        .map((a) => a.application.workType.trim())
+        .where((w) => w.isNotEmpty);
+    final workTypes = <String>{...activeWorkTypes, ...usedWorkTypes}.toList();
     final offices = ref
             .read(officesStreamProvider)
             .valueOrNull

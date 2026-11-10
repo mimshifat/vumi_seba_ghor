@@ -125,6 +125,30 @@ class _CategoryManagementScreenState
     );
   }
 
+  void _showDeleteFeedback(
+    bool? wasDeleted, {
+    required String successMessage,
+    required String fallbackErrorMessage,
+  }) {
+    if (!mounted) return;
+    if (wasDeleted == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(successMessage),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+      return;
+    }
+
+    final mutationState = ref.read(categoryControllerProvider);
+    final err = mutationState.asError?.error;
+    final msg = err is AppFailure ? err.message : fallbackErrorMessage;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
+    );
+  }
+
   void _deleteWorkType(WorkType type) async {
     final allAppsAsync = ref.read(applicationsWithFinancialsStreamProvider);
     final count = (allAppsAsync.valueOrNull ?? [])
@@ -132,7 +156,7 @@ class _CategoryManagementScreenState
         .length;
 
     final message = count > 0
-        ? 'এই ধরনের অধীনে ${BengaliDigits.toBengali(count.toString())} টি আবেদন সংরক্ষিত রয়েছে। আপনি কি নিশ্চিত যে এটি তালিকা থেকে মুছতে চান?'
+        ? 'এই ধরনের অধীনে ${BengaliDigits.toBengali(count.toString())} টি আবেদন সংরক্ষিত রয়েছে। তালিকা থেকে মুছে ফেললে পুরনো আবেদনগুলোর তথ্য অপরিবর্তিত থাকবে, শুধু নতুন তালিকায় আর দেখাবে না। আপনি কি নিশ্চিত?'
         : 'আপনি কি নিশ্চিত যে "${type.name}" কাজের ধরনটি তালিকা থেকে মুছে ফেলতে চান?';
 
     final confirmed = await ConfirmDialog.show(
@@ -144,27 +168,15 @@ class _CategoryManagementScreenState
     );
 
     if (confirmed == true && mounted) {
-      try {
-        final wasDeleted = await ref
-            .read(categoryControllerProvider.notifier)
-            .deleteWorkType(type.id);
+      final wasDeleted = await ref
+          .read(categoryControllerProvider.notifier)
+          .deleteWorkType(type.id);
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(wasDeleted == true
-                ? 'কাজের ধরন তালিকা থেকে মুছে ফেলা হয়েছে'
-                : 'কাজের ধরন নিষ্ক্রিয় করা হয়েছে'),
-            backgroundColor: AppColors.rose,
-          ),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        final msg = e is AppFailure ? e.message : 'কাজের ধরন মোছা যায়নি।';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
-        );
-      }
+      _showDeleteFeedback(
+        wasDeleted,
+        successMessage: 'কাজের ধরন তালিকা থেকে মুছে ফেলা হয়েছে',
+        fallbackErrorMessage: 'কাজের ধরন মোছা যায়নি।',
+      );
     }
   }
 
@@ -302,33 +314,22 @@ class _CategoryManagementScreenState
     final confirmed = await ConfirmDialog.show(
       context,
       title: 'খরচের খাত মুছবেন?',
-      message: 'আপনি কি নিশ্চিত যে "${cat.name}" খাতটি তালিকা থেকে মুছে ফেলতে চান?',
+      message:
+          'আপনি কি নিশ্চিত যে "${cat.name}" খাতটি তালিকা থেকে মুছে ফেলতে চান? পুরনো খরচের হিসাব অপরিবর্তিত থাকবে।',
       confirmText: 'হ্যাঁ, মুছুন',
       isDestructive: true,
     );
 
     if (confirmed == true && mounted) {
-      try {
-        final wasDeleted = await ref
-            .read(categoryControllerProvider.notifier)
-            .deleteExpenseCategory(cat.id);
+      final wasDeleted = await ref
+          .read(categoryControllerProvider.notifier)
+          .deleteExpenseCategory(cat.id);
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(wasDeleted == true
-                ? 'খরচের খাত মুছে ফেলা হয়েছে'
-                : 'খরচের খাত নিষ্ক্রিয় করা হয়েছে'),
-            backgroundColor: AppColors.rose,
-          ),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        final msg = e is AppFailure ? e.message : 'খরচের খাত মোছা যায়নি।';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
-        );
-      }
+      _showDeleteFeedback(
+        wasDeleted,
+        successMessage: 'খরচের খাত তালিকা থেকে মুছে ফেলা হয়েছে',
+        fallbackErrorMessage: 'খরচের খাত মোছা যায়নি।',
+      );
     }
   }
 

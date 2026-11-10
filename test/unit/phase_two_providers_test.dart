@@ -402,8 +402,8 @@ void main() {
       expect(tasks.length, 1);
     });
 
-    test('CategoryController ডিফল্ট ক্যাটাগরি ডিলিটে AsyncValue.error সেট করে', () async {
-      // ডিফল্ট ক্যাটাগরি তৈরি
+    test('CategoryController ডিফল্ট ক্যাটাগরি ও কাজের ধরন সফট ডিলিট করে (কোনো এরর ছাড়াই)', () async {
+      // ডিফল্ট ক্যাটাগরি ও কাজের ধরন তৈরি
       final now = DateTime.now().millisecondsSinceEpoch;
       await db.into(db.expenseCategories).insert(
             ExpenseCategoriesCompanion.insert(
@@ -415,15 +415,28 @@ void main() {
               updatedAt: now,
             ),
           );
+      await db.into(db.workTypes).insert(
+            WorkTypesCompanion.insert(
+              id: 'def-wt-namjari',
+              name: 'নামজারি',
+              isDefault: const Value(1),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
 
       final catCtrl = container.read(categoryControllerProvider.notifier);
-      await catCtrl.deleteExpenseCategory('def-exp-fee');
+      final expRes = await catCtrl.deleteExpenseCategory('def-exp-fee');
+      expect(expRes, true);
+      expect(container.read(categoryControllerProvider).hasError, false);
 
-      final state = container.read(categoryControllerProvider);
-      expect(state.hasError, true);
-      expect(state.error, isA<AppFailure>());
-      final failure = state.error as AppFailure;
-      expect(failure.code, 'cannotDeleteDefaultCategory');
+      final wtRes = await catCtrl.deleteWorkType('def-wt-namjari');
+      expect(wtRes, true);
+      expect(container.read(categoryControllerProvider).hasError, false);
+
+      final activeWorkTypes =
+          await container.read(workTypesStreamProvider.future);
+      expect(activeWorkTypes.where((w) => w.id == 'def-wt-namjari'), isEmpty);
     });
 
     test('ShopSettingsController দোকানে সেটিংস সেট ও রিয়েলটাইম ওয়াচ', () async {

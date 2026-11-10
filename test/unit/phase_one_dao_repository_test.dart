@@ -568,7 +568,7 @@ void main() {
     });
   });
 
-  group('Phase 1: CategoryDao ও CategoryRepository ডিফল্ট প্রটেকশন', () {
+  group('Phase 1: CategoryDao ও CategoryRepository সফট ডিলিট', () {
     late AppDatabase db;
     late CategoryRepository catRepo;
 
@@ -576,7 +576,7 @@ void main() {
       db = createTestDb();
       catRepo = CategoryRepository(db);
 
-      // ডিফল্ট ক্যাটাগরি তৈরি
+      // ডিফল্ট ক্যাটাগরি ও কাজের ধরন তৈরি
       final now = DateTime.now().millisecondsSinceEpoch;
       await db.into(db.expenseCategories).insert(
             ExpenseCategoriesCompanion.insert(
@@ -588,19 +588,38 @@ void main() {
               updatedAt: now,
             ),
           );
+      await db.into(db.workTypes).insert(
+            WorkTypesCompanion.insert(
+              id: 'def-wt-1',
+              name: 'নামজারি',
+              isDefault: const Value(1),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
     });
 
     tearDown(() => db.close());
 
-    test('ডিফল্ট সিস্টেম ক্যাটাগরি মোছার চেষ্টা ব্যর্থ হয় ও সুরক্ষা দেয়', () async {
-      expect(
-        () => catRepo.deleteExpenseCategory('def-exp-1'),
-        throwsA(isA<AppFailure>().having(
-          (f) => f.code,
-          'code',
-          'cannotDeleteDefaultCategory',
-        )),
-      );
+    test('ডিফল্ট ক্যাটাগরি ও কাজের ধরন সফট ডিলিট করা যায় এবং পুরনো রেকর্ড অক্ষত থাকে',
+        () async {
+      final expDeleted = await catRepo.deleteExpenseCategory('def-exp-1');
+      expect(expDeleted, true);
+
+      final activeExp = await catRepo.getExpenseCategories();
+      expect(activeExp.where((c) => c.id == 'def-exp-1'), isEmpty);
+
+      final allExp = await catRepo.getExpenseCategories(includeDeleted: true);
+      expect(allExp.singleWhere((c) => c.id == 'def-exp-1').deletedAt, isNotNull);
+
+      final wtDeleted = await catRepo.deleteWorkType('def-wt-1');
+      expect(wtDeleted, true);
+
+      final activeWt = await catRepo.getWorkTypes();
+      expect(activeWt.where((w) => w.id == 'def-wt-1'), isEmpty);
+
+      final allWt = await catRepo.getWorkTypes(includeDeleted: true);
+      expect(allWt.singleWhere((w) => w.id == 'def-wt-1').deletedAt, isNotNull);
     });
 
     test('ব্যবহারকারীর তৈরি কাস্টম ক্যাটাগরি সফলভাবে তৈরি ও মোছা যায়', () async {
