@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -35,6 +39,7 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
     final phoneController = TextEditingController();
     final addressController = TextEditingController();
     final notesController = TextEditingController();
+    Uint8List? selectedPhoto;
 
     showModalBottomSheet(
       context: context,
@@ -43,144 +48,249 @@ class _ReferenceListScreenState extends ConsumerState<ReferenceListScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.base,
-          right: AppSpacing.base,
-          top: AppSpacing.base,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.base,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.slate300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'নতুন রেফারেন্স ব্যক্তি যোগ করুন',
-                style: AppTypography.headingSmall.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              const Text(
-                'রেফারেন্স ব্যক্তির তথ্য সংরক্ষণ করুন (আবেদনকারী থেকে পৃথক):',
-                style: AppTypography.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.base),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  label: AppFieldLabel.inline(label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
-                  hintText: 'যেমন: করিম মিয়া',
-                  prefixIcon: Icon(Icons.person_outline, size: 18),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  label: AppFieldLabel.inline(label: 'মোবাইল নম্বর', isRequired: true),
-                  hintText: '০১৭১১২২৩৩৪8',
-                  prefixIcon: Icon(Icons.phone_android, size: 18),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: addressController,
-                decoration: const InputDecoration(
-                  labelText: 'ঠিকানা',
-                  hintText: 'গ্রাম/এলাকা, থানা, জেলা',
-                  prefixIcon: Icon(Icons.location_on_outlined, size: 18),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: notesController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'নোট বা মন্তব্য',
-                  hintText: 'পরিচিতি বা কাজের বিবরণ',
-                  prefixIcon: Icon(Icons.notes, size: 18),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('বাতিল'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.base,
+            right: AppSpacing.base,
+            top: AppSpacing.base,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.base,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.slate300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'নতুন রেফারেন্স ব্যক্তি যোগ করুন',
+                  style: AppTypography.headingSmall.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const Text(
+                  'রেফারেন্স ব্যক্তির তথ্য সংরক্ষণ করুন (আবেদনকারী থেকে পৃথক):',
+                  style: AppTypography.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.base),
+                Center(
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.image,
+                            withData: true,
+                          );
+                          if (result != null && result.files.isNotEmpty) {
+                            final f = result.files.first;
+                            Uint8List? bytes = f.bytes;
+                            if (bytes == null && f.path != null) {
+                              bytes = await File(f.path!).readAsBytes();
+                            }
+                            if (bytes != null) {
+                              setModalState(() {
+                                selectedPhoto = bytes;
+                              });
+                            }
+                          }
+                        },
+                        child: Container(
+                          width: 76,
+                          height: 76,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFFEF3C7),
+                            border: Border.all(color: const Color(0xFFFDE68A), width: 2),
+                          ),
+                          child: selectedPhoto != null
+                              ? ClipOval(
+                                  child: Image.memory(
+                                    selectedPhoto!,
+                                    width: 76,
+                                    height: 76,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : const Center(
+                                  child: Icon(
+                                    Icons.handshake_outlined,
+                                    color: Color(0xFFD97706),
+                                    size: 36,
+                                  ),
+                                ),
+                        ),
                       ),
-                      onPressed: () async {
-                        final name = nameController.text.trim();
-                        final phone = phoneController.text.trim();
-                        if (name.isEmpty || phone.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('নাম এবং মোবাইল নম্বর আবশ্যক'),
-                              backgroundColor: AppColors.rose,
-                            ),
-                          );
-                          return;
-                        }
-
-                        try {
-                          await ref
-                              .read(referenceControllerProvider.notifier)
-                              .createReference(
-                                name: name,
-                                phone: phone,
-                                address: addressController.text.trim().isNotEmpty
-                                    ? addressController.text.trim()
-                                    : null,
-                                notes: notesController.text.trim().isNotEmpty
-                                    ? notesController.text.trim()
-                                    : null,
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () async {
+                            if (selectedPhoto != null) {
+                              setModalState(() {
+                                selectedPhoto = null;
+                              });
+                            } else {
+                              final result = await FilePicker.platform.pickFiles(
+                                type: FileType.image,
+                                withData: true,
                               );
-
-                          if (!ctx.mounted) return;
-                          Navigator.pop(ctx);
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('রেফারেন্স ব্যক্তি "$name" সফলভাবে যোগ হয়েছে'),
-                              backgroundColor: AppColors.emerald,
+                              if (result != null && result.files.isNotEmpty) {
+                                final f = result.files.first;
+                                Uint8List? bytes = f.bytes;
+                                if (bytes == null && f.path != null) {
+                                  bytes = await File(f.path!).readAsBytes();
+                                }
+                                if (bytes != null) {
+                                  setModalState(() {
+                                    selectedPhoto = bytes;
+                                  });
+                                }
+                              }
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: selectedPhoto != null ? AppColors.rose : AppColors.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
-                          );
-                        } catch (e) {
-                          if (!mounted) return;
-                          final msg = e is AppFailure
-                              ? e.message
-                              : 'রেফারেন্স ব্যক্তি যোগ করা যায়নি।';
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
-                          );
-                        }
-                      },
-                      child: const Text('সংরক্ষণ করুন'),
-                    ),
+                            child: Icon(
+                              selectedPhoto != null ? Icons.close : Icons.camera_alt,
+                              size: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    selectedPhoto != null ? 'ছবি পরিবর্তন করতে ট্যাপ করুন' : 'প্রোফাইল ছবি যোগ করুন (ঐচ্ছিক)',
+                    style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.base),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    label: AppFieldLabel.inline(label: 'রেফারেন্স ব্যক্তির নাম', isRequired: true),
+                    hintText: 'যেমন: করিম মিয়া',
+                    prefixIcon: Icon(Icons.person_outline, size: 18),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    label: AppFieldLabel.inline(label: 'মোবাইল নম্বর', isRequired: true),
+                    hintText: '০১৭১১২২৩৩৪8',
+                    prefixIcon: Icon(Icons.phone_android, size: 18),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'ঠিকানা',
+                    hintText: 'গ্রাম/এলাকা, থানা, জেলা',
+                    prefixIcon: Icon(Icons.location_on_outlined, size: 18),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: notesController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'নোট বা মন্তব্য',
+                    hintText: 'পরিচিতি বা কাজের বিবরণ',
+                    prefixIcon: Icon(Icons.notes, size: 18),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('বাতিল'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () async {
+                          final name = nameController.text.trim();
+                          final phone = phoneController.text.trim();
+                          if (name.isEmpty || phone.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('নাম এবং মোবাইল নম্বর আবশ্যক'),
+                                backgroundColor: AppColors.rose,
+                              ),
+                            );
+                            return;
+                          }
+
+                          try {
+                            await ref
+                                .read(referenceControllerProvider.notifier)
+                                .createReference(
+                                  name: name,
+                                  phone: phone,
+                                  address: addressController.text.trim().isNotEmpty
+                                      ? addressController.text.trim()
+                                      : null,
+                                  photo: selectedPhoto,
+                                  notes: notesController.text.trim().isNotEmpty
+                                      ? notesController.text.trim()
+                                      : null,
+                                );
+
+                            if (!ctx.mounted) return;
+                            Navigator.pop(ctx);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('রেফারেন্স ব্যক্তি "$name" সফলভাবে যোগ হয়েছে'),
+                                backgroundColor: AppColors.emerald,
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            final msg = e is AppFailure
+                                ? e.message
+                                : 'রেফারেন্স ব্যক্তি যোগ করা যায়নি।';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(msg), backgroundColor: AppColors.rose),
+                            );
+                          }
+                        },
+                        child: const Text('সংরক্ষণ করুন'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

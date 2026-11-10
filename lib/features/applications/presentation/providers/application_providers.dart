@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
@@ -293,6 +295,13 @@ final applicationStatusHistoryProvider =
   return repo.watchStatusHistory(applicationId);
 });
 
+/// নির্দিষ্ট আবেদনের সকল ডকুমেন্ট ওয়াচ
+final applicationDocumentsProvider =
+    StreamProvider.family<List<Document>, String>((ref, applicationId) {
+  final repo = ref.watch(applicationRepositoryProvider);
+  return repo.watchDocuments(applicationId);
+});
+
 /// আবেদন সংক্রান্ত সকল মিউটেশন ও অ্যাকশন কন্ট্রোলার (ডাবল-ট্যাপ ও সেফটি লক সহ)
 class ApplicationController extends MutationController {
   final ApplicationRepository _repo;
@@ -456,6 +465,34 @@ class ApplicationController extends MutationController {
     _ref?.invalidate(applicationDetailProvider(id));
     _ref?.invalidate(applicationWithFinancialsDetailProvider(id));
     _ref?.invalidate(applicationStatusCountsProvider);
+  }
+
+  /// নতুন ডকুমেন্ট সংযোজন
+  Future<Document?> addDocument({
+    required String applicationId,
+    required String fileName,
+    required String fileType,
+    required Uint8List fileData,
+    required String fileSize,
+  }) async {
+    final res = await execute(() => _repo.addDocument(
+          applicationId: applicationId,
+          fileName: fileName,
+          fileType: fileType,
+          fileData: fileData,
+          fileSize: fileSize,
+        ));
+    _ref?.invalidate(applicationDocumentsProvider(applicationId));
+    return res;
+  }
+
+  /// ডকুমেন্ট মুছে ফেলা
+  Future<void> deleteDocument({
+    required String documentId,
+    required String applicationId,
+  }) async {
+    await execute(() => _repo.deleteDocument(documentId));
+    _ref?.invalidate(applicationDocumentsProvider(applicationId));
   }
 }
 

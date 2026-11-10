@@ -90,6 +90,8 @@ class _ReferenceSelectorSheetState
           name: created.name,
           phone: created.phone,
           address: created.address,
+          photo: created.photo,
+          notes: created.notes,
         );
         widget.onSelected(demo);
       }
@@ -120,6 +122,7 @@ class _ReferenceSelectorSheetState
           name: r.name,
           phone: r.phone,
           address: r.address,
+          photo: r.photo,
           notes: r.notes,
         )).toList();
 
@@ -311,6 +314,12 @@ class _ReferenceSelectorSheetState
   }
 
   Widget _buildAvatar(DemoReference r) {
+    if (r.photo != null && r.photo!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundImage: MemoryImage(r.photo!),
+      );
+    }
     return CircleAvatar(
       radius: 18,
       backgroundColor: AppColors.primarySurface,

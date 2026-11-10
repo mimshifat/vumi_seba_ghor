@@ -219,6 +219,29 @@ class ReferenceCard extends ConsumerWidget {
   }
 
   Widget _buildAvatar() {
+    final photo = reference is Reference
+        ? (reference as Reference).photo
+        : (reference is DemoReference ? (reference as DemoReference).photo : null);
+
+    if (photo != null && photo.isNotEmpty) {
+      return Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+        ),
+        child: ClipOval(
+          child: Image.memory(
+            photo,
+            width: 46,
+            height: 46,
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    }
+
     return Container(
       width: 46,
       height: 46,

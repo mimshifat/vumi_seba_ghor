@@ -72,32 +72,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }).length;
 
     final successRate = totalApps > 0
-        ? '${((completedApps / totalApps) * 100).round()}%'
+        ? '${BengaliDigits.toBengali(((completedApps / totalApps) * 100).round())}%'
         : '০%';
 
-    final activeFiles = filteredApps.where((a) {
-      final s = a.application.status;
-      return s != 'সম্পন্ন' &&
-          s != 'খতিয়ান ডেলিভারি' &&
-          s != 'বাতিল' &&
-          s != 'খারিজ' &&
-          s != 'নামঞ্জুর';
-    }).length;
-
     int totalIncomePaisa = 0;
-    int totalExpensePaisa = 0;
+    int appIncomePaisa = 0;
+    int otherIncomePaisa = 0;
+
     for (final tx in filteredTxs) {
       if (tx.type == 'income') {
         totalIncomePaisa += tx.amount;
-      } else if (tx.type == 'expense') {
-        totalExpensePaisa += tx.amount;
+        if (tx.source == 'applicationPayment' || tx.source == 'statusIncome' || tx.applicationId != null) {
+          appIncomePaisa += tx.amount;
+        } else {
+          otherIncomePaisa += tx.amount;
+        }
       }
     }
-    final netIncomePaisa = totalIncomePaisa - totalExpensePaisa;
-    final netIncomeFormatted = Money.fromPaisa(netIncomePaisa).formatBengali();
-    final avgIncomeFormatted = totalApps > 0
-        ? Money.fromPaisa((totalIncomePaisa / totalApps).round()).formatBengali()
-        : '৳০';
+
+    final appIncomeFormatted = Money.fromPaisa(appIncomePaisa).formatBengali();
+    final otherIncomeFormatted = Money.fromPaisa(otherIncomePaisa).formatBengali();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -134,10 +128,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             totalApps: totalApps,
             completedApps: completedApps,
             successRate: successRate,
-            netIncomeFormatted: netIncomeFormatted,
-            avgIncomeFormatted: avgIncomeFormatted,
-            activeFiles: activeFiles,
-            totalIncomePaisa: totalIncomePaisa,
+            appIncomeFormatted: appIncomeFormatted,
+            otherIncomeFormatted: otherIncomeFormatted,
           ),
 
           const SizedBox(height: AppSpacing.lg),
@@ -213,10 +205,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     required int totalApps,
     required int completedApps,
     required String successRate,
-    required String netIncomeFormatted,
-    required String avgIncomeFormatted,
-    required int activeFiles,
-    required int totalIncomePaisa,
+    required String appIncomeFormatted,
+    required String otherIncomeFormatted,
   }) {
     return Column(
       children: [
@@ -248,9 +238,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           children: [
             Expanded(
               child: _buildMetricTile(
-                title: 'প্রকৃত ইনকাম',
-                value: netIncomeFormatted,
-                subtitle: totalIncomePaisa > 0 ? 'আদায়কৃত আয় - ব্যয়' : 'কোনো লেনদেন নেই',
+                title: 'আবেদন ইনকাম',
+                value: appIncomeFormatted,
+                subtitle: 'ভূমি সেবা সংক্রান্ত',
                 icon: Icons.trending_up,
                 accentColor: AppColors.primaryDark,
               ),
@@ -258,10 +248,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: _buildMetricTile(
-                title: 'গড় ইনকাম / ফাইল',
-                value: avgIncomeFormatted,
-                subtitle: '${BengaliDigits.toBengali(activeFiles)} টি প্রক্রিয়াধীন',
-                icon: Icons.pie_chart_outline,
+                title: 'অন্যান্য আয়',
+                value: otherIncomeFormatted,
+                subtitle: 'অন্যান্য সেবা বাবদ',
+                icon: Icons.storefront_outlined,
                 accentColor: AppColors.amberDark,
               ),
             ),
@@ -355,8 +345,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     // বিগত ৫ মাসের নাম ও রেঞ্জ
     final monthLabels = <String>[];
-    final incomeSpots = <FlSpot>[];
-    final netSpots = <FlSpot>[];
+    final appIncomeSpots = <FlSpot>[];
+    final otherIncomeSpots = <FlSpot>[];
 
     double maxVal = 10.0;
 
@@ -370,29 +360,33 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
       monthLabels.add(_bengaliMonthsShort[mo - 1]);
 
-      int monthIncome = 0;
-      int monthExpense = 0;
+      int monthAppIncome = 0;
+      int monthOtherIncome = 0;
 
       for (final tx in allTxs) {
         final d = DateTime.fromMillisecondsSinceEpoch(tx.date as int);
         if (d.year == yr && d.month == mo) {
           if (tx.type == 'income') {
-            monthIncome += (tx.amount as int);
-          } else if (tx.type == 'expense') {
-            monthExpense += (tx.amount as int);
+            if (tx.source == 'applicationPayment' ||
+                tx.source == 'statusIncome' ||
+                tx.applicationId != null) {
+              monthAppIncome += (tx.amount as int);
+            } else {
+              monthOtherIncome += (tx.amount as int);
+            }
           }
         }
       }
 
-      final incThousand = monthIncome / 100000.0; // টাকা / ১০০০
-      final netThousand = (monthIncome - monthExpense) / 100000.0;
+      final appThousand = monthAppIncome / 100000.0; // টাকা / ১০০০
+      final otherThousand = monthOtherIncome / 100000.0;
 
-      if (incThousand > maxVal) maxVal = incThousand;
-      if (netThousand > maxVal) maxVal = netThousand;
+      if (appThousand > maxVal) maxVal = appThousand;
+      if (otherThousand > maxVal) maxVal = otherThousand;
 
       final spotIdx = (4 - i).toDouble();
-      incomeSpots.add(FlSpot(spotIdx, math.max(0.0, incThousand)));
-      netSpots.add(FlSpot(spotIdx, math.max(0.0, netThousand)));
+      appIncomeSpots.add(FlSpot(spotIdx, math.max(0.0, appThousand)));
+      otherIncomeSpots.add(FlSpot(spotIdx, math.max(0.0, otherThousand)));
     }
 
     final double chartMaxY = (maxVal * 1.25).clamp(10.0, 1000.0);
@@ -407,30 +401,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'মাসভিত্তিক আদায় ও ইনকাম প্রবৃদ্ধি',
-                      style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
-                    ),
-                    Text(
-                      'গত ৫ মাসের ধারাবাহিক আর্থিক ট্রেন্ড (হাজার টাকায়)',
-                      style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11.5),
-                    ),
-                  ],
-                ),
+              Text(
+                'মাসভিত্তিক ইনকাম প্রবৃদ্ধি',
+                style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(width: 8),
+              Text(
+                'গত ৫ মাসের ধারাবাহিক ইনকাম ট্রেন্ড (হাজার টাকায়)',
+                style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11.5),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  _buildLegendIndicator(AppColors.primary, 'আদায়'),
-                  const SizedBox(width: 8),
-                  _buildLegendIndicator(AppColors.emerald, 'ইনকাম'),
+                  _buildLegendIndicator(AppColors.primary, 'আবেদন ইনকাম'),
+                  const SizedBox(width: 14),
+                  _buildLegendIndicator(AppColors.amberDark, 'অন্যান্য আয়'),
                 ],
               ),
             ],
@@ -504,7 +491,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 maxY: chartMaxY,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: incomeSpots,
+                    spots: appIncomeSpots,
                     isCurved: true,
                     curveSmoothness: 0.35,
                     color: AppColors.primary,
@@ -525,10 +512,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                   ),
                   LineChartBarData(
-                    spots: netSpots,
+                    spots: otherIncomeSpots,
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: AppColors.emerald,
+                    color: AppColors.amberDark,
                     barWidth: 2.5,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
@@ -537,12 +524,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         radius: 3.5,
                         color: Colors.white,
                         strokeWidth: 2,
-                        strokeColor: AppColors.emerald,
+                        strokeColor: AppColors.amberDark,
                       ),
                     ),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppColors.emerald.withValues(alpha: 0.06),
+                      color: AppColors.amberDark.withValues(alpha: 0.06),
                     ),
                   ),
                 ],

@@ -493,4 +493,60 @@ class ApplicationRepository {
       throw AppFailure.fromException(e, s);
     }
   }
+
+  /// আবেদন সংক্রান্ত সকল সক্রিয় ডকুমেন্ট ওয়াচ
+  Stream<List<Document>> watchDocuments(String applicationId) {
+    return _db.applicationDao.watchDocuments(applicationId);
+  }
+
+  /// আবেদন সংক্রান্ত সকল সক্রিয় ডকুমেন্ট সংগ্রহ
+  Future<List<Document>> getDocuments(String applicationId) async {
+    try {
+      return await _db.applicationDao.getDocuments(applicationId);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
+  }
+
+  /// নতুন ডকুমেন্ট সংযোজন
+  Future<Document> addDocument({
+    String? id,
+    required String applicationId,
+    required String fileName,
+    required String fileType,
+    required Uint8List fileData,
+    required String fileSize,
+  }) async {
+    try {
+      final docId = id ?? _uuid.v4();
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      await _db.applicationDao.insertDocument(
+        DocumentsCompanion.insert(
+          id: docId,
+          applicationId: applicationId,
+          fileName: fileName,
+          fileType: fileType,
+          fileData: fileData,
+          fileSize: fileSize,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      final docs = await _db.applicationDao.getDocuments(applicationId);
+      return docs.firstWhere((d) => d.id == docId);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
+  }
+
+  /// ডকুমেন্ট হার্ড ডিলিট (Physical DELETE — মেমোরি খালি করতে ডেটাবেজ থেকে সম্পূর্ণ মুছে ফেলা)
+  Future<void> deleteDocument(String id) async {
+    try {
+      await _db.applicationDao.deleteDocument(id);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
+  }
 }

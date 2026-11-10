@@ -319,14 +319,24 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// সফট ডিলিট: `deletedAt` এ বর্তমান টাইমস্ট্যাম্প বসিয়ে নিষ্ক্রিয় করা।
+  /// সমাধান ক: অডিট ট্রেইল ও রিলেশনশিপ অক্ষত রাখতে আবেদন সফট ডিলিট হবে,
+  /// কিন্তু ফাইলের আকার ন্যূনতম ও হালকা রাখতে এর সাথে যুক্ত ভারী PDF ও ডকুমেন্ট
+  /// হার্ড ডিলিট (Purge) করে ডেটাবেজ স্টোরেজ মুক্ত করা হয়।
   Future<int> softDeleteApplication(String id, {int? timestamp}) {
-    final now = timestamp ?? DateTime.now().millisecondsSinceEpoch;
-    return (update(applications)..where((tbl) => tbl.id.equals(id))).write(
-      ApplicationsCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-      ),
-    );
+    return transaction(() async {
+      final now = timestamp ?? DateTime.now().millisecondsSinceEpoch;
+
+      // ১. সংযুক্ত ভারী PDF ও ডকুমেন্ট বাইনারি পার্জ (Storage reclamation)
+      await (delete(db.documents)..where((tbl) => tbl.applicationId.equals(id))).go();
+
+      // ২. আবেদন সফট ডিলিট চিহ্নিতকরণ
+      return await (update(applications)..where((tbl) => tbl.id.equals(id))).write(
+        ApplicationsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    });
   }
 
   /// সফট ডিলিট হওয়া আবেদন পুনরুদ্ধার (Undo / Restore)।
@@ -349,6 +359,32 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
       ),
     );
+  }
+
+  /// আবেদন সংক্রান্ত সকল ডকুমেন্ট ওয়াচ (Stream)
+  Stream<List<Document>> watchDocuments(String applicationId) {
+    return (select(db.documents)
+          ..where((tbl) => tbl.applicationId.equals(applicationId))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .watch();
+  }
+
+  /// আবেদন সংক্রান্ত সকল ডকুমেন্ট সংগ্রহ (Future)
+  Future<List<Document>> getDocuments(String applicationId) {
+    return (select(db.documents)
+          ..where((tbl) => tbl.applicationId.equals(applicationId))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .get();
+  }
+
+  /// নতুন ডকুমেন্ট সংযোজন
+  Future<int> insertDocument(DocumentsCompanion companion) {
+    return into(db.documents).insert(companion);
+  }
+
+  /// ডকুমেন্ট হার্ড ডিলিট (Physical DELETE — স্টোরেজ মুক্ত করতে ডেটাবেজ থেকে সম্পূর্ণ মুছে ফেলা)
+  Future<int> deleteDocument(String id) {
+    return (delete(db.documents)..where((tbl) => tbl.id.equals(id))).go();
   }
 
   /// ডুপ্লিকেট আবেদন নম্বর পরীক্ষা।

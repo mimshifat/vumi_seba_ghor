@@ -166,30 +166,6 @@ class _PersonCreateEditScreenState
               ),
               child: Column(
                 children: [
-                  Center(
-                    child: Stack(
-                      children: [
-                        const CircleAvatar(
-                          radius: 40,
-                          backgroundColor: AppColors.primarySurface,
-                          child: Icon(Icons.person, size: 44, color: AppColors.primary),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.base),
                   AppTextField(
                     label: 'পুরো নাম',
                     hint: 'যেমন: মো: রহিম উদ্দিন',

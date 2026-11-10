@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -830,7 +833,7 @@ class _ApplicationDetailScreenState
               final confirmed = await ConfirmDialog.show(
                 context,
                 title: 'আবেদন মুছে ফেলবেন?',
-                message: 'এই আবেদনের সাথে যুক্ত সকল লেনদেন ও ডকুমেন্টের রেকর্ড মুছে যাবে। আপনি কি নিশ্চিত?',
+                message: 'এই আবেদন এবং এর সংযুক্ত ফাইলগুলো মুছে যাবে।',
                 confirmText: 'হ্যাঁ, মুছুন',
                 isDestructive: true,
                 icon: Icons.delete_forever_rounded,
@@ -1867,7 +1870,104 @@ class _ApplicationDetailScreenState
     );
   }
 
+  Future<void> _pickAndUploadDocument() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+        withData: true,
+        dialogTitle: 'আবেদনের PDF বা ছবি নির্বাচন করুন',
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final pickedFile = result.files.first;
+      Uint8List? bytes = pickedFile.bytes;
+      if (bytes == null && pickedFile.path != null) {
+        final f = File(pickedFile.path!);
+        if (await f.exists()) {
+          bytes = await f.readAsBytes();
+        }
+      }
+
+      if (bytes == null || bytes.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ফাইলটি পড়া যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।'),
+            backgroundColor: AppColors.rose,
+          ),
+        );
+        return;
+      }
+
+      final ext = pickedFile.extension?.toLowerCase() ?? '';
+      final isPdf = ext == 'pdf';
+      final fileType = isPdf ? 'pdf' : 'image';
+
+      final bytesLen = bytes.length;
+      final String sizeStr;
+      if (bytesLen >= 1024 * 1024) {
+        sizeStr = '${(bytesLen / (1024 * 1024)).toStringAsFixed(1)} MB';
+      } else {
+        sizeStr = '${(bytesLen / 1024).toStringAsFixed(0)} KB';
+      }
+
+      // ডাটাবেজে সংরক্ষণ
+      await ref.read(applicationControllerProvider.notifier).addDocument(
+            applicationId: _app.id,
+            fileName: pickedFile.name,
+            fileType: fileType,
+            fileData: bytes,
+            fileSize: sizeStr,
+          );
+
+      final newDoc = DemoDocument(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: pickedFile.name,
+        type: fileType,
+        size: sizeStr,
+        uploadDate: DateTime.now(),
+        fileData: bytes,
+      );
+
+      setState(() {
+        _app = _app.copyWith(documents: [newDoc, ..._app.documents]);
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${pickedFile.name}" সফলভাবে যুক্ত হয়েছে।'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ফাইল আপলোড করা যায়নি: $e'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    }
+  }
+
   Widget _buildDocumentsTab() {
+    final liveDocsAsync = ref.watch(applicationDocumentsProvider(_app.id));
+    final liveDocs = liveDocsAsync.valueOrNull;
+
+    final List<DemoDocument> docsList = (liveDocs != null && liveDocs.isNotEmpty)
+        ? liveDocs.map((d) => DemoDocument(
+              id: d.id,
+              name: d.fileName,
+              type: d.fileType,
+              size: d.fileSize,
+              uploadDate: DateTime.fromMillisecondsSinceEpoch(d.createdAt),
+              fileData: d.fileData,
+            )).toList()
+        : _app.documents;
+
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.base),
       children: [
@@ -1875,7 +1975,7 @@ class _ApplicationDetailScreenState
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'সংযুক্ত ডকুমেন্ট (${BengaliDigits.toBengali(_app.documents.length)})',
+              'সংযুক্ত ডকুমেন্ট (${BengaliDigits.toBengali(docsList.length)})',
               style: AppTypography.headingSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
             ),
             ElevatedButton.icon(
@@ -1891,29 +1991,21 @@ class _ApplicationDetailScreenState
                   borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
                 ),
               ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('ফাইল পিকার খুলে PDF বা ছবি নির্বাচন করুন...')),
-                );
-              },
+              onPressed: _pickAndUploadDocument,
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        if (_app.documents.isEmpty)
+        if (docsList.isEmpty)
           EmptyState(
             icon: Icons.description_outlined,
             title: 'কোনো ডকুমেন্ট যুক্ত নেই',
             message: 'সরকারি আবেদন PDF, চালান বা দলিলে ছবি এখানে যুক্ত করে রাখতে পারেন।',
             actionText: 'ডকুমেন্ট যুক্ত করুন',
-            onAction: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ফাইল পিকার সক্রিয় হয়েছে...')),
-              );
-            },
+            onAction: _pickAndUploadDocument,
           )
         else
-          ..._app.documents.map((doc) => Container(
+          ...docsList.map((doc) => Container(
                 margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -1979,9 +2071,22 @@ class _ApplicationDetailScreenState
                             isDestructive: true,
                           );
                           if (ok == true) {
+                            await ref.read(applicationControllerProvider.notifier).deleteDocument(
+                                  documentId: doc.id,
+                                  applicationId: _app.id,
+                                );
                             setState(() {
-                              _app.documents.removeWhere((d) => d.id == doc.id);
+                              _app = _app.copyWith(
+                                documents: _app.documents.where((d) => d.id != doc.id).toList(),
+                              );
                             });
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('ডকুমেন্টটি মুছে ফেলা হয়েছে।'),
+                                backgroundColor: AppColors.rose,
+                              ),
+                            );
                           }
                         },
                       ),

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
@@ -41,10 +44,27 @@ class DocumentViewerScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.file_download_outlined, color: Colors.white),
             tooltip: 'ডাউনলোড',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ফাইল ডিভাইসে সেভ করা হয়েছে।')),
-              );
+            onPressed: () async {
+              if (document.fileData != null) {
+                final savePath = await FilePicker.platform.saveFile(
+                  dialogTitle: 'ফাইল ডাউনলোড/সংরক্ষণ করুন',
+                  fileName: document.name,
+                );
+                if (savePath != null) {
+                  await File(savePath).writeAsBytes(document.fileData!);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('"${document.name}" ডিভাইসে সংরক্ষিত হয়েছে।'),
+                      backgroundColor: AppColors.emerald,
+                    ),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('ডেমো ফাইলের ডাটা ডাউনলোডযোগ্য নয়।')),
+                );
+              }
             },
           ),
         ],
@@ -80,7 +100,7 @@ class DocumentViewerScreen extends StatelessWidget {
             ),
           ),
 
-          // Document Viewer Mockup Body
+          // Document Viewer Body
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(AppSpacing.base),
@@ -97,66 +117,106 @@ class DocumentViewerScreen extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: isPdf ? AppColors.roseSurface : AppColors.primarySurface,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isPdf ? Icons.picture_as_pdf : Icons.image,
-                            size: 64,
-                            color: isPdf ? AppColors.rose : AppColors.primary,
+                child: (document.fileData != null && document.type == 'image')
+                    ? InteractiveViewer(
+                        panEnabled: true,
+                        minScale: 0.8,
+                        maxScale: 4.0,
+                        child: Center(
+                          child: Image.memory(
+                            document.fileData!,
+                            fit: BoxFit.contain,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.lg),
-                        Text(
-                          document.name,
-                          style: AppTypography.headingSmall.copyWith(fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          isPdf
-                            ? 'গণপ্রজাতন্ত্রী বাংলাদেশ সরকার\nভূমি মন্ত্রণালয় — ই-নামজারি অনলাইন আবেদন কপি'
-                            : 'জমির দলিল বা পর্চার স্ক্যান কপি',
-                          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.base),
-                          decoration: BoxDecoration(
-                            color: AppColors.slate50,
-                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                            border: Border.all(color: AppColors.border),
-                          ),
+                      )
+                    : Center(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(AppSpacing.xl),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                decoration: BoxDecoration(
+                                  color: isPdf ? AppColors.roseSurface : AppColors.primarySurface,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isPdf ? Icons.picture_as_pdf : Icons.image,
+                                  size: 64,
+                                  color: isPdf ? AppColors.rose : AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
                               Text(
-                                'ডকুমেন্ট প্রিভিউ সারাংশ:',
-                                style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600),
+                                document.name,
+                                style: AppTypography.headingSmall.copyWith(fontWeight: FontWeight.w700),
+                                textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: AppSpacing.sm),
-                              const Text('• আবেদনকারীর মূল জাতীয় পরিচয়পত্র ও স্বাক্ষর'),
-                              const Text('• ওয়ারিশান ও দানপত্র দলিল নম্বর ৪২৮/২০২৬'),
-                              const Text('• ভূমি উন্নয়ন কর হালনাগাদ দাখিলা কপি'),
-                              const Text('• সার্ভেয়ার রিপোর্ট ও প্রস্তাবনা পত্র'),
+                              Text(
+                                isPdf
+                                    ? 'গণপ্রজাতন্ত্রী বাংলাদেশ সরকার\nভূমি মন্ত্রণালয় — ই-নামজারি অনলাইন আবেদন কপি'
+                                    : 'জমির দলিল বা পর্চার স্ক্যান কপি',
+                                style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
+                                textAlign: TextAlign.center,
+                              ),
+                              if (document.fileData != null) ...[
+                                const SizedBox(height: AppSpacing.lg),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.file_download_outlined, size: 18),
+                                  label: const Text('ডিভাইসে ডাউনলোড করুন'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  ),
+                                  onPressed: () async {
+                                    final savePath = await FilePicker.platform.saveFile(
+                                      dialogTitle: 'ফাইল সংরক্ষণ করুন',
+                                      fileName: document.name,
+                                    );
+                                    if (savePath != null) {
+                                      await File(savePath).writeAsBytes(document.fileData!);
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('"${document.name}" সংরক্ষিত হয়েছে।'),
+                                          backgroundColor: AppColors.emerald,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                              const SizedBox(height: AppSpacing.xl),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(AppSpacing.base),
+                                decoration: BoxDecoration(
+                                  color: AppColors.slate50,
+                                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'ডকুমেন্ট বিবরণ:',
+                                      style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Text('ফাইলের নাম: ${document.name}'),
+                                    Text('ফাইলের ধরন: ${document.type.toUpperCase()}'),
+                                    Text('ফাইলের আকার: ${document.size}'),
+                                    Text('আপলোডের তারিখ: ${BengaliDigits.toBengali('${document.uploadDate.day}/${document.uploadDate.month}/${document.uploadDate.year}')}'),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
               ),
             ),
           ),

@@ -113,6 +113,7 @@ class ReferenceRepository {
     required String phone,
     String? address,
     Uint8List? photo,
+    bool updatePhoto = false,
     String? notes,
   }) async {
     try {
@@ -139,7 +140,7 @@ class ReferenceRepository {
           name: Value(cleanName),
           phone: Value(cleanPhone),
           address: Value(address?.trim()),
-          photo: Value(photo ?? existing.photo),
+          photo: updatePhoto ? Value(photo) : Value(photo ?? existing.photo),
           notes: Value(notes?.trim()),
           createdAt: Value(existing.createdAt),
           updatedAt: Value(now),

@@ -77,6 +77,7 @@ class ReferenceController extends MutationController {
     required String phone,
     String? address,
     Uint8List? photo,
+    bool updatePhoto = false,
     String? notes,
   }) async {
     await execute(() => _repo.updateReference(
@@ -85,6 +86,7 @@ class ReferenceController extends MutationController {
           phone: phone,
           address: address,
           photo: photo,
+          updatePhoto: updatePhoto,
           notes: notes,
         ));
     _invalidateAll();

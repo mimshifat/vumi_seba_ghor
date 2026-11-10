@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -58,6 +62,8 @@ class _ApplicationCreateScreenState
   final _agreedAmountController = TextEditingController();
   final _initialPaymentController = TextEditingController();
   String? _attachedFileName;
+  Uint8List? _attachedFileBytes;
+  String? _attachedFileSize;
   final _notesController = TextEditingController();
 
   static const _steps = [
@@ -526,6 +532,19 @@ class _ApplicationCreateScreenState
           ),
         );
         return;
+      }
+
+      // সংযুক্ত ডকুমেন্ট থাকলে তা ডেটাবেজে সংরক্ষণ করি
+      if (_attachedFileBytes != null && _attachedFileName != null) {
+        final ext = _attachedFileName!.split('.').last.toLowerCase();
+        final fileType = ext == 'pdf' ? 'pdf' : 'image';
+        await ref.read(applicationControllerProvider.notifier).addDocument(
+              applicationId: createdApp.id,
+              fileName: _attachedFileName!,
+              fileType: fileType,
+              fileData: _attachedFileBytes!,
+              fileSize: _attachedFileSize ?? '1 MB',
+            );
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1355,11 +1374,48 @@ class _ApplicationCreateScreenState
                           ],
                         ),
                       ),
+                      if (_attachedFileName != null)
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18, color: AppColors.slate400),
+                          tooltip: 'ফাইল বাতিল করুন',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () {
+                            setState(() {
+                              _attachedFileName = null;
+                              _attachedFileBytes = null;
+                              _attachedFileSize = null;
+                            });
+                          },
+                        ),
                       OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            _attachedFileName = 'Online_Application_Copy_${DateTime.now().millisecond}.pdf';
-                          });
+                        onPressed: () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+                            withData: true,
+                            dialogTitle: 'আবেদনের PDF বা ছবি নির্বাচন করুন',
+                          );
+                          if (result != null && result.files.isNotEmpty) {
+                            final picked = result.files.first;
+                            Uint8List? bytes = picked.bytes;
+                            if (bytes == null && picked.path != null) {
+                              final f = File(picked.path!);
+                              if (await f.exists()) {
+                                bytes = await f.readAsBytes();
+                              }
+                            }
+                            if (bytes != null) {
+                              final bytesLen = bytes.length;
+                              final sizeStr = bytesLen >= 1024 * 1024
+                                  ? '${(bytesLen / (1024 * 1024)).toStringAsFixed(1)} MB'
+                                  : '${(bytesLen / 1024).toStringAsFixed(0)} KB';
+                              setState(() {
+                                _attachedFileName = picked.name;
+                                _attachedFileBytes = bytes;
+                                _attachedFileSize = sizeStr;
+                              });
+                            }
+                          }
                         },
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, 34),

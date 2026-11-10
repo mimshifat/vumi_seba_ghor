@@ -215,6 +215,7 @@ class DemoDocument {
   final String type; // 'pdf', 'image'
   final String size;
   final DateTime uploadDate;
+  final Uint8List? fileData;
 
   const DemoDocument({
     required this.id,
@@ -222,6 +223,7 @@ class DemoDocument {
     required this.type,
     required this.size,
     required this.uploadDate,
+    this.fileData,
   });
 }
 

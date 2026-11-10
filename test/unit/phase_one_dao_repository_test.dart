@@ -257,6 +257,81 @@ void main() {
       expect(tasks.length, 1);
       expect(tasks.first.title, 'ডিসিআর সংগ্রহ');
     });
+
+    test('আবেদন সফট ডিলিট হলে মেটাডাটা অক্ষত থাকে কিন্তু সংযুক্ত PDF পার্জ (Purge) হয় (সমাধান ক)', () async {
+      final office = await officeRepo.createOffice(name: 'কেরানীগঞ্জ ভূমি অফিস');
+      final app = await appRepo.createApplication(
+        applicantName: 'মোতালেব হোসেন',
+        applicantPhone: '01811223344',
+        officeId: office.id,
+        officeName: office.name,
+        workType: 'নামজারি',
+        agreedAmountPaisa: 600000,
+      );
+
+      // ১টি ডামি পিডিএফ ডকুমেন্ট যোগ করি
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.into(db.documents).insert(
+            DocumentsCompanion.insert(
+              id: 'doc-pdf-test-1',
+              applicationId: app.id,
+              fileName: 'Namjari_Online_Copy.pdf',
+              fileType: 'pdf',
+              fileData: Uint8List.fromList([37, 80, 68, 70, 45]), // '%PDF-'
+              fileSize: '5.2 MB',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+
+      // যাচাই করি ডকুমেন্টটি সংরক্ষিত আছে
+      final docsBefore = await (db.select(db.documents)..where((t) => t.applicationId.equals(app.id))).get();
+      expect(docsBefore.length, 1);
+
+      // আবেদন ডিলিট (সফট ডিলিট + পার্জ)
+      await appRepo.deleteApplication(app.id);
+
+      // ১. যাচাই: আবেদন সফট ডিলিট হয়েছে (deletedAt সেট হয়েছে, মেটাডাটা অক্ষত)
+      final softDeletedApp = await appRepo.getApplication(app.id, includeDeleted: true);
+      expect(softDeletedApp, isNotNull);
+      expect(softDeletedApp!.deletedAt, isNotNull);
+      expect(softDeletedApp.applicantName, 'মোতালেব হোসেন');
+
+      // ২. যাচাই: সংযুক্ত ভারী পিডিএফ ডেটাবেজ স্টোরেজ থেকে স্থায়ীভাবে মুছে (Purge) গেছে
+      final docsAfter = await (db.select(db.documents)..where((t) => t.applicationId.equals(app.id))).get();
+      expect(docsAfter, isEmpty);
+    });
+
+    test('আবেদনের কোনো ডকুমেন্ট ডিলিট করলে সরাসরি হার্ড ডিলিট (Hard Delete) হয়', () async {
+      final office = await officeRepo.createOffice(name: 'কেরানীগঞ্জ ভূমি অফিস');
+      final app = await appRepo.createApplication(
+        applicantName: 'মোতালেব হোসেন',
+        applicantPhone: '01811223344',
+        officeId: office.id,
+        officeName: office.name,
+        workType: 'নামজারি',
+        agreedAmountPaisa: 600000,
+      );
+
+      final doc = await appRepo.addDocument(
+        applicationId: app.id,
+        fileName: 'DCR_Slip.pdf',
+        fileType: 'pdf',
+        fileData: Uint8List.fromList([1, 2, 3]),
+        fileSize: '1.2 MB',
+      );
+
+      // যাচাই: ডকুমেন্ট যোগ হয়েছে
+      final before = await appRepo.getDocuments(app.id);
+      expect(before.length, 1);
+
+      // ডকুমেন্ট ডিলিট
+      await appRepo.deleteDocument(doc.id);
+
+      // যাচাই: ডেটাবেজ টেবিল থেকে রো সরাসরি হার্ড ডিলিট হয়েছে (কোনো সফট ডিলিট নয়)
+      final allDocs = await db.select(db.documents).get();
+      expect(allDocs, isEmpty);
+    });
   });
 
   group('Phase 1: FinanceDao ও FinanceRepository (100% Strict Accounting Rules)', () {
