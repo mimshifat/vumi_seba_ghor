@@ -43,13 +43,13 @@
 1. **ড্যাশবোর্ড (DashboardScreen):** Hero cashflow card, quick actions, daily stats, pipeline grid, today's priority tasks, recent applications.
 2. **সকল আবেদন (ApplicationListScreen):** Live search, active filter pills, multi-criteria bottom sheet, quick status tabs, sorting.
 3. **নতুন আবেদন (ApplicationCreateScreen):** আধুনিক ৩-ধাপের উইজার্ড (Step-by-step Wizard UI) —
-   - *ধাপ ১ (গ্রাহকের তথ্য):* ইন-স্টেপ সংরক্ষিত গ্রাহক সার্চ ও অটোফিল, আবেদনকারীর নাম, মোবাইল নম্বর, এবং **ঠিকানা (নতুন ফিল্ড)**।
+   - *ধাপ ১ (গ্রাহকের তথ্য):* ইন-স্টেপ সংরক্ষিত গ্রাহক সার্চ ও অটোফিল, আবেদনকারীর নাম, মোবাইল নম্বর, **ঠিকানা**, এবং **ভূমি পোর্টাল লগইন তথ্য (LSG)** (আবেদনকারীর নম্বর ব্যবহার অথবা আলাদা পোর্টাল লগইন নম্বর + পাসওয়ার্ড)।
    - *ধাপ ২ (কাজ ও অফিস):* কাজের ধরন (Chips + নতুন ধরন যোগ), অফিসের নাম (Dropdown + নতুন অফিস যোগ), আবেদনের তারিখ (Date Picker), **মৌজার নাম**, এবং ১ সারিতে আবেদন নম্বর ও কেস নম্বর।
    - *ধাপ ৩ (চুক্তি ও সম্পন্ন):* **শীর্ষে রিয়েল-টাইম সারসংক্ষেপ কার্ড** (গ্রাহক, কাজ ও অফিসের তথ্যের রিভিউ ও সম্পাদনা শর্টকাট), রেফারেন্স ব্যক্তি নির্বাচক (ইনলাইন তৈরি সহ), চুক্তিকৃত মোট সার্ভিস ফি (Quick chips সহ), প্রাথমিক অগ্রিম জমা, ফাইল/ডকুমেন্ট সংযুক্তি এবং বিশেষ নোট।
    - *স্থির ফুটারে প্রিভিয়াস ও নেক্সট বাটন* এবং ধাপে ধাপে ভ্যালিডেশন কন্ট্রোল।
-4. **আবেদন সম্পাদনা (ApplicationEditScreen):** আবেদনকারী, মোবাইল নম্বর, **ঠিকানা**, রেফারেন্স ব্যক্তি, কাজের ধরন, **মৌজা**, অফিস ও চুক্তির টাকার প্রাক-পূরণকৃত সম্পাদনা ফর্ম।
+4. **আবেদন সম্পাদনা (ApplicationEditScreen):** আবেদনকারী, মোবাইল নম্বর, **ঠিকানা**, **ভূমি পোর্টাল লগইন নম্বর ও পাসওয়ার্ড**, রেফারেন্স ব্যক্তি, কাজের ধরন, **মৌজা**, অফিস ও চুক্তির টাকার প্রাক-পূরণকৃত সম্পাদনা ফর্ম।
 5. **আবেদন বিস্তারিত (ApplicationDetailScreen):** 4 tabs:
-   - *১. আবেদন তথ্য:* মূল বিবরণ, মোবাইল কল শর্টকাট, **ঠিকানা**, **মৌজা**, রেফারেন্স ব্যক্তি (প্রোফাইলে যাওয়ার শর্টকাট সহ), অফিস, আবেদন নম্বর ও কেস নম্বর (১-ট্যাপ ক্লিপবোর্ড কপি অ্যাকশন সহ; অপ্রয়োজনীয় অভ্যন্তরীণ আইডি মুক্ত), নোট
+   - *১. আবেদন তথ্য:* মূল বিবরণ, মোবাইল কল শর্টকাট, **ঠিকানা**, **মৌজা**, রেফারেন্স ব্যক্তি (প্রোফাইলে যাওয়ার শর্টকাট সহ), অফিস, আবেদন নম্বর ও কেস নম্বর (১-ট্যাপ ক্লিপবোর্ড কপি অ্যাকশন সহ; অপ্রয়োজনীয় অভ্যন্তরীণ আইডি মুক্ত), **ভূমি পোর্টাল লগইন (LSG) কার্ড** (পাসওয়ার্ড শো/হাইড, কপি ও সরাসরি অটো-লগইন বাটন), এবং নোট
    - *২. কাজের অগ্রগতি:* টাইমলাইন গ্রাফ, স্পষ্ট অবস্থা রূপান্তর ট্রানজিশন (`[পূর্ববর্তী অবস্থা] ➔ [নতুন অবস্থা]`), বর্তমান স্ট্যাটাস হাইলাইট ব্যাজ, পূর্ণাঙ্গ বাংলা তারিখ (`দিন/মাস/বছর`, সময়মুক্ত পরিচ্ছন্ন ভিউ) ও নোট
    - *৩. টাকার হিসাব:* **প্রকৃত ইনকাম (আয়) হিরো ব্যানার** (`মোট আদায় – মোট কাজের খরচ`), চুক্তি, আদায়, কাজের মোট খরচ, বকেয়া (পরিশোধিত ✓), কিস্তি জমার ইতিহাস এবং যে কোনো সময় সরাসরি **"+ খরচ লিখুন"** বাটন সহ খরচের ইতিহাস।
    - *৪. ডকুমেন্ট:* PDF/ছবি তালিকা, ফাইল সাইজ, প্রিভিউ ও ডিলিট
@@ -445,3 +445,22 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
    - Full Test Suite: **175 / 175 tests passed!** (100% green).
    - Added Native Phone Dialer & URL Launcher integration (`AppLauncher`) across all screens (Due management, Application details, Customer list/details, Reference cards/details, Settings hotline/WhatsApp) with automatic Bengali digit conversion and fallback clipboard safety.
    - All 5 Phases of `docs/BACKEND_MASTER_PLAN.md` are completely implemented, verified, and release-ready.
+
+---
+
+## LSG Land Portal Integration & Direct Download (Schema v3)
+
+- **Database Migration (v2 ➔ v3):**
+  - Added nullable `portal_phone` and `portal_password` columns to `applications` (non-snapshot columns editable without violating `applications_snapshot_immutable` trigger).
+  - Updated `ApplicationDao` shared column projection (`_applicationColumnsSql`), `ApplicationRepository`, `ApplicationController`, and `DemoApplication.effectivePortalPhone` fallback.
+- **UI Credential Entry & Display:**
+  - `ApplicationCreateScreen` (Step 1) and `ApplicationEditScreen` support saving either the applicant's phone or a separate portal login mobile number along with password (`AppTextField.obscureText`).
+  - `ApplicationDetailScreen` (Tab 1) displays the LSG portal card with separate-number badge, masked/toggleable password, one-tap copy, and direct **"ভূমি পোর্টালে অটো-লগইন করুন"** launch button.
+- **In-App Browser & Auto-Fill (`LandPortalWebViewScreen` + `LandPortalHelper`):**
+  - Built on `flutter_inappwebview` targeting `https://lsg-land-owner.land.gov.bd/login`.
+  - Automatically formats Bengali/English/`+880`/`01...` numbers to 10-digit English (`#mobile`) and injects DOM values into `#mobile` & `#see-password` (bypassing site's manual `paste` block while leaving CAPTCHA untouched for manual user entry).
+  - Handles worst-case scenarios: automatic cookie/storage isolation when switching between different applicant portal accounts, slow-DOM autofill retry + `onlyIfEmpty` protection, network error overlay with retry/Chrome fallback, `window.print()` & Print/Save-PDF menu, popup windows, and desktop/mobile view toggle.
+- **Direct Public `Download` Folder Saving:**
+  - Added native Android `MethodChannel` (`com.rojob.bhumi_kajer_hisab/downloads` in `MainActivity.kt`) using `MediaStore.Downloads` (API 29+) and public `Download` directory (API < 29) with `BackupRepository.getExportDirectory()` fallback.
+  - Supports HTTP/HTTPS (with session cookies & timeouts), `blob:`, and `data:` downloads, then prompts **"আবেদনে যোগ করুন"** (saves up to `15 MB` directly into `documents` table) and **"খুলুন / শেয়ার"**.
+- **Verification:** `flutter analyze` **0 issues**; `flutter test` **194 / 194 tests passed** (including `test/unit/land_portal_test.dart`).

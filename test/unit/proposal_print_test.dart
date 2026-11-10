@@ -305,7 +305,10 @@ void main() {
 
         final versionRow =
             await upgradedDb.customSelect('PRAGMA user_version;').getSingle();
-        expect(versionRow.read<int>('user_version'), 2);
+        expect(
+          versionRow.read<int>('user_version'),
+          AppDatabase.currentSchemaVersion,
+        );
       } finally {
         await upgradedDb.close();
       }

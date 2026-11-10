@@ -176,7 +176,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// বর্তমান অ্যাপের ডেটাবেজ স্কিমা সংস্করণ
-  static const int currentSchemaVersion = 2;
+  static const int currentSchemaVersion = 3;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -196,6 +196,10 @@ class AppDatabase extends _$AppDatabase {
                 await m.create(index);
               }
             }
+          }
+          if (from < 3) {
+            await m.addColumn(applications, applications.portalPhone);
+            await m.addColumn(applications, applications.portalPassword);
           }
         },
         beforeOpen: (details) async {

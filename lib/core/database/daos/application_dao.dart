@@ -156,13 +156,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
     return query.watchSingleOrNull();
   }
 
-  /// আবেদন ও তার মোট আর্থিক হিসাবসহ রিয়েক্টিভ ওয়াচ স্ট্রিম
-  Stream<List<ApplicationWithFinancials>> watchApplicationsWithFinancials({
-    bool includeDeleted = false,
-  }) {
-    final deletedClause = includeDeleted ? '1=1' : 'a.deleted_at IS NULL';
-    final sql = '''
-      SELECT 
+  static const String _applicationColumnsSql = '''
         a.id,
         a.applicant_id,
         a.applicant_name,
@@ -180,12 +174,32 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
         a.status,
         a.agreed_amount,
         a.is_marked_as_paid,
+        a.portal_phone,
+        a.portal_password,
         a.notes,
         a.created_at,
         a.updated_at,
         a.deleted_at,
         COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.application_id = a.id AND p.deleted_at IS NULL), 0) AS total_received,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.application_id = a.id AND e.deleted_at IS NULL AND e.is_general = 0), 0) AS total_expense
+  ''';
+
+  ApplicationWithFinancials _mapWithFinancialsRow(QueryRow row) {
+    return ApplicationWithFinancials(
+      application: applications.map(row.data),
+      totalReceivedPaisa: row.read<int>('total_received'),
+      totalExpensePaisa: row.read<int>('total_expense'),
+    );
+  }
+
+  /// আবেদন ও তার মোট আর্থিক হিসাবসহ রিয়েক্টিভ ওয়াচ স্ট্রিম
+  Stream<List<ApplicationWithFinancials>> watchApplicationsWithFinancials({
+    bool includeDeleted = false,
+  }) {
+    final deletedClause = includeDeleted ? '1=1' : 'a.deleted_at IS NULL';
+    final sql = '''
+      SELECT 
+$_applicationColumnsSql
       FROM applications a
       WHERE $deletedClause
       ORDER BY a.application_date DESC, a.created_at DESC;
@@ -194,18 +208,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
     return customSelect(
       sql,
       readsFrom: {applications, payments, expenses},
-    ).watch().map((rows) {
-      return rows.map((row) {
-        final app = applications.map(row.data);
-        final received = row.read<int>('total_received');
-        final expense = row.read<int>('total_expense');
-        return ApplicationWithFinancials(
-          application: app,
-          totalReceivedPaisa: received,
-          totalExpensePaisa: expense,
-        );
-      }).toList();
-    });
+    ).watch().map((rows) => rows.map(_mapWithFinancialsRow).toList());
   }
 
   /// আবেদন ও তার মোট আর্থিক হিসাবসহ সংগ্রহ (Future)
@@ -215,29 +218,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
     final deletedClause = includeDeleted ? '1=1' : 'a.deleted_at IS NULL';
     final sql = '''
       SELECT 
-        a.id,
-        a.applicant_id,
-        a.applicant_name,
-        a.applicant_phone,
-        a.applicant_address,
-        a.reference_id,
-        a.reference_name,
-        a.office_id,
-        a.office_name,
-        a.mouza,
-        a.app_number,
-        a.case_number,
-        a.work_type,
-        a.application_date,
-        a.status,
-        a.agreed_amount,
-        a.is_marked_as_paid,
-        a.notes,
-        a.created_at,
-        a.updated_at,
-        a.deleted_at,
-        COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.application_id = a.id AND p.deleted_at IS NULL), 0) AS total_received,
-        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.application_id = a.id AND e.deleted_at IS NULL AND e.is_general = 0), 0) AS total_expense
+$_applicationColumnsSql
       FROM applications a
       WHERE $deletedClause
       ORDER BY a.application_date DESC, a.created_at DESC;
@@ -248,16 +229,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
       readsFrom: {applications, payments, expenses},
     ).get();
 
-    return rows.map((row) {
-      final app = applications.map(row.data);
-      final received = row.read<int>('total_received');
-      final expense = row.read<int>('total_expense');
-      return ApplicationWithFinancials(
-        application: app,
-        totalReceivedPaisa: received,
-        totalExpensePaisa: expense,
-      );
-    }).toList();
+    return rows.map(_mapWithFinancialsRow).toList();
   }
 
   /// নির্দিষ্ট আবেদনের সম্পূর্ণ আর্থিক হিসেবসহ তথ্য
@@ -265,29 +237,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
       String id) async {
     const sql = '''
       SELECT 
-        a.id,
-        a.applicant_id,
-        a.applicant_name,
-        a.applicant_phone,
-        a.applicant_address,
-        a.reference_id,
-        a.reference_name,
-        a.office_id,
-        a.office_name,
-        a.mouza,
-        a.app_number,
-        a.case_number,
-        a.work_type,
-        a.application_date,
-        a.status,
-        a.agreed_amount,
-        a.is_marked_as_paid,
-        a.notes,
-        a.created_at,
-        a.updated_at,
-        a.deleted_at,
-        COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.application_id = a.id AND p.deleted_at IS NULL), 0) AS total_received,
-        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.application_id = a.id AND e.deleted_at IS NULL AND e.is_general = 0), 0) AS total_expense
+$_applicationColumnsSql
       FROM applications a
       WHERE a.id = ?
       LIMIT 1;
@@ -300,12 +250,7 @@ class ApplicationDao extends DatabaseAccessor<AppDatabase>
     ).get();
 
     if (rows.isEmpty) return null;
-    final row = rows.first;
-    return ApplicationWithFinancials(
-      application: applications.map(row.data),
-      totalReceivedPaisa: row.read<int>('total_received'),
-      totalExpensePaisa: row.read<int>('total_expense'),
-    );
+    return _mapWithFinancialsRow(rows.first);
   }
 
   /// নতুন আবেদন সংযোজন।

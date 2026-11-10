@@ -55,6 +55,8 @@ class ApplicationWithFinancials {
       agreedAmount: agreed,
       receivedAmount: received,
       expenseAmount: expense,
+      portalPhone: application.portalPhone,
+      portalPassword: application.portalPassword,
       notes: application.notes,
       isMarkedAsPaid: application.isMarkedAsPaid == 1,
     );

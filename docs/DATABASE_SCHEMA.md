@@ -137,6 +137,8 @@
 | `status` | TEXT | NOT NULL | বর্তমান অবস্থা |
 | `agreed_amount` | INTEGER | NOT NULL | চুক্তিকৃত সার্ভিস ফি (পয়সায়) |
 | `is_marked_as_paid` | INTEGER | NOT NULL DEFAULT 0 | ১ = বকেয়া মওকুফ/পরিশোধিত চিহ্নিত, ০ = স্বাভাবিক |
+| `portal_phone` | TEXT | NULL | ভূমি পোর্টাল (LSG) লগইন মোবাইল নম্বর (আবেদনকারীর নম্বরের চেয়ে আলাদা হলে) |
+| `portal_password` | TEXT | NULL | ভূমি পোর্টাল (LSG) লগইন পাসওয়ার্ড |
 | `notes` | TEXT | NULL | বিশেষ নোট |
 | `created_at` | INTEGER | NOT NULL | তৈরির সময় |
 | `updated_at` | INTEGER | NOT NULL | হালনাগাদের সময় |
@@ -474,12 +476,16 @@ The double-count predicates are corrected:
 ### 11.5 Schema creation order is explicit, not generator order
 drift's generator emits the **triggers and the view before the tables** in `allSchemaEntities`, so `m.createAll()` fails with `no such table: main.applications`. `AppDatabase` therefore creates entities in an explicit order — **tables → indexes → views → triggers** — in both `onCreate` and `onUpgrade`.
 
-### 11.6 `onUpgrade` is version-aware and starts empty
-Phase 1 is schema version 1, so there is no upgrade path yet. `onUpgrade` is intentionally a no-op with a documented pattern (`if (from < 2) { ... }`) for future versions — each version needs its own step (`m.addColumn()`, `m.alterTable()`, `m.create()`). User data is never destroyed by a migration.
+### 11.6 `onUpgrade` is version-aware (currently Schema v3)
+`AppDatabase.currentSchemaVersion` is **3**, with non-destructive migrations preserving all existing user data:
+- `from < 2`: creates `proposal_print_batches`, `proposal_print_batch_items`, and their indexes.
+- `from < 3`: adds `portal_phone` and `portal_password` columns to `applications`.
+
+Each future version adds its own conditional step (`m.addColumn()`, `m.alterTable()`, `m.create()`).
 
 ### 11.7 Integrity triggers
 `lib/core/database/integrity_guards.drift` adds three `BEFORE UPDATE` triggers that `RAISE(ABORT)`:
-- `applications_snapshot_immutable` — the five snapshot columns may never change.
+- `applications_snapshot_immutable` — the five snapshot columns (`applicant_name`, `applicant_phone`, `applicant_address`, `reference_name`, `office_name`) may never change. Non-snapshot columns such as `portal_phone`, `portal_password`, `is_marked_as_paid`, and `notes` remain editable.
 - `payments_immutable` — a payment's amount, date, method, note, links and `created_at` may never change.
 - `expenses_immutable` — an expense's amount, category, date, classification, note, links and `created_at` may never change.
 

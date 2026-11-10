@@ -87,6 +87,7 @@ The user operates a local land services shop in Bangladesh (রজব ভূম�
 | **Path Management** | path_provider + path | Standard file system access. |
 | **UUID** | uuid | Unique application IDs. |
 | **Share/Export** | share_plus, printing | PDF export for reports. |
+| **In-App Portal Browser** | flutter_inappwebview | In-app browser for `lsg-land-owner.land.gov.bd` auto-login, uploads, downloads, and print handling. |
 
 ### 3.2 Project Structure (Feature-Based)
 
@@ -150,6 +151,8 @@ lib/
 │   │   │   ├── models/
 │   │   │   │   ├── application_model.dart
 │   │   │   │   └── status_history_model.dart
+│   │   │   ├── services/
+│   │   │   │   └── land_portal_helper.dart
 │   │   │   └── daos/
 │   │   │       └── application_dao.dart
 │   │   ├── presentation/
@@ -157,7 +160,8 @@ lib/
 │   │   │   │   ├── application_list_screen.dart
 │   │   │   │   ├── application_create_screen.dart
 │   │   │   │   ├── application_detail_screen.dart
-│   │   │   │   └── application_edit_screen.dart
+│   │   │   │   ├── application_edit_screen.dart
+│   │   │   │   └── land_portal_webview_screen.dart
 │   │   │   └── widgets/
 │   │   │       ├── application_card.dart
 │   │   │       ├── application_filter.dart
@@ -322,6 +326,7 @@ lib/
 - **Calculation Immunity:** যেকোনো আইটেম ডিলিট হলেও পূর্বের ফিন্যান্সিয়াল হিসাব বা ক্যাশ ব্যালেন্সে কোনো গরমিল হবে না।
 - **Money stored as integers** (paisa/smallest unit) to avoid floating-point errors. ৳7,000 = 700000 in storage.
 - **`is_marked_as_paid` in `applications`:** Crucial business requirement added during UI development. When a customer pays partial money (e.g. ৳6,500 of ৳7,000) and the rest ৳500 is waived or settled, this boolean flag ensures outstanding dues drop to ৳0 while preserving the raw difference for historical audit.
+- **`portal_phone` & `portal_password` in `applications` (Schema v3):** Optional LSG portal credentials (`lsg-land-owner.land.gov.bd`) stored directly on each application (non-snapshot, editable anytime) with fallback to `applicant_phone` when `portal_phone` is null.
 - **`category` & `completed_at` in `tasks`:** Extended to support the 6 business task categories (`⚖️ শুনানি`, `📄 কাগজপত্র`, `💰 ফি/তাগাদা`, `🏛️ অফিস জমা`, `📦 ডেলিভারি`, `📌 সাধারণ`) and exact completion timestamps.
 - **Dedicated Independent Income table (`independent_incomes`)** ensures non-application revenue (printing, computer services, photocopying, deed typing) is completely isolated from application contracts.
 - **Status history linkage (`status_history_id` & `status_name`):** Payments and expenses generated during a status transition (e.g., govt application fee ৳৭০, hearing expense ৳৩০০, DCR fee ৳১,১০০) retain a foreign key to `status_history` and store the `status_name` for instant audit trail.

@@ -48,6 +48,10 @@ class _ApplicationCreateScreenState
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  bool _useSamePhoneForPortal = true;
+  final _portalPhoneController = TextEditingController();
+  final _portalPasswordController = TextEditingController();
+  bool _obscurePortalPassword = true;
 
   // Step 2: Work & Office Information
   String _selectedWorkType = 'নামজারি';
@@ -87,6 +91,8 @@ class _ApplicationCreateScreenState
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _portalPhoneController.dispose();
+    _portalPasswordController.dispose();
     _mouzaController.dispose();
     _appNumberController.dispose();
     _caseNumberController.dispose();
@@ -486,6 +492,30 @@ class _ApplicationCreateScreenState
     final initialPaymentPaisa =
         initialTaka > 0 ? Money.fromTaka(initialTaka).paisa : null;
 
+    final rawPortalPhone = _portalPhoneController.text.trim();
+    if (!_useSamePhoneForPortal &&
+        rawPortalPhone.isNotEmpty &&
+        !AppValidators.isValidPhone(rawPortalPhone)) {
+      _goToStep(0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('সঠিক পোর্টাল লগইন মোবাইল নম্বর দিন'),
+          backgroundColor: AppColors.rose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final portalPhoneToSave = _useSamePhoneForPortal
+        ? null
+        : (rawPortalPhone.isNotEmpty
+            ? AppValidators.standardizePhone(rawPortalPhone)
+            : null);
+    final portalPasswordToSave = _portalPasswordController.text.trim().isNotEmpty
+        ? _portalPasswordController.text.trim()
+        : null;
+
     try {
       final createdApp = await ref.read(applicationControllerProvider.notifier).createApplication(
             applicantId: _selectedPersonId,
@@ -510,6 +540,8 @@ class _ApplicationCreateScreenState
             applicationDate: _applicationDate,
             status: 'আবেদন',
             agreedAmountPaisa: agreedPaisa,
+            portalPhone: portalPhoneToSave,
+            portalPassword: portalPasswordToSave,
             notes: _notesController.text.trim().isNotEmpty
                 ? _notesController.text.trim()
                 : null,
@@ -745,6 +777,9 @@ class _ApplicationCreateScreenState
                               _nameController.clear();
                               _phoneController.clear();
                               _addressController.clear();
+                              _useSamePhoneForPortal = true;
+                              _portalPhoneController.clear();
+                              _portalPasswordController.clear();
                             });
                           },
                           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
@@ -816,6 +851,128 @@ class _ApplicationCreateScreenState
                   isRequired: false,
                   maxLines: 2,
                   prefixIcon: const Icon(Icons.home_outlined, size: 18, color: AppColors.slate400),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.base),
+
+          // Land Portal Login Credentials Container (Optional)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.base),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: AppColors.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(15, 23, 42, 0.04),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySurface,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      ),
+                      child: const Icon(Icons.language_rounded, size: 18, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ভূমি পোর্টাল লগইন তথ্য (LSG)',
+                            style: AppTypography.headingSmall.copyWith(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            'অটো-লগইনের জন্য পোর্টালের নম্বর ও পাসওয়ার্ড সংরক্ষণ করুন',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.sm),
+                CheckboxListTile(
+                  value: _useSamePhoneForPortal,
+                  onChanged: (val) {
+                    setState(() {
+                      _useSamePhoneForPortal = val ?? true;
+                    });
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: AppColors.primary,
+                  title: Text(
+                    'আবেদনকারীর মোবাইল নম্বরই পোর্টাল লগইন নম্বর',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                if (!_useSamePhoneForPortal) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  AppTextField(
+                    label: 'পোর্টাল লগইন মোবাইল নম্বর',
+                    hint: 'আবেদনে ব্যবহৃত আলাদা মোবাইল নম্বর (যেমন: ০১৭...)',
+                    controller: _portalPhoneController,
+                    isRequired: false,
+                    keyboardType: TextInputType.phone,
+                    prefixIcon: const Icon(Icons.sim_card_outlined, size: 18, color: AppColors.slate400),
+                    validator: (val) {
+                      if (_useSamePhoneForPortal || val == null || val.trim().isEmpty) {
+                        return null;
+                      }
+                      if (!AppValidators.isValidPhone(val)) {
+                        return 'সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  label: 'পোর্টাল পাসওয়ার্ড',
+                  hint: 'lsg-land-owner.land.gov.bd পাসওয়ার্ড',
+                  controller: _portalPasswordController,
+                  isRequired: false,
+                  obscureText: _obscurePortalPassword,
+                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.slate400),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePortalPassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 18,
+                      color: AppColors.slate500,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePortalPassword = !_obscurePortalPassword);
+                    },
+                  ),
                 ),
               ],
             ),

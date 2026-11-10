@@ -70,6 +70,12 @@ class Applications extends Table {
   /// ১ = বকেয়া মওকুফ/পরিশোধিত চিহ্নিত, ০ = স্বাভাবিক।
   IntColumn get isMarkedAsPaid => integer().withDefault(const Constant(0))();
 
+  /// ভূমি পোর্টাল (LSG) লগইন মোবাইল নম্বর — আবেদনকারীর নম্বরের চেয়ে আলাদা হতে পারে।
+  TextColumn get portalPhone => text().nullable()();
+
+  /// ভূমি পোর্টাল (LSG) লগইন পাসওয়ার্ড।
+  TextColumn get portalPassword => text().nullable()();
+
   TextColumn get notes => text().nullable()();
 
   /// Unix epoch milliseconds।

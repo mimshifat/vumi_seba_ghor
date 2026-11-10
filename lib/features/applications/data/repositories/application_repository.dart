@@ -101,6 +101,8 @@ class ApplicationRepository {
     DateTime? applicationDate,
     String status = 'আবেদন',
     required int agreedAmountPaisa,
+    String? portalPhone,
+    String? portalPassword,
     String? notes,
     int? initialPaymentPaisa,
     String initialPaymentMethod = 'নগদ',
@@ -178,6 +180,13 @@ class ApplicationRepository {
       final appId = id ?? _uuid.v4();
       final now = DateTime.now().millisecondsSinceEpoch;
       final appDateMs = applicationDate?.millisecondsSinceEpoch ?? now;
+      final cleanPortalPhone = portalPhone?.trim();
+      if (cleanPortalPhone != null &&
+          cleanPortalPhone.isNotEmpty &&
+          !AppValidators.isValidPhone(cleanPortalPhone)) {
+        throw AppFailure.invalidPhone();
+      }
+      final cleanPortalPassword = portalPassword?.trim();
 
       await _db.transaction(() async {
         // আবেদন ইনসার্ট
@@ -200,6 +209,16 @@ class ApplicationRepository {
             status: status,
             agreedAmount: agreedAmountPaisa,
             isMarkedAsPaid: const Value(0),
+            portalPhone: Value(
+              cleanPortalPhone != null && cleanPortalPhone.isNotEmpty
+                  ? AppValidators.standardizePhone(cleanPortalPhone)
+                  : null,
+            ),
+            portalPassword: Value(
+              cleanPortalPassword != null && cleanPortalPassword.isNotEmpty
+                  ? cleanPortalPassword
+                  : null,
+            ),
             notes: Value(notes?.trim()),
             createdAt: now,
             updatedAt: now,
@@ -261,6 +280,9 @@ class ApplicationRepository {
     String? appNumber,
     String? caseNumber,
     int? agreedAmountPaisa,
+    String? portalPhone,
+    String? portalPassword,
+    bool updatePortalCredentials = false,
     String? notes,
   }) async {
     try {
@@ -306,6 +328,25 @@ class ApplicationRepository {
           existing.caseNumber == null || existing.caseNumber!.trim().isEmpty;
       final hasCaseNow = trimmedCase != null && trimmedCase.isNotEmpty;
 
+      final cleanPortalPhone = portalPhone?.trim();
+      if (updatePortalCredentials &&
+          cleanPortalPhone != null &&
+          cleanPortalPhone.isNotEmpty &&
+          !AppValidators.isValidPhone(cleanPortalPhone)) {
+        throw AppFailure.invalidPhone();
+      }
+      final resolvedPortalPhone = updatePortalCredentials
+          ? (cleanPortalPhone != null && cleanPortalPhone.isNotEmpty
+              ? AppValidators.standardizePhone(cleanPortalPhone)
+              : null)
+          : existing.portalPhone;
+      final cleanPortalPass = portalPassword?.trim();
+      final resolvedPortalPass = updatePortalCredentials
+          ? (cleanPortalPass != null && cleanPortalPass.isNotEmpty
+              ? cleanPortalPass
+              : null)
+          : existing.portalPassword;
+
       await _db.transaction(() async {
         await _db.applicationDao.updateApplication(
           existing.toCompanion(true).copyWith(
@@ -322,6 +363,8 @@ class ApplicationRepository {
             appNumber: Value(cleanAppNum ?? existing.appNumber),
             caseNumber: Value(trimmedCase ?? existing.caseNumber),
             agreedAmount: Value(agreedAmountPaisa ?? existing.agreedAmount),
+            portalPhone: Value(resolvedPortalPhone),
+            portalPassword: Value(resolvedPortalPass),
             notes: Value(notes?.trim() ?? existing.notes),
             updatedAt: Value(now),
           ),

@@ -245,6 +245,8 @@ class DemoApplication {
   final Money agreedAmount;
   final Money receivedAmount;
   final Money expenseAmount;
+  final String? portalPhone;
+  final String? portalPassword;
   final String? notes;
   final List<DemoPayment> payments;
   final List<DemoExpense> expenses;
@@ -270,6 +272,8 @@ class DemoApplication {
     required this.agreedAmount,
     required this.receivedAmount,
     required this.expenseAmount,
+    this.portalPhone,
+    this.portalPassword,
     this.notes,
     this.payments = const [],
     this.expenses = const [],
@@ -277,6 +281,12 @@ class DemoApplication {
     this.documents = const [],
     this.isMarkedAsPaid = false,
   });
+
+  /// পোর্টাল লগইনের জন্য কার্যকর মোবাইল নম্বর (আলাদা নম্বর না থাকলে আবেদনকারীর নম্বর)।
+  String get effectivePortalPhone =>
+      (portalPhone != null && portalPhone!.trim().isNotEmpty)
+          ? portalPhone!.trim()
+          : applicantPhone;
 
   /// The raw difference between agreed and received amounts
   Money get rawDueAmount => agreedAmount - receivedAmount;
@@ -308,6 +318,8 @@ class DemoApplication {
     Money? agreedAmount,
     Money? receivedAmount,
     Money? expenseAmount,
+    String? portalPhone,
+    String? portalPassword,
     String? notes,
     List<DemoPayment>? payments,
     List<DemoExpense>? expenses,
@@ -333,6 +345,8 @@ class DemoApplication {
       agreedAmount: agreedAmount ?? this.agreedAmount,
       receivedAmount: receivedAmount ?? this.receivedAmount,
       expenseAmount: expenseAmount ?? this.expenseAmount,
+      portalPhone: portalPhone ?? this.portalPhone,
+      portalPassword: portalPassword ?? this.portalPassword,
       notes: notes ?? this.notes,
       payments: payments ?? this.payments,
       expenses: expenses ?? this.expenses,

@@ -534,10 +534,10 @@ void main() {
   });
 
   group('মাইগ্রেশন', () {
-    test('schemaVersion ২', () async {
+    test('schemaVersion ৩', () async {
       final db = createTestDatabase();
       expect(db.schemaVersion, AppDatabase.currentSchemaVersion);
-      expect(db.schemaVersion, 2);
+      expect(db.schemaVersion, 3);
       await db.close();
     });
 

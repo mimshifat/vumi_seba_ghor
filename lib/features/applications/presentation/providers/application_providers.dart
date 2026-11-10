@@ -340,6 +340,8 @@ class ApplicationController extends MutationController {
     DateTime? applicationDate,
     String status = 'আবেদন',
     required int agreedAmountPaisa,
+    String? portalPhone,
+    String? portalPassword,
     String? notes,
     int? initialPaymentPaisa,
     String initialPaymentMethod = 'নগদ',
@@ -361,6 +363,8 @@ class ApplicationController extends MutationController {
           applicationDate: applicationDate,
           status: status,
           agreedAmountPaisa: agreedAmountPaisa,
+          portalPhone: portalPhone,
+          portalPassword: portalPassword,
           notes: notes,
           initialPaymentPaisa: initialPaymentPaisa,
           initialPaymentMethod: initialPaymentMethod,
@@ -386,6 +390,9 @@ class ApplicationController extends MutationController {
     String? appNumber,
     String? caseNumber,
     int? agreedAmountPaisa,
+    String? portalPhone,
+    String? portalPassword,
+    bool updatePortalCredentials = false,
     String? notes,
   }) async {
     await execute(() => _repo.updateApplication(
@@ -401,6 +408,9 @@ class ApplicationController extends MutationController {
           appNumber: appNumber,
           caseNumber: caseNumber,
           agreedAmountPaisa: agreedAmountPaisa,
+          portalPhone: portalPhone,
+          portalPassword: portalPassword,
+          updatePortalCredentials: updatePortalCredentials,
           notes: notes,
         ));
     _invalidateAll();

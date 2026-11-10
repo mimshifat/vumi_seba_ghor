@@ -21,8 +21,10 @@ import '../../../finance/presentation/providers/finance_providers.dart';
 import '../../../finance/presentation/screens/payment_form_screen.dart';
 import '../../../references/presentation/providers/reference_providers.dart';
 import '../../../references/presentation/screens/reference_detail_screen.dart';
+import '../../data/services/land_portal_helper.dart';
 import '../providers/application_providers.dart';
 import 'application_edit_screen.dart';
+import 'land_portal_webview_screen.dart';
 
 class ApplicationDetailScreen extends ConsumerStatefulWidget {
   final DemoApplication application;
@@ -39,6 +41,7 @@ class _ApplicationDetailScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late DemoApplication _app;
+  bool _showPortalPassword = false;
 
   @override
   void initState() {
@@ -1137,6 +1140,103 @@ class _ApplicationDetailScreenState
 
         const SizedBox(height: AppSpacing.base),
 
+        // Land Portal Card (LSG Auto-login)
+        _buildSectionCard(
+          title: 'ভূমি পোর্টাল লগইন (LSG)',
+          icon: Icons.language_rounded,
+          children: [
+            _buildDetailRow(
+              'লগইন নম্বর',
+              BengaliDigits.toBengali(_app.effectivePortalPhone),
+              isCopyable: true,
+              copyValue: _app.effectivePortalPhone,
+              trailing: (_app.portalPhone != null &&
+                      _app.portalPhone!.trim().isNotEmpty &&
+                      _app.portalPhone!.trim() != _app.applicantPhone.trim())
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.amberSurface,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                      ),
+                      child: Text(
+                        'আলাদা নম্বর',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.amberDark,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            _buildDetailRow(
+              'পাসওয়ার্ড',
+              (_app.portalPassword != null && _app.portalPassword!.isNotEmpty)
+                  ? (_showPortalPassword
+                      ? _app.portalPassword!
+                      : '•' * _app.portalPassword!.length)
+                  : 'দেওয়া হয়নি',
+              isCopyable: _app.portalPassword != null && _app.portalPassword!.isNotEmpty,
+              copyValue: _app.portalPassword,
+              trailing: (_app.portalPassword != null && _app.portalPassword!.isNotEmpty)
+                  ? IconButton(
+                      icon: Icon(
+                        _showPortalPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 17,
+                        color: AppColors.slate500,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: _showPortalPassword ? 'লুকান' : 'দেখুন',
+                      onPressed: () {
+                        setState(() => _showPortalPassword = !_showPortalPassword);
+                      },
+                    )
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.login_rounded, size: 18),
+                label: Text(
+                  (_app.portalPassword != null && _app.portalPassword!.isNotEmpty)
+                      ? 'ভূমি পোর্টালে অটো-লগইন করুন'
+                      : 'ভূমি পোর্টাল খুলুন',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => LandPortalWebViewScreen(
+                        initialUrl: LandPortalHelper.lsgLoginUrl,
+                        portalPhone: _app.effectivePortalPhone,
+                        portalPassword: _app.portalPassword,
+                        applicationId: _app.id,
+                        applicantName: _app.applicantName,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.base),
+
         // Notes
         if (_app.notes != null && _app.notes!.isNotEmpty)
           _buildSectionCard(
@@ -2206,6 +2306,7 @@ class _ApplicationDetailScreenState
     bool isBold = false,
     bool isBadge = false,
     bool isCopyable = false,
+    String? copyValue,
     Widget? trailing,
   }) {
     return Padding(
@@ -2274,7 +2375,7 @@ class _ApplicationDetailScreenState
                 ],
                 if (isCopyable) ...[
                   const SizedBox(width: 4),
-                  _DetailCopyButton(value: value, label: label),
+                  _DetailCopyButton(value: copyValue ?? value, label: label),
                 ],
               ],
             ),

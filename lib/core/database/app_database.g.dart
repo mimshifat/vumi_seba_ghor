@@ -2086,6 +2086,28 @@ class $ApplicationsTable extends Applications
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _portalPhoneMeta = const VerificationMeta(
+    'portalPhone',
+  );
+  @override
+  late final GeneratedColumn<String> portalPhone = GeneratedColumn<String>(
+    'portal_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _portalPasswordMeta = const VerificationMeta(
+    'portalPassword',
+  );
+  @override
+  late final GeneratedColumn<String> portalPassword = GeneratedColumn<String>(
+    'portal_password',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -2147,6 +2169,8 @@ class $ApplicationsTable extends Applications
     status,
     agreedAmount,
     isMarkedAsPaid,
+    portalPhone,
+    portalPassword,
     notes,
     createdAt,
     updatedAt,
@@ -2306,6 +2330,24 @@ class $ApplicationsTable extends Applications
         ),
       );
     }
+    if (data.containsKey('portal_phone')) {
+      context.handle(
+        _portalPhoneMeta,
+        portalPhone.isAcceptableOrUnknown(
+          data['portal_phone']!,
+          _portalPhoneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('portal_password')) {
+      context.handle(
+        _portalPasswordMeta,
+        portalPassword.isAcceptableOrUnknown(
+          data['portal_password']!,
+          _portalPasswordMeta,
+        ),
+      );
+    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -2411,6 +2453,14 @@ class $ApplicationsTable extends Applications
         DriftSqlType.int,
         data['${effectivePrefix}is_marked_as_paid'],
       )!,
+      portalPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}portal_phone'],
+      ),
+      portalPassword: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}portal_password'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -2478,6 +2528,12 @@ class Application extends DataClass implements Insertable<Application> {
 
   /// ১ = বকেয়া মওকুফ/পরিশোধিত চিহ্নিত, ০ = স্বাভাবিক।
   final int isMarkedAsPaid;
+
+  /// ভূমি পোর্টাল (LSG) লগইন মোবাইল নম্বর — আবেদনকারীর নম্বরের চেয়ে আলাদা হতে পারে।
+  final String? portalPhone;
+
+  /// ভূমি পোর্টাল (LSG) লগইন পাসওয়ার্ড।
+  final String? portalPassword;
   final String? notes;
 
   /// Unix epoch milliseconds।
@@ -2506,6 +2562,8 @@ class Application extends DataClass implements Insertable<Application> {
     required this.status,
     required this.agreedAmount,
     required this.isMarkedAsPaid,
+    this.portalPhone,
+    this.portalPassword,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -2547,6 +2605,12 @@ class Application extends DataClass implements Insertable<Application> {
     map['status'] = Variable<String>(status);
     map['agreed_amount'] = Variable<int>(agreedAmount);
     map['is_marked_as_paid'] = Variable<int>(isMarkedAsPaid);
+    if (!nullToAbsent || portalPhone != null) {
+      map['portal_phone'] = Variable<String>(portalPhone);
+    }
+    if (!nullToAbsent || portalPassword != null) {
+      map['portal_password'] = Variable<String>(portalPassword);
+    }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -2593,6 +2657,12 @@ class Application extends DataClass implements Insertable<Application> {
       status: Value(status),
       agreedAmount: Value(agreedAmount),
       isMarkedAsPaid: Value(isMarkedAsPaid),
+      portalPhone: portalPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portalPhone),
+      portalPassword: portalPassword == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portalPassword),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -2627,6 +2697,8 @@ class Application extends DataClass implements Insertable<Application> {
       status: serializer.fromJson<String>(json['status']),
       agreedAmount: serializer.fromJson<int>(json['agreedAmount']),
       isMarkedAsPaid: serializer.fromJson<int>(json['isMarkedAsPaid']),
+      portalPhone: serializer.fromJson<String?>(json['portalPhone']),
+      portalPassword: serializer.fromJson<String?>(json['portalPassword']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
@@ -2654,6 +2726,8 @@ class Application extends DataClass implements Insertable<Application> {
       'status': serializer.toJson<String>(status),
       'agreedAmount': serializer.toJson<int>(agreedAmount),
       'isMarkedAsPaid': serializer.toJson<int>(isMarkedAsPaid),
+      'portalPhone': serializer.toJson<String?>(portalPhone),
+      'portalPassword': serializer.toJson<String?>(portalPassword),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
@@ -2679,6 +2753,8 @@ class Application extends DataClass implements Insertable<Application> {
     String? status,
     int? agreedAmount,
     int? isMarkedAsPaid,
+    Value<String?> portalPhone = const Value.absent(),
+    Value<String?> portalPassword = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     int? createdAt,
     int? updatedAt,
@@ -2705,6 +2781,10 @@ class Application extends DataClass implements Insertable<Application> {
     status: status ?? this.status,
     agreedAmount: agreedAmount ?? this.agreedAmount,
     isMarkedAsPaid: isMarkedAsPaid ?? this.isMarkedAsPaid,
+    portalPhone: portalPhone.present ? portalPhone.value : this.portalPhone,
+    portalPassword: portalPassword.present
+        ? portalPassword.value
+        : this.portalPassword,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -2751,6 +2831,12 @@ class Application extends DataClass implements Insertable<Application> {
       isMarkedAsPaid: data.isMarkedAsPaid.present
           ? data.isMarkedAsPaid.value
           : this.isMarkedAsPaid,
+      portalPhone: data.portalPhone.present
+          ? data.portalPhone.value
+          : this.portalPhone,
+      portalPassword: data.portalPassword.present
+          ? data.portalPassword.value
+          : this.portalPassword,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -2778,6 +2864,8 @@ class Application extends DataClass implements Insertable<Application> {
           ..write('status: $status, ')
           ..write('agreedAmount: $agreedAmount, ')
           ..write('isMarkedAsPaid: $isMarkedAsPaid, ')
+          ..write('portalPhone: $portalPhone, ')
+          ..write('portalPassword: $portalPassword, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2805,6 +2893,8 @@ class Application extends DataClass implements Insertable<Application> {
     status,
     agreedAmount,
     isMarkedAsPaid,
+    portalPhone,
+    portalPassword,
     notes,
     createdAt,
     updatedAt,
@@ -2831,6 +2921,8 @@ class Application extends DataClass implements Insertable<Application> {
           other.status == this.status &&
           other.agreedAmount == this.agreedAmount &&
           other.isMarkedAsPaid == this.isMarkedAsPaid &&
+          other.portalPhone == this.portalPhone &&
+          other.portalPassword == this.portalPassword &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -2855,6 +2947,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
   final Value<String> status;
   final Value<int> agreedAmount;
   final Value<int> isMarkedAsPaid;
+  final Value<String?> portalPhone;
+  final Value<String?> portalPassword;
   final Value<String?> notes;
   final Value<int> createdAt;
   final Value<int> updatedAt;
@@ -2878,6 +2972,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
     this.status = const Value.absent(),
     this.agreedAmount = const Value.absent(),
     this.isMarkedAsPaid = const Value.absent(),
+    this.portalPhone = const Value.absent(),
+    this.portalPassword = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2902,6 +2998,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
     required String status,
     required int agreedAmount,
     this.isMarkedAsPaid = const Value.absent(),
+    this.portalPhone = const Value.absent(),
+    this.portalPassword = const Value.absent(),
     this.notes = const Value.absent(),
     required int createdAt,
     required int updatedAt,
@@ -2935,6 +3033,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
     Expression<String>? status,
     Expression<int>? agreedAmount,
     Expression<int>? isMarkedAsPaid,
+    Expression<String>? portalPhone,
+    Expression<String>? portalPassword,
     Expression<String>? notes,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
@@ -2959,6 +3059,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
       if (status != null) 'status': status,
       if (agreedAmount != null) 'agreed_amount': agreedAmount,
       if (isMarkedAsPaid != null) 'is_marked_as_paid': isMarkedAsPaid,
+      if (portalPhone != null) 'portal_phone': portalPhone,
+      if (portalPassword != null) 'portal_password': portalPassword,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2985,6 +3087,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
     Value<String>? status,
     Value<int>? agreedAmount,
     Value<int>? isMarkedAsPaid,
+    Value<String?>? portalPhone,
+    Value<String?>? portalPassword,
     Value<String?>? notes,
     Value<int>? createdAt,
     Value<int>? updatedAt,
@@ -3009,6 +3113,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
       status: status ?? this.status,
       agreedAmount: agreedAmount ?? this.agreedAmount,
       isMarkedAsPaid: isMarkedAsPaid ?? this.isMarkedAsPaid,
+      portalPhone: portalPhone ?? this.portalPhone,
+      portalPassword: portalPassword ?? this.portalPassword,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3071,6 +3177,12 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
     if (isMarkedAsPaid.present) {
       map['is_marked_as_paid'] = Variable<int>(isMarkedAsPaid.value);
     }
+    if (portalPhone.present) {
+      map['portal_phone'] = Variable<String>(portalPhone.value);
+    }
+    if (portalPassword.present) {
+      map['portal_password'] = Variable<String>(portalPassword.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -3109,6 +3221,8 @@ class ApplicationsCompanion extends UpdateCompanion<Application> {
           ..write('status: $status, ')
           ..write('agreedAmount: $agreedAmount, ')
           ..write('isMarkedAsPaid: $isMarkedAsPaid, ')
+          ..write('portalPhone: $portalPhone, ')
+          ..write('portalPassword: $portalPassword, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -11623,6 +11737,8 @@ typedef $$ApplicationsTableCreateCompanionBuilder =
       required String status,
       required int agreedAmount,
       Value<int> isMarkedAsPaid,
+      Value<String?> portalPhone,
+      Value<String?> portalPassword,
       Value<String?> notes,
       required int createdAt,
       required int updatedAt,
@@ -11648,6 +11764,8 @@ typedef $$ApplicationsTableUpdateCompanionBuilder =
       Value<String> status,
       Value<int> agreedAmount,
       Value<int> isMarkedAsPaid,
+      Value<String?> portalPhone,
+      Value<String?> portalPassword,
       Value<String?> notes,
       Value<int> createdAt,
       Value<int> updatedAt,
@@ -11906,6 +12024,16 @@ class $$ApplicationsTableFilterComposer
 
   ColumnFilters<int> get isMarkedAsPaid => $composableBuilder(
     column: $table.isMarkedAsPaid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get portalPhone => $composableBuilder(
+    column: $table.portalPhone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get portalPassword => $composableBuilder(
+    column: $table.portalPassword,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12229,6 +12357,16 @@ class $$ApplicationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get portalPhone => $composableBuilder(
+    column: $table.portalPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get portalPassword => $composableBuilder(
+    column: $table.portalPassword,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -12385,6 +12523,16 @@ class $$ApplicationsTableAnnotationComposer
 
   GeneratedColumn<int> get isMarkedAsPaid => $composableBuilder(
     column: $table.isMarkedAsPaid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get portalPhone => $composableBuilder(
+    column: $table.portalPhone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get portalPassword => $composableBuilder(
+    column: $table.portalPassword,
     builder: (column) => column,
   );
 
@@ -12677,6 +12825,8 @@ class $$ApplicationsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<int> agreedAmount = const Value.absent(),
                 Value<int> isMarkedAsPaid = const Value.absent(),
+                Value<String?> portalPhone = const Value.absent(),
+                Value<String?> portalPassword = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
@@ -12700,6 +12850,8 @@ class $$ApplicationsTableTableManager
                 status: status,
                 agreedAmount: agreedAmount,
                 isMarkedAsPaid: isMarkedAsPaid,
+                portalPhone: portalPhone,
+                portalPassword: portalPassword,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -12725,6 +12877,8 @@ class $$ApplicationsTableTableManager
                 required String status,
                 required int agreedAmount,
                 Value<int> isMarkedAsPaid = const Value.absent(),
+                Value<String?> portalPhone = const Value.absent(),
+                Value<String?> portalPassword = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
@@ -12748,6 +12902,8 @@ class $$ApplicationsTableTableManager
                 status: status,
                 agreedAmount: agreedAmount,
                 isMarkedAsPaid: isMarkedAsPaid,
+                portalPhone: portalPhone,
+                portalPassword: portalPassword,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

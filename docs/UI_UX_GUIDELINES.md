@@ -143,7 +143,8 @@ Bottom Navigation with 5 clean, non-overlapping destinations:
 To eliminate long scroll fatigue and reduce form abandonment, complex data entry is partitioned into a focused **3-Step Wizard**:
 1. **ধাপ ১: গ্রাহকের তথ্য (Client Identity):**
    - In-step quick selector banner for existing customers (`DemoPerson`) with auto-fill (Name, Phone, and Address).
-   - Fields: আবেদনকারীর নাম (`*`), মোবাইল নম্বর (`*`), এবং গ্রাহকের ঠিকানা (ঐচ্ছিক কিন্তু স্পষ্ট টেক্সটফিল্ড)।
+   - Fields: আবেদনকারীর নাম (`*`), মোবাইল নম্বর (`*`), এবং গ্রাহকের ঠিকানা (স্পষ্ট টেক্সটফিল্ড)।
+   - **ভূমি পোর্টাল লগইন তথ্য (LSG) কার্ড:** `"আবেদনকারীর মোবাইল নম্বরই পোর্টাল লগইন নম্বর"` চেকবক্স (আনচেক করলে আলাদা পোর্টাল নম্বর ফিল্ড) এবং চোখ-আইকন টগলসহ পোর্টাল পাসওয়ার্ড ফিল্ড।
 2. **ধাপ ২: কাজ ও অফিস (Work & Office Logistics):**
    - Fields: কাজের ধরন (`*` ChoiceChips + নতুন ধরন যোগ), অফিসের নাম (`*` Dropdown + নতুন অফিস যোগ), আবেদনের তারিখ (`*` Date Picker), মৌজার নাম, এবং ১ সারিতে আবেদন ও কেস নম্বর।
 3. **ধাপ ৩: চুক্তি ও সম্পন্ন (Financials, Reference & Completion):**
@@ -192,7 +193,7 @@ To eliminate long scroll fatigue and reduce form abandonment, complex data entry
   - Two-line AppBar with applicant name as primary heading and `WorkType • OfficeName` as subtitle.
   - Minimal action buttons (Edit and Delete only) with compact visual density to maximize title area. Due settlement is cleanly handled inside Tab 3.
   - 4 clean single-line tabs fitting on a single screen without scrolling:
-    - Tab 1: `১. তথ্য`
+    - Tab 1: `১. তথ্য` (includes **"ভূমি পোর্টাল লগইন (LSG)"** card with masked/toggleable password, one-tap copy, separate-number badge, and **"ভূমি পোর্টালে অটো-লগইন করুন"** CTA opening `LandPortalWebViewScreen`)
     - Tab 2: `২. অগ্রগতি`
     - Tab 3: `৩. টাকার হিসাব`
     - Tab 4: `৪. ডকুমেন্ট`

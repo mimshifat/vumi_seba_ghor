@@ -4,13 +4,14 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/money_field.dart';
-import '../../../references/presentation/widgets/reference_selector_sheet.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../providers/application_providers.dart';
 
@@ -30,14 +31,17 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
-  DemoReference? _selectedReference;
   late final TextEditingController _mouzaController;
   late final TextEditingController _appNumberController;
   late final TextEditingController _caseNumberController;
   late final TextEditingController _agreedAmountController;
+  late final TextEditingController _portalPhoneController;
+  late final TextEditingController _portalPasswordController;
   late final TextEditingController _notesController;
 
   late String _selectedWorkType;
+  late bool _useSamePhoneForPortal;
+  bool _obscurePortalPassword = true;
 
   @override
   void initState() {
@@ -46,22 +50,17 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
     _nameController = TextEditingController(text: app.applicantName);
     _phoneController = TextEditingController(text: app.applicantPhone);
     _addressController = TextEditingController(text: app.applicantAddress ?? '');
-    if (app.referencePersonId != null) {
-      _selectedReference = DemoStore.references.cast<DemoReference?>().firstWhere(
-            (r) => r?.id == app.referencePersonId,
-            orElse: () => null,
-          );
-    }
-    if (_selectedReference == null && app.referencePersonName != null && app.referencePersonName!.isNotEmpty) {
-      _selectedReference = DemoStore.references.cast<DemoReference?>().firstWhere(
-            (r) => r?.name == app.referencePersonName,
-            orElse: () => null,
-          );
-    }
     _mouzaController = TextEditingController(text: app.mouza ?? '');
     _appNumberController = TextEditingController(text: app.appNumber ?? '');
     _caseNumberController = TextEditingController(text: app.caseNumber ?? '');
     _agreedAmountController = TextEditingController(text: app.agreedAmount.inTaka.toString());
+    _useSamePhoneForPortal = app.portalPhone == null ||
+        app.portalPhone!.trim().isEmpty ||
+        app.portalPhone!.trim() == app.applicantPhone.trim();
+    _portalPhoneController = TextEditingController(
+      text: _useSamePhoneForPortal ? '' : (app.portalPhone ?? ''),
+    );
+    _portalPasswordController = TextEditingController(text: app.portalPassword ?? '');
     _notesController = TextEditingController(text: app.notes ?? '');
     _selectedWorkType = app.workType;
   }
@@ -75,6 +74,8 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
     _appNumberController.dispose();
     _caseNumberController.dispose();
     _agreedAmountController.dispose();
+    _portalPhoneController.dispose();
+    _portalPasswordController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -87,16 +88,17 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
         widget.application.agreedAmount.inTaka;
     final agreedPaisa = Money.fromTaka(agreedTaka).paisa;
 
+    final rawPortalPhone = _portalPhoneController.text.trim();
+    final portalPhoneToSave = _useSamePhoneForPortal
+        ? ''
+        : (rawPortalPhone.isNotEmpty
+            ? AppValidators.standardizePhone(rawPortalPhone)
+            : '');
+    final portalPasswordToSave = _portalPasswordController.text.trim();
+
     try {
       await ref.read(applicationControllerProvider.notifier).updateApplication(
             id: widget.application.id,
-            applicantName: _nameController.text.trim(),
-            applicantPhone: _phoneController.text.trim(),
-            applicantAddress: _addressController.text.trim().isNotEmpty
-                ? _addressController.text.trim()
-                : null,
-            referenceId: _selectedReference?.id,
-            referenceName: _selectedReference?.name,
             mouza: _mouzaController.text.trim().isNotEmpty
                 ? _mouzaController.text.trim()
                 : null,
@@ -107,12 +109,31 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                 ? _caseNumberController.text.trim()
                 : null,
             agreedAmountPaisa: agreedPaisa,
+            portalPhone: portalPhoneToSave,
+            portalPassword: portalPasswordToSave,
+            updatePortalCredentials: true,
             notes: _notesController.text.trim().isNotEmpty
                 ? _notesController.text.trim()
                 : null,
           );
 
       if (!mounted) return;
+
+      final mutationState = ref.read(applicationControllerProvider);
+      if (mutationState.hasError) {
+        final err = mutationState.error;
+        final msg = err is AppFailure
+            ? err.message
+            : 'হালনাগাদে একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: AppColors.rose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -151,6 +172,7 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                 AppTextField(
                   label: 'আবেদনকারীর নাম',
                   controller: _nameController,
+                  readOnly: true,
                   isRequired: true,
                   validator: (v) => v == null || v.trim().isEmpty ? 'নাম আবশ্যক' : null,
                 ),
@@ -158,101 +180,36 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                 AppTextField(
                   label: 'মোবাইল নম্বর',
                   controller: _phoneController,
+                  readOnly: true,
                   isRequired: true,
                   keyboardType: TextInputType.phone,
+                  helperText: 'মূল গ্রাহকের নম্বর অপরিবর্তনীয়; পোর্টাল নম্বর নিচে বদলাতে পারবেন',
                   validator: (v) => v == null || v.trim().isEmpty ? 'মোবাইল নম্বর আবশ্যক' : null,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  label: 'ঠিকানা (ঐচ্ছিক)',
+                  label: 'ঠিকানা',
                   hint: 'গ্রাম, ডাকঘর, উপজেলা, জেলা...',
                   controller: _addressController,
+                  readOnly: true,
                   isRequired: false,
                   maxLines: 2,
                   prefixIcon: const Icon(Icons.home_outlined, size: 18, color: AppColors.slate400),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                // Reference Person Selector
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const AppFieldLabel(
-                      label: 'রেফারেন্স ব্যক্তি',
-                      isRequired: false,
+                // Reference Person (snapshot read-only)
+                if (widget.application.referencePersonName != null &&
+                    widget.application.referencePersonName!.isNotEmpty)
+                  AppTextField(
+                    label: 'রেফারেন্স ব্যক্তি',
+                    initialValue: widget.application.referencePersonName,
+                    readOnly: true,
+                    prefixIcon: const Icon(
+                      Icons.handshake_outlined,
+                      size: 18,
+                      color: AppColors.slate400,
                     ),
-                    const SizedBox(height: AppSpacing.xs + 2),
-                    InkWell(
-                      onTap: () async {
-                        final selected = await ReferenceSelectorSheet.show(
-                          context,
-                          initialReference: _selectedReference,
-                        );
-                        setState(() => _selectedReference = selected);
-                      },
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                          border: Border.all(
-                            color: _selectedReference != null ? AppColors.primary : AppColors.border,
-                            width: _selectedReference != null ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.handshake_outlined,
-                              size: 20,
-                              color: _selectedReference != null ? AppColors.primary : AppColors.slate400,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: _selectedReference != null
-                                  ? Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _selectedReference!.name,
-                                          style: AppTypography.bodyMedium.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                        Text(
-                                          BengaliDigits.toBengali(_selectedReference!.phone),
-                                          style: AppTypography.bodySmall.copyWith(
-                                            color: AppColors.textSecondary,
-                                            fontSize: 11.5,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : Text(
-                                      'রেফারেন্স ব্যক্তি নির্বাচন করুন (যদি থাকে)',
-                                      style: AppTypography.bodyMedium.copyWith(
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                            ),
-                            if (_selectedReference != null)
-                              IconButton(
-                                icon: const Icon(Icons.clear, size: 18, color: AppColors.rose),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  setState(() => _selectedReference = null);
-                                },
-                              )
-                            else
-                              const Icon(Icons.arrow_drop_down, color: AppColors.slate400),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
               ],
             ),
             const SizedBox(height: AppSpacing.base),
@@ -323,6 +280,68 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.base),
+            _buildEditCard(
+              title: 'ভূমি পোর্টাল লগইন তথ্য (LSG)',
+              children: [
+                CheckboxListTile(
+                  value: _useSamePhoneForPortal,
+                  onChanged: (val) {
+                    setState(() => _useSamePhoneForPortal = val ?? true);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: AppColors.primary,
+                  title: Text(
+                    'আবেদনকারীর মোবাইল নম্বরই পোর্টাল লগইন নম্বর',
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                if (!_useSamePhoneForPortal) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  AppTextField(
+                    label: 'পোর্টাল লগইন মোবাইল নম্বর',
+                    hint: 'আবেদনে ব্যবহৃত আলাদা মোবাইল নম্বর',
+                    controller: _portalPhoneController,
+                    keyboardType: TextInputType.phone,
+                    prefixIcon: const Icon(Icons.sim_card_outlined, size: 18, color: AppColors.slate400),
+                    validator: (val) {
+                      if (_useSamePhoneForPortal || val == null || val.trim().isEmpty) {
+                        return null;
+                      }
+                      if (!AppValidators.isValidPhone(val)) {
+                        return 'সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  label: 'পোর্টাল পাসওয়ার্ড',
+                  hint: 'lsg-land-owner.land.gov.bd পাসওয়ার্ড',
+                  controller: _portalPasswordController,
+                  obscureText: _obscurePortalPassword,
+                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.slate400),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePortalPassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 18,
+                      color: AppColors.slate500,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePortalPassword = !_obscurePortalPassword);
+                    },
+                  ),
                 ),
               ],
             ),
