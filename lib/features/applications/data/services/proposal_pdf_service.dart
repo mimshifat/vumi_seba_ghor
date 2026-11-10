@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/pdf_letterhead_helper.dart';
 import '../../domain/models/proposal_print_models.dart';
 
 class _MeasuredRow {
@@ -57,28 +57,23 @@ class ProposalPdfService {
     TextAlign textAlign = TextAlign.left,
     required double maxWidth,
   }) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          fontFamily: AppTypography.fontFamily,
-          fontSize: fontSize,
-          fontWeight: fontWeight,
-          color: color,
-          height: 1.3,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
+    return PdfLetterheadLayout.makePainter(
+      text,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
       textAlign: textAlign,
+      maxWidth: maxWidth,
     );
-    tp.layout(minWidth: 0, maxWidth: maxWidth);
-    return tp;
   }
 
   /// আবেদনকারীর নাম ও কেস নম্বর নিয়ে প্রিন্ট-উপযোগী A4 PDF বাইট তৈরি করে।
   static Future<Uint8List> buildProposalListPdf({
     required List<ProposalPrintRow> rows,
     String shopName = 'রজব ভূমি সেবা ঘর',
+    String? proprietorName,
+    String? shopPhone,
+    String? shopAddress,
     String title = 'প্রস্তাব প্রেরণ — কেস তালিকা',
     String? officeLabel,
     DateTime? printedAt,
@@ -96,46 +91,20 @@ class ProposalPdfService {
     final metaRightText =
         'তারিখ: $formattedDate  |  মোট: ${BengaliDigits.toBengali(rows.length)} টি';
 
-    // হেডার উচ্চতা হিসাব
-    final shopPainter = cleanShop.isNotEmpty
-        ? _makePainter(
-            cleanShop,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-            maxWidth: _contentWidth,
-          )
-        : null;
-    final titlePainter = _makePainter(
-      title,
-      fontSize: 13,
-      fontWeight: FontWeight.w700,
-      color: const Color(0xFF1E293B),
-      maxWidth: _contentWidth,
-    );
-    final officePainter = _makePainter(
-      officeText,
-      fontSize: 10,
-      fontWeight: FontWeight.w500,
-      color: const Color(0xFF475569),
-      maxWidth: _contentWidth * 0.58,
-    );
-    final metaPainter = _makePainter(
-      metaRightText,
-      fontSize: 10,
-      fontWeight: FontWeight.w500,
-      color: const Color(0xFF475569),
-      textAlign: TextAlign.right,
-      maxWidth: _contentWidth * 0.40,
+    final letterhead = PdfLetterheadLayout.measure(
+      shopInfo: PdfShopInfo(
+        shopName: cleanShop.isNotEmpty ? cleanShop : 'রজব ভূমি সেবা ঘর',
+        proprietorName: proprietorName,
+        shopPhone: shopPhone,
+        shopAddress: shopAddress,
+      ),
+      title: title,
+      contentWidth: _contentWidth,
+      metaLeft: officeText,
+      metaRight: metaRightText,
     );
 
-    final headerBlockHeight = (shopPainter != null ? shopPainter.height + 2 : 0) +
-        titlePainter.height +
-        6 +
-        math.max(officePainter.height, metaPainter.height) +
-        14;
-
-    final tableStartY = _marginV + headerBlockHeight;
+    final tableStartY = _marginV + letterhead.totalHeight;
     const maxContentBottomY = _pageHeight - _marginV - _footerReserve;
 
     // Pass 1: সব রো মেপে পেজ অনুযায়ী ভাগ করা
@@ -248,41 +217,15 @@ class ProposalPdfService {
       );
 
       // হেডার আঁকা
-      var y = _marginV;
-      if (shopPainter != null) {
-        shopPainter.paint(canvas, ui.Offset(_marginH, y));
-        y += shopPainter.height + 2;
-      }
-      titlePainter.paint(canvas, ui.Offset(_marginH, y));
-      y += titlePainter.height + 6;
-
-      officePainter.paint(canvas, ui.Offset(_marginH, y));
-      metaPainter.paint(
+      letterhead.paint(
         canvas,
-        ui.Offset(_pageWidth - _marginH - metaPainter.width, y),
-      );
-      y += math.max(officePainter.height, metaPainter.height) + 8;
-
-      canvas.drawLine(
-        ui.Offset(_marginH, y),
-        ui.Offset(_pageWidth - _marginH, y),
-        ui.Paint()
-          ..color = const Color(0xFF94A3B8)
-          ..strokeWidth = 0.8,
+        marginH: _marginH,
+        marginV: _marginV,
+        pageWidth: _pageWidth,
       );
 
-      // টেবিল হেডার
+      // টেবিল হেডার (রঙহীন, স্পষ্ট বর্ডারসহ)
       var tableY = tableStartY;
-      final headerRect = ui.Rect.fromLTWH(
-        _marginH,
-        tableY,
-        _contentWidth,
-        _tableHeaderHeight,
-      );
-      canvas.drawRect(
-        headerRect,
-        ui.Paint()..color = const Color(0xFFE2E8F0),
-      );
 
       thSerial.paint(
         canvas,
@@ -306,8 +249,12 @@ class ProposalPdfService {
         ),
       );
 
+      final headerBorderPaint = ui.Paint()
+        ..color = const Color(0xFF1E293B)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 0.9;
       final borderPaint = ui.Paint()
-        ..color = const Color(0xFF94A3B8)
+        ..color = const Color(0xFF64748B)
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 0.6;
 
@@ -315,7 +262,7 @@ class ProposalPdfService {
         canvas,
         top: tableY,
         height: _tableHeaderHeight,
-        paint: borderPaint,
+        paint: headerBorderPaint,
       );
       tableY += _tableHeaderHeight;
 
@@ -342,12 +289,6 @@ class ProposalPdfService {
       } else {
         for (var rIdx = 0; rIdx < pageRows.length; rIdx++) {
           final r = pageRows[rIdx];
-          if (rIdx.isOdd) {
-            canvas.drawRect(
-              ui.Rect.fromLTWH(_marginH, tableY, _contentWidth, r.height),
-              ui.Paint()..color = const Color(0xFFF8FAFC),
-            );
-          }
 
           r.serialPainter.paint(
             canvas,

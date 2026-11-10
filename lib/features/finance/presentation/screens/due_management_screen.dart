@@ -3,12 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/pdf_letterhead_helper.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../data/services/due_pdf_service.dart';
+import 'due_pdf_preview_screen.dart';
 import 'payment_form_screen.dart';
 
 class DueManagementScreen extends ConsumerStatefulWidget {
@@ -20,6 +25,78 @@ class DueManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _DueManagementScreenState extends ConsumerState<DueManagementScreen> {
+  bool _isGeneratingPdf = false;
+
+  PdfShopInfo _resolveShopInfo() {
+    final settings = ref.read(shopSettingsStreamProvider).valueOrNull;
+    return PdfShopInfo.fromSettings(settings);
+  }
+
+  Future<void> _openDueListPdfPreview(
+    List<DemoApplication> dueApplications,
+  ) async {
+    if (_isGeneratingPdf) return;
+    if (dueApplications.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('তৈরি করার মতো কোনো বকেয়া পাওনা নেই।'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isGeneratingPdf = true);
+    try {
+      final now = DateTime.now();
+      final shopInfo = _resolveShopInfo();
+      final rows = dueApplications
+          .map(
+            (app) => DuePdfRow(
+              applicantName: app.applicantName,
+              applicantPhone: app.applicantPhone,
+              workType: app.workType,
+              agreedAmount: app.agreedAmount,
+              receivedAmount: app.receivedAmount,
+              dueAmount: app.dueAmount,
+            ),
+          )
+          .toList();
+
+      final pdfBytes = await DuePdfService.buildDueListPdf(
+        rows: rows,
+        shopName: shopInfo.shopName,
+        proprietorName: shopInfo.proprietorName,
+        shopPhone: shopInfo.shopPhone,
+        shopAddress: shopInfo.shopAddress,
+        printedAt: now,
+      );
+
+      if (!mounted) return;
+      setState(() => _isGeneratingPdf = false);
+
+      final dateTag =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DuePdfPreviewScreen(
+            pdfBytes: pdfBytes,
+            pdfFileName: 'bokeya_talika_$dateTag.pdf',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isGeneratingPdf = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF তৈরি করা যায়নি: $e'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
@@ -41,19 +118,27 @@ class _DueManagementScreenState extends ConsumerState<DueManagementScreen> {
       appBar: AppBar(
         title: const Text('বকেয়া হিসাব ও তাগাদা'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined,
-                color: AppColors.rose),
-            tooltip: 'বকেয়া তালিকা PDF তৈরি',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('বকেয়া তালিকার অফিসিয়াল PDF তৈরি হচ্ছে...'),
-                  duration: Duration(seconds: 2),
+          if (_isGeneratingPdf)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.rose,
+                  ),
                 ),
-              );
-            },
-          ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_outlined,
+                  color: AppColors.rose),
+              tooltip: 'বকেয়া তালিকা PDF তৈরি',
+              onPressed: () => _openDueListPdfPreview(dueApplications),
+            ),
         ],
       ),
       body: Column(

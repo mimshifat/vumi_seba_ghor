@@ -50,6 +50,12 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
     super.dispose();
   }
 
+  String _statusToQuickKey(String status) {
+    if (status == 'সম্পন্ন') return 'completed';
+    if (status == 'শুনানি') return 'hearing';
+    return status;
+  }
+
   void _openFilterBottomSheet() {
     final workTypes = ref
             .read(workTypesStreamProvider)
@@ -74,11 +80,18 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
         setState(() {
           _criteria = updated;
         });
-        ref.read(applicationFilterProvider.notifier).setCriteria(updated);
+        final notifier = ref.read(applicationFilterProvider.notifier);
+        notifier.setCriteria(updated);
         if (updated.selectedStatus != null) {
-          ref
-              .read(applicationFilterProvider.notifier)
-              .setQuickFilterKey(updated.selectedStatus);
+          notifier.setQuickFilterKey(_statusToQuickKey(updated.selectedStatus!));
+        } else {
+          final currentQuick =
+              ref.read(applicationFilterProvider).quickFilterKey;
+          if (currentQuick != 'all' &&
+              currentQuick != 'ongoing' &&
+              currentQuick != 'has_due') {
+            notifier.setQuickFilterKey('all');
+          }
         }
       },
     );
@@ -280,6 +293,20 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
+                          if (_criteria.selectedStatus != null)
+                            _buildActivePill(
+                                'অবস্থা: ${_criteria.selectedStatus}', () {
+                              final removed = _criteria.selectedStatus;
+                              setState(() => _criteria.selectedStatus = null);
+                              final notifier = ref
+                                  .read(applicationFilterProvider.notifier);
+                              notifier.setSelectedStatus(null);
+                              if (removed != null &&
+                                  filterState.quickFilterKey ==
+                                      _statusToQuickKey(removed)) {
+                                notifier.setQuickFilterKey('all');
+                              }
+                            }),
                           if (_criteria.selectedWorkType != null)
                             _buildActivePill(
                                 'কাজের ধরন: ${_criteria.selectedWorkType}', () {
@@ -309,6 +336,16 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
                                     .setDueStatus('all');
                               },
                             ),
+                          if (_criteria.sortBy != 'newest')
+                            _buildActivePill(
+                              'বাছাই: ${_getSortLabel(_criteria.sortBy)}',
+                              () {
+                                setState(() => _criteria.sortBy = 'newest');
+                                ref
+                                    .read(applicationFilterProvider.notifier)
+                                    .setSortBy('newest');
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -332,8 +369,8 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
               ),
             ),
 
-          // প্রস্তাব প্রেরণ স্ট্যাটাস সিলেক্ট করা থাকলে PDF প্রিন্ট ব্যানার
-          if (isProposalFilterActive)
+          // প্রস্তাব প্রেরণ স্ট্যাটাস সিলেক্ট করা থাকলে এবং নতুন কেস প্রিন্ট বাকি থাকলে PDF প্রিন্ট ব্যানার
+          if (isProposalFilterActive && pendingProposalCount > 0)
             Container(
               margin: const EdgeInsets.fromLTRB(
                 AppSpacing.base,
@@ -362,9 +399,7 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      pendingProposalCount > 0
-                          ? 'প্রিন্ট বাকি আছে: নতুন ${BengaliDigits.toBengali(pendingProposalCount)} টি কেস'
-                          : 'প্রস্তাব প্রেরণের সব কেস আগে প্রিন্ট করা হয়েছে',
+                      'প্রিন্ট বাকি আছে: নতুন ${BengaliDigits.toBengali(pendingProposalCount)} টি কেস',
                       style: AppTypography.bodySmall.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
@@ -470,6 +505,8 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
     required String? currentKey,
   }) {
     final isSelected = currentKey == key;
+    final selectedTextColor =
+        Color.lerp(color, Colors.black, 0.22) ?? color;
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: FilterChip(
@@ -479,11 +516,11 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
         labelStyle: TextStyle(
           fontSize: 11.5,
           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          color: isSelected ? Colors.white : AppColors.textPrimary,
+          color: isSelected ? selectedTextColor : AppColors.textPrimary,
           fontFamily: AppTypography.fontFamily,
         ),
         backgroundColor: AppColors.slate100,
-        selectedColor: color.withValues(alpha: 0.15),
+        selectedColor: color.withValues(alpha: 0.14),
         side: BorderSide(
           color: isSelected ? color : AppColors.border,
           width: 1,
@@ -494,21 +531,20 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
         ),
         onSelected: (_) {
           final nextKey = isSelected ? 'all' : key;
-          ref
-              .read(applicationFilterProvider.notifier)
-              .setQuickFilterKey(nextKey);
-          if (key != 'all' &&
+          final notifier = ref.read(applicationFilterProvider.notifier);
+          notifier.setQuickFilterKey(nextKey);
+
+          final isCustomStatusPill = key != 'all' &&
               key != 'ongoing' &&
               key != 'hearing' &&
               key != 'has_due' &&
-              key != 'completed') {
-            setState(() {
-              _criteria.selectedStatus = isSelected ? null : key;
-            });
-            ref
-                .read(applicationFilterProvider.notifier)
-                .setSelectedStatus(isSelected ? null : key);
-          }
+              key != 'completed';
+          final nextSelectedStatus =
+              (!isSelected && isCustomStatusPill) ? key : null;
+          setState(() {
+            _criteria.selectedStatus = nextSelectedStatus;
+          });
+          notifier.setSelectedStatus(nextSelectedStatus);
         },
       ),
     );

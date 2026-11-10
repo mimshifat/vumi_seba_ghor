@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/pdf_letterhead_helper.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -103,10 +104,9 @@ class _ProposalPrintQueueScreenState
     return '$day/$month/$year • $hour:$min $period';
   }
 
-  String _resolveShopName() {
+  PdfShopInfo _resolveShopInfo() {
     final settings = ref.read(shopSettingsStreamProvider).valueOrNull;
-    final name = settings?['shop_name']?.trim();
-    return (name != null && name.isNotEmpty) ? name : 'রজব ভূমি সেবা ঘর';
+    return PdfShopInfo.fromSettings(settings);
   }
 
   Future<void> _openPendingPdfPreview(
@@ -117,10 +117,13 @@ class _ProposalPrintQueueScreenState
 
     try {
       final now = DateTime.now();
-      final shopName = _resolveShopName();
+      final shopInfo = _resolveShopInfo();
       final pdfBytes = await ProposalPdfService.buildProposalListPdf(
         rows: selectedCandidates.map((c) => c.toPdfRow()).toList(),
-        shopName: shopName,
+        shopName: shopInfo.shopName,
+        proprietorName: shopInfo.proprietorName,
+        shopPhone: shopInfo.shopPhone,
+        shopAddress: shopInfo.shopAddress,
         officeLabel: _selectedOffice,
         printedAt: now,
       );
@@ -188,12 +191,15 @@ class _ProposalPrintQueueScreenState
     setState(() => _isGeneratingPdf = true);
 
     try {
-      final shopName = _resolveShopName();
+      final shopInfo = _resolveShopInfo();
       final printedDate =
           DateTime.fromMillisecondsSinceEpoch(batchWithItems.batch.printedAt);
       final pdfBytes = await ProposalPdfService.buildProposalListPdf(
         rows: batchWithItems.toPdfRows(),
-        shopName: shopName,
+        shopName: shopInfo.shopName,
+        proprietorName: shopInfo.proprietorName,
+        shopPhone: shopInfo.shopPhone,
+        shopAddress: shopInfo.shopAddress,
         title: batchWithItems.batch.title ?? 'প্রস্তাব প্রেরণ — কেস তালিকা',
         officeLabel: batchWithItems.batch.officeFilter,
         printedAt: printedDate,
