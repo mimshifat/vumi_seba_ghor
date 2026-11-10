@@ -42,6 +42,7 @@ class _ApplicationDetailScreenState
   late TabController _tabController;
   late DemoApplication _app;
   bool _showPortalPassword = false;
+  bool _isOpeningPortal = false;
 
   @override
   void initState() {
@@ -1204,7 +1205,7 @@ class _ApplicationDetailScreenState
                 icon: const Icon(Icons.login_rounded, size: 18),
                 label: Text(
                   (_app.portalPassword != null && _app.portalPassword!.isNotEmpty)
-                      ? 'ভূমি পোর্টালে অটো-লগইন করুন'
+                      ? 'পোর্টালে অটো-ফিল ও লগইন'
                       : 'ভূমি পোর্টাল খুলুন',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                 ),
@@ -1217,19 +1218,28 @@ class _ApplicationDetailScreenState
                     borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (ctx) => LandPortalWebViewScreen(
-                        initialUrl: LandPortalHelper.lsgLoginUrl,
-                        portalPhone: _app.effectivePortalPhone,
-                        portalPassword: _app.portalPassword,
-                        applicationId: _app.id,
-                        applicantName: _app.applicantName,
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _isOpeningPortal
+                    ? null
+                    : () async {
+                        setState(() => _isOpeningPortal = true);
+                        try {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (ctx) => LandPortalWebViewScreen(
+                                initialUrl: LandPortalHelper.lsgLoginUrl,
+                                portalPhone: _app.effectivePortalPhone,
+                                portalPassword: _app.portalPassword,
+                                applicationId: _app.id,
+                                applicantName: _app.applicantName,
+                              ),
+                            ),
+                          );
+                        } finally {
+                          if (mounted) {
+                            setState(() => _isOpeningPortal = false);
+                          }
+                        }
+                      },
               ),
             ),
           ],

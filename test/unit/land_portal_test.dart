@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:bhumi_kajer_hisab/core/database/app_database.dart';
 import 'package:bhumi_kajer_hisab/core/errors/app_failure.dart';
 import 'package:bhumi_kajer_hisab/features/applications/data/repositories/application_repository.dart';
 import 'package:bhumi_kajer_hisab/features/applications/data/services/land_portal_helper.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart' as raw_sqlite;
 
 AppDatabase _createTestDb() {
   return AppDatabase(
@@ -71,6 +74,41 @@ void main() {
         onlyIfEmpty: false,
       );
       expect(manualScript, contains('onlyIfEmpty = false'));
+      expect(manualScript, contains('isEmail = false'));
+
+      final emailScript = LandPortalHelper.buildLsgAutofillScript(
+        mobile: 'user@example.com',
+        password: 'pass',
+        onlyIfEmpty: true,
+      );
+      expect(emailScript, contains('"user@example.com"'));
+      expect(emailScript, contains('isEmail = true'));
+    });
+
+    test('isInternalWebScheme এবং extractIntentFallbackUrl নিরাপদে কাজ করে', () {
+      expect(LandPortalHelper.isInternalWebScheme('https'), isTrue);
+      expect(LandPortalHelper.isInternalWebScheme('http'), isTrue);
+      expect(LandPortalHelper.isInternalWebScheme('blob'), isTrue);
+      expect(LandPortalHelper.isInternalWebScheme('data'), isTrue);
+      expect(LandPortalHelper.isInternalWebScheme('intent'), isFalse);
+      expect(LandPortalHelper.isInternalWebScheme('tel'), isFalse);
+
+      expect(
+        LandPortalHelper.extractIntentFallbackUrl(
+          'intent://pay#Intent;scheme=bkash;S.browser_fallback_url=https%3A%2F%2Fpay.land.gov.bd%2Fcheckout;end',
+        ),
+        'https://pay.land.gov.bd/checkout',
+      );
+      expect(
+        LandPortalHelper.extractIntentFallbackUrl(
+          'intent://pay#Intent;S.browser_fallback_url=javascript%3Aalert(1);end',
+        ),
+        isNull,
+      );
+      expect(
+        LandPortalHelper.extractIntentFallbackUrl('https://land.gov.bd'),
+        isNull,
+      );
     });
   });
 
@@ -168,6 +206,171 @@ void main() {
         ),
         throwsA(isA<AppFailure>()),
       );
+    });
+
+    test('পুরনো v2 ডেটাবেজ আপগ্রেড করলে আগের আবেদন অক্ষত থাকে ও পোর্টাল তথ্য যোগ করা যায়', () async {
+      final tempDir = Directory.systemTemp.createTempSync('rojob_v2_upgrade_');
+      addTearDown(() {
+        if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+      });
+      final dbFile = File('${tempDir.path}/rojob_v2.sqlite');
+
+      // ১. পুরনো v2 স্কিমা (portal_phone/portal_password ছাড়া) ও পুরনো আবেদন তৈরি
+      final raw = raw_sqlite.sqlite3.open(dbFile.path);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      raw.execute('''
+        CREATE TABLE persons (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          address TEXT,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TABLE "references" (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          address TEXT,
+          photo BLOB,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TABLE offices (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TABLE applications (
+          id TEXT PRIMARY KEY NOT NULL,
+          applicant_id TEXT REFERENCES persons(id) ON DELETE SET NULL,
+          applicant_name TEXT NOT NULL,
+          applicant_phone TEXT NOT NULL,
+          applicant_address TEXT,
+          reference_id TEXT REFERENCES "references"(id) ON DELETE SET NULL,
+          reference_name TEXT,
+          office_id TEXT REFERENCES offices(id) ON DELETE SET NULL,
+          office_name TEXT NOT NULL,
+          mouza TEXT,
+          app_number TEXT,
+          case_number TEXT,
+          work_type TEXT NOT NULL,
+          application_date INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          agreed_amount INTEGER NOT NULL,
+          is_marked_as_paid INTEGER NOT NULL DEFAULT 0,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TABLE payments (
+          id TEXT PRIMARY KEY NOT NULL,
+          application_id TEXT NOT NULL REFERENCES applications(id),
+          amount INTEGER NOT NULL,
+          date INTEGER NOT NULL,
+          method TEXT NOT NULL,
+          note TEXT,
+          status_history_id TEXT,
+          status_name TEXT,
+          is_status_fee INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TABLE expenses (
+          id TEXT PRIMARY KEY NOT NULL,
+          application_id TEXT REFERENCES applications(id),
+          amount INTEGER NOT NULL,
+          category TEXT NOT NULL,
+          date INTEGER NOT NULL,
+          is_general INTEGER NOT NULL DEFAULT 0,
+          note TEXT,
+          status_history_id TEXT,
+          status_name TEXT,
+          is_status_exp INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TABLE proposal_print_batches (
+          id TEXT PRIMARY KEY NOT NULL,
+          office_name TEXT,
+          printed_at INTEGER NOT NULL,
+          item_count INTEGER NOT NULL DEFAULT 0,
+          note TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TABLE proposal_print_batch_items (
+          id TEXT PRIMARY KEY NOT NULL,
+          batch_id TEXT NOT NULL REFERENCES proposal_print_batches(id),
+          application_id TEXT NOT NULL REFERENCES applications(id),
+          status_history_id TEXT,
+          applicant_name TEXT NOT NULL,
+          case_number TEXT,
+          office_name TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+        CREATE TRIGGER applications_snapshot_immutable
+        BEFORE UPDATE ON applications
+        FOR EACH ROW
+        WHEN OLD.applicant_name IS NOT NEW.applicant_name
+          OR OLD.applicant_phone IS NOT NEW.applicant_phone
+          OR OLD.applicant_address IS NOT NEW.applicant_address
+          OR OLD.reference_name IS NOT NEW.reference_name
+          OR OLD.office_name IS NOT NEW.office_name
+        BEGIN
+          SELECT RAISE(ABORT, 'application snapshot columns are immutable');
+        END;
+        INSERT INTO applications (
+          id, applicant_name, applicant_phone, office_name, work_type,
+          application_date, status, agreed_amount, is_marked_as_paid,
+          created_at, updated_at
+        ) VALUES (
+          'old-app-1', 'পুরনো গ্রাহক', '01712345678', 'উপজেলা ভূমি অফিস, সাভার',
+          'নামজারি', $now, 'আবেদন', 800000, 0, $now, $now
+        );
+        PRAGMA user_version = 2;
+      ''');
+      raw.close();
+
+      // ২. নতুন v3 AppDatabase দিয়ে খোলা ও আপগ্রেড যাচাই
+      final upgradedDb = AppDatabase(NativeDatabase(dbFile));
+      try {
+        final upgradedRepo = ApplicationRepository(upgradedDb);
+        final oldWithFin =
+            await upgradedRepo.getApplicationWithFinancials('old-app-1');
+        expect(oldWithFin, isNotNull);
+        expect(oldWithFin!.application.applicantName, 'পুরনো গ্রাহক');
+        expect(oldWithFin.application.portalPhone, isNull);
+        expect(oldWithFin.application.portalPassword, isNull);
+        expect(oldWithFin.toDemoApplication().effectivePortalPhone, '01712345678');
+
+        // ৩. পুরনো আবেদনে পরে পোর্টাল পাসওয়ার্ড যোগ করা যায়
+        await upgradedRepo.updateApplication(
+          id: 'old-app-1',
+          portalPassword: 'UpgradedPass#1',
+          updatePortalCredentials: true,
+        );
+        final updated = await upgradedRepo.getApplication('old-app-1');
+        expect(updated!.portalPassword, 'UpgradedPass#1');
+
+        final ver =
+            await upgradedDb.customSelect('PRAGMA user_version;').getSingle();
+        expect(ver.read<int>('user_version'), 3);
+      } finally {
+        await upgradedDb.close();
+      }
     });
   });
 }

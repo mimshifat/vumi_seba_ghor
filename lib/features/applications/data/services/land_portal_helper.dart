@@ -72,10 +72,41 @@ class LandPortalHelper {
     return cleaned;
   }
 
-  /// লগইন পেজে মোবাইল নম্বর ও পাসওয়ার্ড অটো-ফিল করার নিরাপদ JavaScript তৈরি করে।
+  /// WebView-এ সরাসরি লোড করার অনুমোদিত স্কিম কি না।
+  static bool isInternalWebScheme(String scheme) {
+    final s = scheme.toLowerCase();
+    return s == 'http' ||
+        s == 'https' ||
+        s == 'about' ||
+        s == 'blob' ||
+        s == 'data';
+  }
+
+  /// `intent://...` URL থেকে `S.browser_fallback_url` বের করে (যদি থাকে)।
+  static String? extractIntentFallbackUrl(String rawUrl) {
+    if (!rawUrl.toLowerCase().startsWith('intent://')) return null;
+    final match = RegExp(
+      r'S\.browser_fallback_url=([^;]+)',
+      caseSensitive: false,
+    ).firstMatch(rawUrl);
+    final encoded = match?.group(1)?.trim();
+    if (encoded == null || encoded.isEmpty) return null;
+    try {
+      final decoded = Uri.decodeComponent(encoded);
+      final parsed = Uri.tryParse(decoded);
+      if (parsed != null &&
+          (parsed.scheme == 'http' || parsed.scheme == 'https')) {
+        return decoded;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// লগইন পেজে মোবাইল নম্বর (বা ইমেইল) ও পাসওয়ার্ড অটো-ফিল করার নিরাপদ JavaScript তৈরি করে।
   ///
-  /// কেবল `#mobile` (বা `input[name="username"]`) এবং `#see-password` (বা `input[name="password"]`)
-  /// ফিল্ড পূরণ করে। ক্যাপচা (`#mainCaptcha` / `#txtInput`) স্পর্শ করে না।
+  /// কেবল `#mobile` (বা `input[name="username"]` / `input[type="email"]`) এবং
+  /// `#see-password` (বা `input[name="password"]`) ফিল্ড পূরণ করে।
+  /// ক্যাপচা (`#mainCaptcha` / `#txtInput`) স্পর্শ করে না।
   ///
   /// [onlyIfEmpty] `true` হলে আগে থেকে ইউজার কিছু টাইপ করে থাকলে ওভাররাইট করে না।
   static String buildLsgAutofillScript({
@@ -84,6 +115,7 @@ class LandPortalHelper {
     bool onlyIfEmpty = false,
   }) {
     final tenDigitMobile = toTenDigitPortalMobile(mobile);
+    final isEmail = tenDigitMobile.contains('@');
     final mobileJson = jsonEncode(tenDigitMobile);
     final passwordJson = jsonEncode(password);
 
@@ -93,10 +125,13 @@ class LandPortalHelper {
     var mobileVal = $mobileJson;
     var passVal = $passwordJson;
     var onlyIfEmpty = ${onlyIfEmpty ? 'true' : 'false'};
+    var isEmail = ${isEmail ? 'true' : 'false'};
 
-    var mobileRadio = document.getElementById('identity');
-    if (mobileRadio && mobileRadio.type === 'radio' && !mobileRadio.checked) {
-      mobileRadio.click();
+    if (!isEmail) {
+      var mobileRadio = document.getElementById('identity');
+      if (mobileRadio && mobileRadio.type === 'radio' && !mobileRadio.checked) {
+        mobileRadio.click();
+      }
     }
 
     function setNativeValue(el, val) {
@@ -117,8 +152,11 @@ class LandPortalHelper {
       return true;
     }
 
-    var mobileInput = document.getElementById('mobile') ||
-      document.querySelector('input[name="username"][type="number"], input[name="username"][type="tel"], input[name="username"]');
+    var mobileInput = isEmail
+      ? (document.querySelector('input[type="email"], input[name="email"], input[name="username"]:not([type="number"])') ||
+         document.getElementById('email'))
+      : (document.getElementById('mobile') ||
+         document.querySelector('input[name="username"][type="number"], input[name="username"][type="tel"], input[name="username"]'));
     var passInput = document.getElementById('see-password') ||
       document.querySelector('input[name="password"], input[type="password"]');
 
@@ -134,12 +172,14 @@ class LandPortalHelper {
 
     return JSON.stringify({
       mobileFilled: mobileFilled,
-      passwordFilled: passwordFilled
+      passwordFilled: passwordFilled,
+      foundInputs: Boolean(mobileInput || passInput)
     });
   } catch (e) {
     return JSON.stringify({
       mobileFilled: false,
       passwordFilled: false,
+      foundInputs: false,
       error: String(e)
     });
   }

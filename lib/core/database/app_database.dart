@@ -198,8 +198,15 @@ class AppDatabase extends _$AppDatabase {
             }
           }
           if (from < 3) {
-            await m.addColumn(applications, applications.portalPhone);
-            await m.addColumn(applications, applications.portalPassword);
+            final cols =
+                await customSelect("PRAGMA table_info('applications')").get();
+            final colNames = cols.map((r) => r.read<String>('name')).toSet();
+            if (!colNames.contains('portal_phone')) {
+              await m.addColumn(applications, applications.portalPhone);
+            }
+            if (!colNames.contains('portal_password')) {
+              await m.addColumn(applications, applications.portalPassword);
+            }
           }
         },
         beforeOpen: (details) async {

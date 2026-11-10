@@ -3,17 +3,25 @@ package com.rojob.bhumi_kajer_hisab.bhumi_kajer_hisab
 import android.content.ContentValues
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
+import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
     companion object {
         private const val DOWNLOAD_CHANNEL = "com.rojob.bhumi_kajer_hisab/downloads"
     }
+
+    private val ioExecutor = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -23,18 +31,31 @@ class MainActivity : FlutterActivity() {
                 if (call.method == "saveToDownloads") {
                     val fileName = call.argument<String>("fileName")
                     val mimeType = call.argument<String>("mimeType") ?: "application/octet-stream"
+                    val filePath = call.argument<String>("filePath")
                     val bytes = call.argument<ByteArray>("bytes")
 
-                    if (fileName.isNullOrBlank() || bytes == null) {
-                        result.error("INVALID_ARGS", "Missing fileName or bytes", null)
+                    if (fileName.isNullOrBlank() || (filePath.isNullOrBlank() && bytes == null)) {
+                        result.error("INVALID_ARGS", "Missing fileName or filePath/bytes", null)
                         return@setMethodCallHandler
                     }
 
-                    try {
-                        val savedInfo = saveBytesToPublicDownloads(fileName, mimeType, bytes)
-                        result.success(savedInfo)
-                    } catch (e: Exception) {
-                        result.error("SAVE_FAILED", e.message, null)
+                    ioExecutor.execute {
+                        try {
+                            val savedInfo = if (!filePath.isNullOrBlank()) {
+                                val sourceFile = File(filePath)
+                                if (!sourceFile.exists() || !sourceFile.isFile) {
+                                    throw IllegalStateException("Source temp file does not exist")
+                                }
+                                FileInputStream(sourceFile).use { input ->
+                                    saveStreamToPublicDownloads(fileName, mimeType, input)
+                                }
+                            } else {
+                                saveBytesToPublicDownloads(fileName, mimeType, bytes!!)
+                            }
+                            mainHandler.post { result.success(savedInfo) }
+                        } catch (e: Exception) {
+                            mainHandler.post { result.error("SAVE_FAILED", e.message, null) }
+                        }
                     }
                 } else {
                     result.notImplemented()
@@ -42,11 +63,27 @@ class MainActivity : FlutterActivity() {
             }
     }
 
+    override fun onDestroy() {
+        ioExecutor.shutdown()
+        super.onDestroy()
+    }
+
     private fun saveBytesToPublicDownloads(
         fileName: String,
         mimeType: String,
         bytes: ByteArray,
     ): Map<String, Any>? {
+        return bytes.inputStream().use { input ->
+            saveStreamToPublicDownloads(fileName, mimeType, input)
+        }
+    }
+
+    private fun saveStreamToPublicDownloads(
+        fileName: String,
+        mimeType: String,
+        input: InputStream,
+    ): Map<String, Any>? {
+        val buffer = ByteArray(8192)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = applicationContext.contentResolver
             val values = ContentValues().apply {
@@ -61,7 +98,10 @@ class MainActivity : FlutterActivity() {
 
             try {
                 resolver.openOutputStream(uri)?.use { out ->
-                    out.write(bytes)
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        out.write(buffer, 0, read)
+                    }
                     out.flush()
                 } ?: return null
 
@@ -92,7 +132,10 @@ class MainActivity : FlutterActivity() {
             }
             val targetFile = uniqueTargetFile(downloadsDir, fileName)
             FileOutputStream(targetFile).use { out ->
-                out.write(bytes)
+                var read: Int
+                while (input.read(buffer).also { read = it } != -1) {
+                    out.write(buffer, 0, read)
+                }
                 out.flush()
             }
             return mapOf(
