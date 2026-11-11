@@ -26,7 +26,11 @@ jobs:
         run: flutter pub get
 
       - name: Build Windows Executable
-        run: flutter build windows --release
+        shell: pwsh
+        run: |
+          $env:CL = "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
+          $env:_CL_ = "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
+          flutter build windows --release
 
       - name: Compress Release Artifact
         shell: pwsh
