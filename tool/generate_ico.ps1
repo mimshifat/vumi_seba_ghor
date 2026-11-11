@@ -57,3 +57,4 @@ for ($i = 0; $i -lt $sizes.Count; $i++) {
 $bw.Close()
 $fs.Close()
 Write-Output "Successfully generated $targetPath!"
+

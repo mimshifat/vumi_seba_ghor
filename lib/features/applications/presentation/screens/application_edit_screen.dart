@@ -16,6 +16,7 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/case_number_field.dart';
 import '../../../../core/widgets/money_field.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../data/services/land_portal_helper.dart';
 import '../providers/application_providers.dart';
 
 class ApplicationEditScreen extends ConsumerStatefulWidget {
@@ -347,7 +348,7 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'পোর্টাল পাসওয়ার্ড',
-                  hint: 'lsg-land-owner.land.gov.bd পাসওয়ার্ড',
+                  hint: 'ডিফল্ট: ${LandPortalHelper.defaultPortalPassword}',
                   controller: _portalPasswordController,
                   obscureText: _obscurePortalPassword,
                   prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.slate400),

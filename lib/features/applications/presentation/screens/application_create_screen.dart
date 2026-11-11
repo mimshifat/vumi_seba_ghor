@@ -22,6 +22,7 @@ import '../../../offices/presentation/providers/office_providers.dart';
 import '../../../persons/presentation/providers/person_providers.dart';
 import '../../../references/presentation/widgets/reference_selector_sheet.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../data/services/land_portal_helper.dart';
 import '../providers/application_providers.dart';
 import '../widgets/form_step_indicator.dart';
 
@@ -50,7 +51,8 @@ class _ApplicationCreateScreenState
   final _addressController = TextEditingController();
   bool _useSamePhoneForPortal = true;
   final _portalPhoneController = TextEditingController();
-  final _portalPasswordController = TextEditingController();
+  final _portalPasswordController =
+      TextEditingController(text: LandPortalHelper.defaultPortalPassword);
   bool _obscurePortalPassword = true;
 
   // Step 2: Work & Office Information
@@ -800,7 +802,8 @@ class _ApplicationCreateScreenState
                               _addressController.clear();
                               _useSamePhoneForPortal = true;
                               _portalPhoneController.clear();
-                              _portalPasswordController.clear();
+                              _portalPasswordController.text =
+                                  LandPortalHelper.defaultPortalPassword;
                             });
                           },
                           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
@@ -979,7 +982,9 @@ class _ApplicationCreateScreenState
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'পোর্টাল পাসওয়ার্ড',
-                  hint: 'lsg-land-owner.land.gov.bd পাসওয়ার্ড',
+                  hint: 'ডিফল্ট: ${LandPortalHelper.defaultPortalPassword}',
+                  helperText:
+                      'ডিফল্ট পাসওয়ার্ড: ${LandPortalHelper.defaultPortalPassword} (প্রয়োজনে পরিবর্তন করতে পারেন)',
                   controller: _portalPasswordController,
                   isRequired: false,
                   obscureText: _obscurePortalPassword,

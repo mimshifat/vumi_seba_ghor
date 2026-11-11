@@ -9,6 +9,9 @@ class LandPortalHelper {
   /// নাগরিক / ভূমি মালিক পোর্টাল লগইন URL।
   static const String lsgLoginUrl = 'https://lsg-land-owner.land.gov.bd/login';
 
+  /// ডিফল্ট নাগরিক পোর্টাল পাসওয়ার্ড
+  static const String defaultPortalPassword = 'Mm@123456';
+
   /// পোর্টালের মোবাইল ইনপুট (+880 পাশে থাকায়) ১০ ডিজিটের ইংরেজি নম্বর চায় (যেমন: 1711223344)।
   ///
   /// বাংলা বা ইংরেজি, `+880` বা `0` যুক্ত যেকোনো নম্বরকে ১০-ডিজিট পোর্টাল ফরম্যাটে রূপান্তর করে।
