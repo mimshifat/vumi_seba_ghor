@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.rojob.bhumi_kajer_hisab" "\0"
-            VALUE "FileDescription", "bhumi_kajer_hisab" "\0"
+            VALUE "CompanyName", "Rojob Vumi Seba Ghor" "\0"
+            VALUE "FileDescription", "রজব ভূমি সেবা ঘর - Rojob Vumi Seba Ghor" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "bhumi_kajer_hisab" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.rojob.bhumi_kajer_hisab. All rights reserved." "\0"
-            VALUE "OriginalFilename", "bhumi_kajer_hisab.exe" "\0"
-            VALUE "ProductName", "bhumi_kajer_hisab" "\0"
+            VALUE "InternalName", "Rojob_Vumi_Seba_Ghor" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Rojob Vumi Seba Ghor. All rights reserved." "\0"
+            VALUE "OriginalFilename", "Rojob_Vumi_Seba_Ghor.exe" "\0"
+            VALUE "ProductName", "রজব ভূমি সেবা ঘর" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

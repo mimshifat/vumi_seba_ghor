@@ -4,7 +4,7 @@ project(bhumi_kajer_hisab LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "bhumi_kajer_hisab")
+set(BINARY_NAME "Rojob_Vumi_Seba_Ghor")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
