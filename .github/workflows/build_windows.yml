@@ -52,15 +52,3 @@ jobs:
           name: Rojob-Windows-Setup-Installer
           path: build/installer/*.exe
           retention-days: 14
-
-      - name: Compress Portable Release Artifact
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "rojob_windows_portable.zip"
-
-      - name: Upload Windows Portable Zip
-        uses: actions/upload-artifact@v4
-        with:
-          name: Rojob-Windows-Portable
-          path: rojob_windows_portable.zip
-          retention-days: 14
