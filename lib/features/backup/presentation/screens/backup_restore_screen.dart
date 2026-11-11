@@ -30,6 +30,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   final _botTokenController = TextEditingController();
   final _chatIdController = TextEditingController();
   bool _isExportingPhone = false;
+  bool _isSharing = false;
   bool _isExportingTelegram = false;
   bool _isImporting = false;
 
@@ -435,66 +436,71 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                   ),
                 ),
                 const Divider(height: 1),
-                // Share Latest Backup Tile
-                Consumer(
-                  builder: (context, ref, child) {
-                    final latestFileAsync =
-                        ref.watch(latestBackupFileProvider);
-                    final latestFile = latestFileAsync.valueOrNull;
-                    final hasFile =
-                        latestFile != null && latestFile.existsSync();
-                    final fileName = hasFile
-                        ? p.basename(latestFile.path)
-                        : null;
-                    final fileSizeKb = hasFile
-                        ? (latestFile.lengthSync() / 1024).toStringAsFixed(1)
-                        : null;
+                // Share Live Backup Tile (সরাসরি লাইভ ডেটাবেজের ফ্রেশ কপি শেয়ার)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.base, vertical: 4),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: const Icon(Icons.share_outlined,
+                        color: Color(0xFF16A34A), size: 22),
+                  ),
+                  title: const Text('ড্রাইভ বা হোয়াটসঅ্যাপে শেয়ার',
+                      style: TextStyle(
+                          fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  subtitle: const Text(
+                    'বর্তমান সব ডেটাসহ তাৎক্ষণিক লাইভ ব্যাকআপ শেয়ার করুন',
+                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: AppButton(
+                    text: 'শেয়ার',
+                    variant: ButtonVariant.outline,
+                    width: 92,
+                    height: 36,
+                    isLoading: _isSharing,
+                    onPressed: () async {
+                      setState(() => _isSharing = true);
+                      try {
+                        // ১. সরাসরি লাইভ ডেটাবেজ থেকে তাৎক্ষণিক ফ্রেশ VACUUM ব্যাকআপ তৈরি
+                        final freshFile = await ref
+                            .read(backupControllerProvider.notifier)
+                            .exportToPhone();
 
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.base, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusSm),
-                        ),
-                        child: const Icon(Icons.share_outlined,
-                            color: Color(0xFF16A34A), size: 22),
-                      ),
-                      title: const Text('ড্রাইভ বা হোয়াটসঅ্যাপে শেয়ার',
-                          style: TextStyle(
-                              fontSize: 14.5, fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                        hasFile
-                            ? '$fileName ($fileSizeKb KB)'
-                            : 'ড্রাইভ বা হোয়াটসঅ্যাপে পাঠাতে আগে ব্যাকআপ নিন',
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textMuted),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: AppButton(
-                        text: 'শেয়ার',
-                        variant: ButtonVariant.outline,
-                        width: 92,
-                        height: 36,
-                        onPressed: hasFile
-                            ? () async {
-                                await SharePlus.instance.share(
-                                  ShareParams(
-                                    files: [XFile(latestFile.path)],
-                                    text:
-                                        'রজব ভূমি সেবা ডেটাবেজ ব্যাকআপ: $fileName',
-                                    subject: 'রজব ডেটাবেজ ব্যাকআপ',
-                                  ),
-                                );
-                              }
-                            : null,
-                      ),
-                    );
-                  },
+                        if (!mounted || freshFile == null) return;
+                        ref.invalidate(latestBackupFileProvider);
+
+                        final fileName = p.basename(freshFile.path);
+
+                        // ২. সরাসরি হোয়াটসঅ্যাপ/ড্রাইভে শেয়ার শিট ওপেন
+                        await SharePlus.instance.share(
+                          ShareParams(
+                            files: [XFile(freshFile.path)],
+                            text: 'রজব ভূমি সেবা লাইভ ডেটাবেজ ব্যাকআপ: $fileName',
+                            subject: 'রজব ডেটাবেজ ব্যাকআপ',
+                          ),
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
+                        final failure = AppFailure.fromException(e);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(failure.message),
+                            backgroundColor: AppColors.rose,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } finally {
+                        if (mounted) setState(() => _isSharing = false);
+                      }
+                    },
+                  ),
                 ),
                 const Divider(height: 1),
                 // Import Tile
