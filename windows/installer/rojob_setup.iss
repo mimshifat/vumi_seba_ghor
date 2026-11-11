@@ -1,4 +1,4 @@
-; Inno Setup Script for Rojob Vumi Seba Ghor
+﻿; Inno Setup Script for Rojob Vumi Seba Ghor
 #define MyAppName "রজব ভূমি সেবা ঘর"
 #define MyAppNameAscii "Rojob Vumi Seba Ghor"
 #define MyAppVersion "1.0.1"
@@ -42,3 +42,4 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
