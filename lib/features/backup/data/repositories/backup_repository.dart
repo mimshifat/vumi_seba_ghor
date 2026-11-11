@@ -693,19 +693,39 @@ class BackupRepository {
           );
         }
 
-        // ৫. হালকা ব্যাকআপ শনাক্তকরণ (ডকুমেন্টস টেবিলের সব বাইনারি ব্লব শূন্য কিনা)
+        // ৫. হালকা ব্যাকআপ শনাক্তকরণ।
+        //
+        // 'stripDocumentsAndCompact' দিয়ে তৈরি lightweight backup-এ
+        // documents টেবিলের সব file_data = zeroblob(0) থাকে।
+        // তবে documents table খালি থাকলেও (totalDocs == 0) lightweight হতে পারে,
+        // তাই শুধু documents-এর উপর নির্ভর না করে backup ফাইলের নামেও চেক করা হয়।
         bool isLightweight = false;
         try {
-          final docStats = testDb.select(
-            "SELECT COUNT(*) as total_docs, "
-            "SUM(CASE WHEN length(file_data) = 0 THEN 1 ELSE 0 END) as empty_docs "
-            "FROM documents WHERE deleted_at IS NULL;",
-          );
-          if (docStats.isNotEmpty) {
-            final totalDocs = (docStats.first['total_docs'] as int?) ?? 0;
-            final emptyDocs = (docStats.first['empty_docs'] as int?) ?? 0;
-            if (totalDocs > 0 && emptyDocs == totalDocs) {
-              isLightweight = true;
+          // ৫ক. ফাইলের নাম দিয়ে lightweight চেক (exportBackupToTelegram সবসময় 'light' নামে সেভ করে)
+          final baseName = p.basename(filePath).toLowerCase();
+          if (baseName.contains('_light_')) {
+            isLightweight = true;
+          } else {
+            // ৫খ. Documents টেবিলে file_data আছে কিনা চেক করা
+            // documents টেবিল exist করলেই চেক করা হয়
+            final docTableExists = testDb.select(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='documents';",
+            );
+            if (docTableExists.isNotEmpty) {
+              final docStats = testDb.select(
+                "SELECT COUNT(*) as total_docs, "
+                "SUM(CASE WHEN length(file_data) = 0 THEN 1 ELSE 0 END) as empty_docs "
+                "FROM documents WHERE deleted_at IS NULL;",
+              );
+              if (docStats.isNotEmpty) {
+                final totalDocs = (docStats.first['total_docs'] as int?) ?? 0;
+                final emptyDocs = (docStats.first['empty_docs'] as int?) ?? 0;
+                // totalDocs > 0: রেকর্ড আছে এবং সব empty → lightweight
+                // totalDocs == 0: রেকর্ড নেই, ফাইলের নাম দিয়ে ইতোমধ্যে চেক হয়েছে
+                if (totalDocs > 0 && emptyDocs == totalDocs) {
+                  isLightweight = true;
+                }
+              }
             }
           }
         } catch (_) {}

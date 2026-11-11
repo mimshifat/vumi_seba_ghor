@@ -160,26 +160,33 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       final paysBn = BengaliDigits.toBengali(validation.totalPayments);
       final expsBn = BengaliDigits.toBengali(validation.totalExpenses);
 
-      final lightweightNotice = validation.isLightweight
-          ? '⚠️ সতর্কতা: এটি একটি হালকা ক্লাউড ব্যাকআপ। এতে সমস্ত হিসাব ও আবেদনের তথ্য অক্ষত রয়েছে, তবে দলিলের স্ক্যান কপি বা ছবি অন্তর্ভুক্ত নেই।\n\n'
-          : '';
-
-      final confirmed = await ConfirmDialog.show(
-        context,
-        title: 'ডেটা রিস্টোর করবেন?',
-        message: 'নির্বাচিত ফাইল: ${p.basename(pickedPath)} ($sizeBn KB)\n\n'
-            'ফাইলের সংরক্ষিত তথ্য:\n'
-            '• মোট আবেদন: $appsBn টি\n'
-            '• মোট জমা রসিদ: $paysBn টি\n'
-            '• মোট খরচ ভাউচার: $expsBn টি\n\n'
-            '$lightweightNotice'
-            'এই ফাইল থেকে সমস্ত তথ্য পুনরুদ্ধার করা হবে। এই ডিভাইসের টেলিগ্রাম সেটিংস নিরাপদ থাকবে। বর্তমান তথ্যের একটি স্থায়ী নিরাপত্তা ব্যাকআপ রাখা হবে যাতে ভুল হলে রিস্টোর বাতিল করা যায়। আপনি কি নিশ্চিত?',
-        confirmText: 'হ্যাঁ, রিস্টোর করুন',
-        isDestructive: true,
-        icon: Icons.restore_page_outlined,
-      );
-
-      if (confirmed != true || !mounted) return;
+      // হালকা ব্যাকআপের ক্ষেত্রে আলাদা ও কড়া সতর্কীকরণ ডায়ালগ
+      if (validation.isLightweight && mounted) {
+        final lightweightConfirmed = await _showLightweightRestoreWarning(
+          context,
+          fileName: p.basename(pickedPath),
+          fileSizeKb: sizeBn,
+          appCount: appsBn,
+          payCount: paysBn,
+          expCount: expsBn,
+        );
+        if (lightweightConfirmed != true || !mounted) return;
+      } else {
+        final confirmed = await ConfirmDialog.show(
+          context,
+          title: 'ডেটা রিস্টোর করবেন?',
+          message: 'নির্বাচিত ফাইল: ${p.basename(pickedPath)} ($sizeBn KB)\n\n'
+              'ফাইলের সংরক্ষিত তথ্য:\n'
+              '• মোট আবেদন: $appsBn টি\n'
+              '• মোট জমা রসিদ: $paysBn টি\n'
+              '• মোট খরচ ভাউচার: $expsBn টি\n\n'
+              'এই ফাইল থেকে সমস্ত তথ্য পুনরুদ্ধার করা হবে। এই ডিভাইসের টেলিগ্রাম সেটিংস নিরাপদ থাকবে। বর্তমান তথ্যের একটি স্থায়ী নিরাপত্তা ব্যাকআপ রাখা হবে যাতে ভুল হলে রিস্টোর বাতিল করা যায়। আপনি কি নিশ্চিত?',
+          confirmText: 'হ্যাঁ, রিস্টোর করুন',
+          isDestructive: true,
+          icon: Icons.restore_page_outlined,
+        );
+        if (confirmed != true || !mounted) return;
+      }
 
       setState(() => _isImporting = true);
 
@@ -687,6 +694,144 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
           ),
           const SizedBox(height: AppSpacing.base),
         ],
+      ),
+    );
+  }
+
+  /// হালকা ক্লাউড ব্যাকআপ রিস্টোরের বিশেষ সতর্কতা ডায়ালগ।
+  ///
+  /// সাধারণ [ConfirmDialog] থেকে আলাদা — এখানে স্পষ্টভাবে জানানো হয় যে
+  /// রিস্টোর করলে বর্তমান ডিভাইসের সব দলিল, স্ক্যান কপি ও ছবি স্থায়ীভাবে হারিয়ে যাবে।
+  static Future<bool?> _showLightweightRestoreWarning(
+    BuildContext context, {
+    required String fileName,
+    required String fileSizeKb,
+    required String appCount,
+    required String payCount,
+    required String expCount,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFEF3C7),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 22,
+                      color: Color(0xFFD97706),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  const Expanded(
+                    child: Text(
+                      'হালকা ক্লাউড ব্যাকআপ — সতর্কতা',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // File info
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ফাইল: $fileName ($fileSizeKb KB)',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '• আবেদন: $appCount টি  •  রসিদ: $payCount টি  •  খরচ: $expCount টি',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Warning notice
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
+                child: const Text(
+                  '⚠️ এটি একটি টেলিগ্রাম ক্লাউড ব্যাকআপ (হালকা সংস্করণ)। '
+                  'আবেদন, রসিদ ও আর্থিক হিসাব সম্পূর্ণ অক্ষত আছে — '
+                  'কিন্তু দলিলের স্ক্যান কপি, ছবি ও আপলোড করা ফাইল এই ব্যাকআপে নেই।\n\n'
+                  '🚨 রিস্টোর করলে বর্তমান ফোনের সব দলিল ও ছবি স্থায়ীভাবে হারিয়ে যাবে।\n\n'
+                  'দলিলসহ সম্পূর্ণ ব্যাকআপ থেকে রিস্টোর করতে ফোনের ব্যাকআপ ফাইল (.db) ব্যবহার করুন।',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF92400E),
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      text: 'বাতিল',
+                      variant: ButtonVariant.outline,
+                      height: 42,
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: AppButton(
+                      text: 'বুঝেছি, রিস্টোর করুন',
+                      variant: ButtonVariant.danger,
+                      height: 42,
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
