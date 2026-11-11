@@ -40,6 +40,16 @@ abstract class AttachmentPickerDelegate {
   Future<PickedAttachment?> pickFromFileManager();
   Future<PickedAttachment?> pickFromGallery();
   Future<PickedAttachment?> captureFromCamera();
+
+  Future<List<PickedAttachment>> pickMultipleFromFileManager() async {
+    final single = await pickFromFileManager();
+    return single != null ? [single] : const [];
+  }
+
+  Future<List<PickedAttachment>> pickMultipleFromGallery() async {
+    final single = await pickFromGallery();
+    return single != null ? [single] : const [];
+  }
 }
 
 class DefaultAttachmentPickerDelegate implements AttachmentPickerDelegate {
@@ -47,6 +57,94 @@ class DefaultAttachmentPickerDelegate implements AttachmentPickerDelegate {
 
   DefaultAttachmentPickerDelegate({ImagePicker? imagePicker})
       : _imagePicker = imagePicker ?? ImagePicker();
+
+  @override
+  Future<List<PickedAttachment>> pickMultipleFromFileManager() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+      allowMultiple: true,
+      withData: kIsWeb,
+      dialogTitle: 'আবেদনের PDF বা ছবি নির্বাচন করুন',
+    );
+    if (result == null || result.files.isEmpty) return const [];
+
+    final attachments = <PickedAttachment>[];
+    for (final picked in result.files) {
+      if (picked.size > AttachmentPickerSheet.maxAttachmentBytes) {
+        continue;
+      }
+
+      Uint8List? bytes = picked.bytes;
+      if (bytes == null && picked.path != null) {
+        final f = File(picked.path!);
+        if (await f.exists()) {
+          final fileLen = await f.length();
+          if (fileLen <= AttachmentPickerSheet.maxAttachmentBytes) {
+            bytes = await f.readAsBytes();
+          }
+        }
+      }
+
+      if (bytes == null || bytes.isEmpty) continue;
+
+      final ext = picked.extension?.toLowerCase() ??
+          AttachmentPickerSheet.extractExtension(picked.name);
+      final fileType = ext == 'pdf' ? 'pdf' : 'image';
+      final safeName = AttachmentPickerSheet.sanitizeFileName(
+        picked.name,
+        fallbackExt: fileType == 'pdf' ? 'pdf' : 'jpg',
+      );
+
+      attachments.add(
+        PickedAttachment(
+          fileName: safeName,
+          bytes: bytes,
+          fileType: fileType,
+          fileSize: AttachmentPickerSheet.formatFileSize(bytes.length),
+        ),
+      );
+    }
+    return attachments;
+  }
+
+  @override
+  Future<List<PickedAttachment>> pickMultipleFromGallery() async {
+    final xFiles = await _imagePicker.pickMultiImage(
+      maxWidth: AttachmentPickerSheet.maxImageDimension,
+      maxHeight: AttachmentPickerSheet.maxImageDimension,
+      imageQuality: 82,
+    );
+    if (xFiles.isEmpty) return const [];
+
+    final attachments = <PickedAttachment>[];
+    for (final xFile in xFiles) {
+      final fileLen = await xFile.length();
+      if (fileLen > AttachmentPickerSheet.maxAttachmentBytes) {
+        continue;
+      }
+      final bytes = await xFile.readAsBytes();
+      if (bytes.isEmpty) continue;
+
+      final ext = AttachmentPickerSheet.normalizeImageExtension(
+        AttachmentPickerSheet.extractExtension(xFile.name),
+      );
+      final rawName = xFile.name.trim();
+      final safeName = rawName.isEmpty
+          ? AttachmentPickerSheet.generateTimestampedName(prefix: 'gallery', ext: ext)
+          : AttachmentPickerSheet.sanitizeFileName(rawName, fallbackExt: ext);
+
+      attachments.add(
+        PickedAttachment(
+          fileName: safeName,
+          bytes: bytes,
+          fileType: 'image',
+          fileSize: AttachmentPickerSheet.formatFileSize(bytes.length),
+        ),
+      );
+    }
+    return attachments;
+  }
 
   @override
   Future<PickedAttachment?> pickFromFileManager() async {
@@ -533,6 +631,82 @@ class AttachmentPickerSheet {
       if (!context.mounted) return null;
       _showError(context, 'ফাইল বা ছবি নির্বাচন করা যায়নি: $e');
       return null;
+    }
+  }
+
+  /// এক বা একাধিক ফাইল/ছবি একসাথে নির্বাচনের মেথড
+  static Future<List<PickedAttachment>> pickMultiple(
+    BuildContext context, {
+    AttachmentPickerDelegate? delegate,
+    bool includeFileManager = true,
+    String title = 'ফাইল বা ছবি সংযুক্ত করুন',
+    String subtitle = 'এক বা একাধিক ফাইল নির্বাচন করতে পারেন',
+  }) async {
+    try {
+      final pickerDelegate = delegate ?? DefaultAttachmentPickerDelegate();
+      final source = await showSourceSheet(
+        context,
+        includeFileManager: includeFileManager,
+        title: title,
+        subtitle: subtitle,
+      );
+      if (source == null || !context.mounted) return const [];
+
+      switch (source) {
+        case AttachmentSource.fileManager:
+          final files = await pickerDelegate.pickMultipleFromFileManager();
+          return files
+              .map((f) => _validatePickedAttachment(f))
+              .whereType<PickedAttachment>()
+              .toList();
+
+        case AttachmentSource.gallery:
+          final images = await pickerDelegate.pickMultipleFromGallery();
+          return images
+              .map((img) => _validatePickedAttachment(img))
+              .whereType<PickedAttachment>()
+              .toList();
+
+        case AttachmentSource.camera:
+          final single = await pick(
+            context,
+            delegate: pickerDelegate,
+            includeFileManager: includeFileManager,
+            title: title,
+            subtitle: subtitle,
+          );
+          return single != null ? [single] : const [];
+      }
+    } on PlatformException catch (e) {
+      if (!context.mounted) return const [];
+      final code = e.code.toLowerCase();
+      String message;
+      if (code.contains('already_active')) {
+        message =
+            'ফাইল বা ক্যামেরা পিকার ইতিমধ্যেই চালু আছে। অনুগ্রহ করে একটু অপেক্ষা করুন।';
+      } else if (code.contains('camera')) {
+        message =
+            'ক্যামেরা ব্যবহারের অনুমতি পাওয়া যায়নি। অনুগ্রহ করে সেটিংস থেকে অনুমতি দিন।';
+      } else if (code.contains('photo') || code.contains('storage')) {
+        message =
+            'গ্যালারি ব্যবহারের অনুমতি পাওয়া যায়নি। অনুগ্রহ করে সেটিংস থেকে অনুমতি দিন।';
+      } else {
+        message = 'ফাইল বা ছবি নির্বাচন করা যায়নি: ${e.message ?? e.code}';
+      }
+      _showError(context, message);
+      return const [];
+    } on FormatException catch (e) {
+      if (!context.mounted) return const [];
+      _showError(context, e.message);
+      return const [];
+    } on FileSystemException {
+      if (!context.mounted) return const [];
+      _showError(context, 'ফাইলটি পড়া যায়নি। ডিভাইস স্টোরেজ পরীক্ষা করে আবার চেষ্টা করুন।');
+      return const [];
+    } catch (e) {
+      if (!context.mounted) return const [];
+      _showError(context, 'ফাইল বা ছবি নির্বাচন করা যায়নি: $e');
+      return const [];
     }
   }
 

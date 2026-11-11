@@ -5,9 +5,11 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../applications/data/services/land_portal_helper.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/screens/application_create_screen.dart';
 import '../../../applications/presentation/screens/application_list_screen.dart';
+import '../../../applications/presentation/screens/land_portal_webview_screen.dart';
 import '../../../applications/presentation/widgets/application_card.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
 import '../../../offices/presentation/screens/office_management_screen.dart';
@@ -120,6 +122,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.language_rounded,
+              color: AppColors.primary,
+              size: 22,
+            ),
+            tooltip: 'ভূমি পোর্টাল (LSG)',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (ctx) => const LandPortalWebViewScreen(
+                    initialUrl: LandPortalHelper.lsgLoginUrl,
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.cloud_done_outlined,
                 color: AppColors.emerald, size: 22),

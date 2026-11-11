@@ -31,12 +31,16 @@ class _FakeAttachmentPickerDelegate implements AttachmentPickerDelegate {
   final PickedAttachment? fileManagerResult;
   final PickedAttachment? galleryResult;
   final List<PickedAttachment?> cameraResults;
+  final List<PickedAttachment>? multipleFileManagerResults;
+  final List<PickedAttachment>? multipleGalleryResults;
   int cameraCallCount = 0;
 
   _FakeAttachmentPickerDelegate({
     this.fileManagerResult,
     this.galleryResult,
     this.cameraResults = const [],
+    this.multipleFileManagerResults,
+    this.multipleGalleryResults,
   });
 
   @override
@@ -44,6 +48,16 @@ class _FakeAttachmentPickerDelegate implements AttachmentPickerDelegate {
 
   @override
   Future<PickedAttachment?> pickFromGallery() async => galleryResult;
+
+  @override
+  Future<List<PickedAttachment>> pickMultipleFromFileManager() async =>
+      multipleFileManagerResults ??
+      (fileManagerResult != null ? [fileManagerResult!] : const []);
+
+  @override
+  Future<List<PickedAttachment>> pickMultipleFromGallery() async =>
+      multipleGalleryResults ??
+      (galleryResult != null ? [galleryResult!] : const []);
 
   @override
   Future<PickedAttachment?> captureFromCamera() async {
@@ -85,6 +99,102 @@ void main() {
   });
 
   group('AttachmentPickerSheet widget flows', () {
+    testWidgets('pickMultiple selecting FileManager returns multiple attachments', (tester) async {
+      final delegate = _FakeAttachmentPickerDelegate(
+        multipleFileManagerResults: [
+          PickedAttachment(
+            fileName: 'doc1.pdf',
+            bytes: Uint8List.fromList([1, 2, 3, 4]),
+            fileType: 'pdf',
+            fileSize: '1 KB',
+          ),
+          PickedAttachment(
+            fileName: 'doc2.pdf',
+            bytes: Uint8List.fromList([5, 6, 7, 8]),
+            fileType: 'pdf',
+            fileSize: '1 KB',
+          ),
+        ],
+      );
+
+      List<PickedAttachment> picked = [];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  picked = await AttachmentPickerSheet.pickMultiple(
+                    context,
+                    delegate: delegate,
+                  );
+                },
+                child: const Text('Attach Multiple'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Attach Multiple'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('attachment_source_file_manager')));
+      await tester.pumpAndSettle();
+
+      expect(picked.length, 2);
+      expect(picked[0].fileName, 'doc1.pdf');
+      expect(picked[1].fileName, 'doc2.pdf');
+    });
+
+    testWidgets('pickMultiple selecting Gallery returns multiple attachments', (tester) async {
+      final delegate = _FakeAttachmentPickerDelegate(
+        multipleGalleryResults: [
+          PickedAttachment(
+            fileName: 'photo1.jpg',
+            bytes: Uint8List.fromList([1, 2, 3]),
+            fileType: 'image',
+            fileSize: '1 KB',
+          ),
+          PickedAttachment(
+            fileName: 'photo2.jpg',
+            bytes: Uint8List.fromList([4, 5, 6]),
+            fileType: 'image',
+            fileSize: '1 KB',
+          ),
+        ],
+      );
+
+      List<PickedAttachment> picked = [];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  picked = await AttachmentPickerSheet.pickMultiple(
+                    context,
+                    delegate: delegate,
+                  );
+                },
+                child: const Text('Attach Photos'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Attach Photos'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('attachment_source_gallery')));
+      await tester.pumpAndSettle();
+
+      expect(picked.length, 2);
+      expect(picked[0].fileName, 'photo1.jpg');
+      expect(picked[1].fileName, 'photo2.jpg');
+    });
+
     testWidgets('shows File Manager, Gallery, and Camera options and returns File Manager choice',
         (tester) async {
       final delegate = _FakeAttachmentPickerDelegate(
@@ -619,4 +729,10 @@ class _ThrowingDelegate implements AttachmentPickerDelegate {
 
   @override
   Future<PickedAttachment?> captureFromCamera() async => throw error;
+
+  @override
+  Future<List<PickedAttachment>> pickMultipleFromFileManager() async => throw error;
+
+  @override
+  Future<List<PickedAttachment>> pickMultipleFromGallery() async => throw error;
 }

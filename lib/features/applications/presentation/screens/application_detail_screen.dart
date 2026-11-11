@@ -7,7 +7,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
-import '../../../../core/errors/app_failure.dart';
 import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/case_number_formatter.dart';
@@ -1988,54 +1987,62 @@ class _ApplicationDetailScreenState
     if (_isUploadingDocument) return;
     _isUploadingDocument = true;
     try {
-      final picked = await AttachmentPickerSheet.pick(context);
-      if (picked == null || !mounted) return;
+      final pickedList = await AttachmentPickerSheet.pickMultiple(context);
+      if (pickedList.isEmpty || !mounted) return;
 
       setState(() => _isUploadingDocument = true);
 
-      // ডাটাবেজে সংরক্ষণ
-      final savedDoc = await ref.read(applicationControllerProvider.notifier).addDocument(
-            applicationId: _app.id,
-            fileName: picked.fileName,
-            fileType: picked.fileType,
+      int successCount = 0;
+      final List<DemoDocument> newDocs = [];
+
+      for (final picked in pickedList) {
+        final savedDoc = await ref.read(applicationControllerProvider.notifier).addDocument(
+              applicationId: _app.id,
+              fileName: picked.fileName,
+              fileType: picked.fileType,
+              fileData: picked.bytes,
+              fileSize: picked.fileSize,
+            );
+
+        if (savedDoc != null) {
+          successCount++;
+          newDocs.add(DemoDocument(
+            id: savedDoc.id,
+            name: picked.fileName,
+            type: picked.fileType,
+            size: picked.fileSize,
+            uploadDate: DateTime.now(),
             fileData: picked.bytes,
-            fileSize: picked.fileSize,
-          );
+          ));
+        }
+      }
 
       if (!mounted) return;
-      if (savedDoc == null) {
-        final failure = ref.read(applicationControllerProvider).error;
-        final errMsg = failure is AppFailure
-            ? failure.message
-            : 'ডকুমেন্ট ডেটাবেজে সংরক্ষণ করা যায়নি।';
+      if (newDocs.isNotEmpty) {
+        setState(() {
+          _app = _app.copyWith(documents: [...newDocs, ..._app.documents]);
+        });
+      }
+
+      if (successCount > 0) {
+        final countBn = BengaliDigits.toBengali(successCount);
+        final msg = successCount == 1
+            ? '"${newDocs.first.name}" সফলভাবে যুক্ত হয়েছে।'
+            : '$countBnটি ফাইল সফলভাবে যুক্ত হয়েছে।';
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           SnackBar(
-            content: Text(errMsg),
+            content: Text(msg),
+            backgroundColor: AppColors.emerald,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text('ডকুমেন্ট ডেটাবেজে সংরক্ষণ করা যায়নি।'),
             backgroundColor: AppColors.rose,
           ),
         );
-        return;
       }
-
-      final newDoc = DemoDocument(
-        id: savedDoc.id,
-        name: picked.fileName,
-        type: picked.fileType,
-        size: picked.fileSize,
-        uploadDate: DateTime.now(),
-        fileData: picked.bytes,
-      );
-
-      setState(() {
-        _app = _app.copyWith(documents: [newDoc, ..._app.documents]);
-      });
-
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(
-          content: Text('"${picked.fileName}" সফলভাবে যুক্ত হয়েছে।'),
-          backgroundColor: AppColors.emerald,
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(

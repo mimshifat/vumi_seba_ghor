@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -67,10 +65,7 @@ class _ApplicationCreateScreenState
   DemoReference? _selectedReference;
   final _agreedAmountController = TextEditingController();
   final _initialPaymentController = TextEditingController();
-  String? _attachedFileName;
-  Uint8List? _attachedFileBytes;
-  String? _attachedFileSize;
-  String? _attachedFileType;
+  final List<PickedAttachment> _attachedFiles = [];
   bool _isPickingAttachment = false;
   final _notesController = TextEditingController();
 
@@ -587,17 +582,15 @@ class _ApplicationCreateScreenState
         return;
       }
 
-      // সংযুক্ত ডকুমেন্ট থাকলে তা ডেটাবেজে সংরক্ষণ করি
+      // সংযুক্ত ডকুমেন্টসমূহ থাকলে তা ডেটাবেজে সংরক্ষণ করি
       var docSaveFailed = false;
-      if (_attachedFileBytes != null && _attachedFileName != null) {
-        final ext = _attachedFileName!.split('.').last.toLowerCase();
-        final fileType = _attachedFileType ?? (ext == 'pdf' ? 'pdf' : 'image');
+      for (final doc in _attachedFiles) {
         final savedDoc = await ref.read(applicationControllerProvider.notifier).addDocument(
               applicationId: createdApp.id,
-              fileName: _attachedFileName!,
-              fileType: fileType,
-              fileData: _attachedFileBytes!,
-              fileSize: _attachedFileSize ?? '1 MB',
+              fileName: doc.fileName,
+              fileType: doc.fileType,
+              fileData: doc.bytes,
+              fileSize: doc.fileSize,
             );
         if (!mounted) return;
         if (savedDoc == null) {
@@ -1502,129 +1495,192 @@ class _ApplicationCreateScreenState
                 const SizedBox(height: AppSpacing.md),
 
                 // Document Attachment
-                InkWell(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  onTap: () {
-                    if (_attachedFileBytes != null &&
-                        _attachedFileType == 'image' &&
-                        _attachedFileName != null) {
-                      AttachmentPickerSheet.showImagePreviewDialog(
-                        context,
-                        bytes: _attachedFileBytes!,
-                        title: _attachedFileName!,
-                      );
-                    } else {
-                      _pickAttachment();
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                if (_attachedFiles.isEmpty)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    onTap: _pickAttachment,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.slate50,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primarySurface,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.upload_file_rounded,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'আবেদন PDF বা ছবি সংযুক্ত করুন',
+                                  style: AppTypography.titleMedium.copyWith(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const Text(
+                                  'একসাথে এক বা একাধিক ফাইল নির্বাচন করতে পারেন',
+                                  style: AppTypography.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          OutlinedButton(
+                            onPressed: _pickAttachment,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 34),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                            ),
+                            child: const Text('ফাইল বাছুন'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
                       color: AppColors.slate50,
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (_attachedFileBytes != null &&
-                            _attachedFileType == 'image')
-                          ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusSm),
-                            child: Image.memory(
-                              _attachedFileBytes!,
-                              width: 42,
-                              height: 42,
-                              cacheWidth: 168,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 42,
-                                height: 42,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.emeraldSurface,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.image_rounded,
-                                  color: AppColors.emerald,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _attachedFileName != null
-                                  ? AppColors.emeraldSurface
-                                  : AppColors.primarySurface,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              _attachedFileName != null
-                                  ? Icons.check_circle
-                                  : Icons.upload_file,
-                              color: _attachedFileName != null
-                                  ? AppColors.emerald
-                                  : AppColors.primary,
-                              size: 20,
-                            ),
-                          ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                          child: Row(
                             children: [
+                              const Icon(Icons.attach_file_rounded,
+                                  size: 16, color: AppColors.primary),
+                              const SizedBox(width: 6),
                               Text(
-                                _attachedFileName ??
-                                    'আবেদন PDF বা ছবি সংযুক্ত করুন',
-                                style: AppTypography.titleMedium.copyWith(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
+                                'সংযুক্ত ফাইলসমূহ (${BengaliDigits.toBengali(_attachedFiles.length)}টি)',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.slate700,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              Text(
-                                _attachedFileName != null
-                                    ? (_attachedFileType == 'image'
-                                        ? '${_attachedFileSize ?? ''} • দেখতে ট্যাপ করুন'
-                                        : '${_attachedFileSize ?? ''} • ফাইল নির্বাচিত হয়েছে')
-                                    : 'ফাইল ম্যানেজার, গ্যালারি বা ক্যামেরা থেকে যুক্ত করুন',
-                                style: AppTypography.bodySmall,
+                              const Spacer(),
+                              TextButton.icon(
+                                icon: const Icon(Icons.add, size: 15),
+                                label: const Text('আরও যোগ করুন', style: TextStyle(fontSize: 12)),
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                ),
+                                onPressed: _pickAttachment,
                               ),
                             ],
                           ),
                         ),
-                        if (_attachedFileName != null)
-                          IconButton(
-                            icon: const Icon(Icons.close,
-                                size: 18, color: AppColors.slate400),
-                            tooltip: 'ফাইল বাতিল করুন',
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () {
-                              setState(() {
-                                _attachedFileName = null;
-                                _attachedFileBytes = null;
-                                _attachedFileSize = null;
-                                _attachedFileType = null;
-                              });
-                            },
-                          ),
-                        OutlinedButton(
-                          onPressed: _pickAttachment,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 34),
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                          ),
-                          child: Text(
-                              _attachedFileName != null ? 'বদলান' : 'ফাইল বাছুন'),
-                        ),
+                        ..._attachedFiles.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final file = entry.value;
+                          final isImage = file.fileType == 'image';
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                if (isImage)
+                                  GestureDetector(
+                                    onTap: () {
+                                      AttachmentPickerSheet.showImagePreviewDialog(
+                                        context,
+                                        bytes: file.bytes,
+                                        title: file.fileName,
+                                      );
+                                    },
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.memory(
+                                        file.bytes,
+                                        width: 32,
+                                        height: 32,
+                                        cacheWidth: 96,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.rose.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Icon(
+                                      Icons.picture_as_pdf_rounded,
+                                      color: AppColors.rose,
+                                      size: 18,
+                                    ),
+                                  ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        file.fileName,
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        file.fileSize,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.slate400),
+                                  tooltip: 'মুছে ফেলুন',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () {
+                                    setState(() {
+                                      _attachedFiles.removeAt(idx);
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                       ],
                     ),
                   ),
-                ),
 
                 const SizedBox(height: AppSpacing.md),
 
@@ -1649,13 +1705,10 @@ class _ApplicationCreateScreenState
     if (_isPickingAttachment) return;
     _isPickingAttachment = true;
     try {
-      final picked = await AttachmentPickerSheet.pick(context);
-      if (picked == null || !mounted) return;
+      final pickedList = await AttachmentPickerSheet.pickMultiple(context);
+      if (pickedList.isEmpty || !mounted) return;
       setState(() {
-        _attachedFileName = picked.fileName;
-        _attachedFileBytes = picked.bytes;
-        _attachedFileSize = picked.fileSize;
-        _attachedFileType = picked.fileType;
+        _attachedFiles.addAll(pickedList);
       });
     } finally {
       _isPickingAttachment = false;

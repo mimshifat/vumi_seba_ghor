@@ -167,7 +167,7 @@ void main() {
   });
 
   group('CaseNumberField উইজেট', () {
-    testWidgets('ক্রমিক লিখলে সাজেশন দেখায় এবং ট্যাপ করলে পূর্ণ ফরম্যাট বসায়',
+    testWidgets('সরাসরি ফরম্যাট দেখায় এবং ইংরেজি ক্রমিক লিখলে স্বয়ংক্রিয় বাংলা ও পূর্ণ ফরম্যাট তৈরি করে',
         (tester) async {
       final controller = TextEditingController();
       addTearDown(controller.dispose);
@@ -187,21 +187,27 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('ঐচ্ছিক'), findsNothing);
       expect(find.text('কেস নম্বর'), findsOneWidget);
+      // ফিক্সড ফরম্যাট অনুসর্গ দৃশ্যমান
+      expect(find.text('/IX-I/২০২৫-২০২৬'), findsOneWidget);
 
+      // ইংরেজিতে '7091' লিখলে স্বয়ংক্রিয়ভাবে বাংলা '৭০৯১' হবে এবং কন্ট্রোলারে পূর্ণ ফরম্যাট যাবে
       await tester.enterText(find.byType(TextFormField), '7091');
       await tester.pump();
 
-      expect(
-        find.text('সঠিক ফরম্যাটে বসান: ৭০৯১/IX-I/২০২৫-২০২৬'),
-        findsOneWidget,
-      );
-
-      await tester.tap(find.text('সঠিক ফরম্যাটে বসান: ৭০৯১/IX-I/২০২৫-২০২৬'));
-      await tester.pump();
-
+      expect(find.text('৭০৯১'), findsOneWidget);
       expect(controller.text, '৭০৯১/IX-I/২০২৫-২০২৬');
+
+      // ক্রমিক মুছে দিলে কন্ট্রোলার ফাঁকা হবে
+      await tester.enterText(find.byType(TextFormField), '');
+      await tester.pump();
+      expect(controller.text, '');
+
+      // পুরো কেস নম্বর পেস্ট করলেও স্বয়ংক্রিয়ভাবে শুধু ক্রমিকটুকু ফিল্টার করবে
+      await tester.enterText(find.byType(TextFormField), '39/IX-I/2025-2026');
+      await tester.pump();
+      expect(find.text('৩৯'), findsOneWidget);
+      expect(controller.text, '৩৯/IX-I/২০২৫-২০২৬');
     });
   });
 }

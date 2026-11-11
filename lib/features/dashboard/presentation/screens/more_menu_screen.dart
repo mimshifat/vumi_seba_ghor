@@ -3,6 +3,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/app_launcher.dart';
+import '../../../applications/data/services/land_portal_helper.dart';
+import '../../../applications/presentation/screens/land_portal_webview_screen.dart';
 import '../../../applications/presentation/screens/proposal_print_queue_screen.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
 import '../../../offices/presentation/screens/office_management_screen.dart';
@@ -29,6 +31,21 @@ class MoreMenuScreen extends StatelessWidget {
           _buildMenuSection(
             title: 'দৈনিক ব্যবস্থাপনা ও খাতা',
             items: [
+              _MenuItem(
+                title: 'ভূমি পোর্টাল (LSG)',
+                subtitle: 'নাগরিক ও ভূমি মালিক সেবা পোর্টাল ব্রাউজার',
+                icon: Icons.language_rounded,
+                color: AppColors.primary,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => const LandPortalWebViewScreen(
+                        initialUrl: LandPortalHelper.lsgLoginUrl,
+                      ),
+                    ),
+                  );
+                },
+              ),
               _MenuItem(
                 title: 'প্রস্তাব প্রেরণ PDF তালিকা',
                 subtitle: 'নতুন কেস নম্বর PDF প্রিন্ট ও পূর্বের ব্যাচ',

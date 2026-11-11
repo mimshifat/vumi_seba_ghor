@@ -487,7 +487,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                           ),
                         );
                       } catch (e) {
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         final failure = AppFailure.fromException(e);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
