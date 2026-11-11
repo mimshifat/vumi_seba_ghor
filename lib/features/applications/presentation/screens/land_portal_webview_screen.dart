@@ -68,6 +68,9 @@ class _LandPortalWebViewScreenState
   /// যাতে অ্যাপ বন্ধ করে চালু করলেও ভিন্ন আবেদনকারীর সেশন মিশে না যায়।
   static String? _lastActiveAccountKey;
 
+  /// Windows ডেস্কটপের জন্য শেয়ার্ড WebViewEnvironment (Microsoft Edge WebView2)
+  static WebViewEnvironment? _sharedWindowsWebViewEnvironment;
+
   InAppWebViewController? _webViewController;
   Timer? _loadWatchdogTimer;
   int _webViewInstanceKey = 0;
@@ -104,6 +107,9 @@ class _LandPortalWebViewScreenState
   void initState() {
     super.initState();
     _currentUrl = widget.initialUrl;
+    if (!kIsWeb && Platform.isWindows) {
+      _isDesktopMode = true;
+    }
     _prepareSession();
   }
 
@@ -163,6 +169,14 @@ class _LandPortalWebViewScreenState
 
   Future<void> _clearWebStorageAndCookiesSafely() async {
     try {
+      if (!kIsWeb && Platform.isWindows) {
+        if (_sharedWindowsWebViewEnvironment != null) {
+          await CookieManager.instance(
+            webViewEnvironment: _sharedWindowsWebViewEnvironment,
+          ).deleteAllCookies().timeout(_sessionClearTimeout);
+        }
+        return;
+      }
       await Future.wait([
         CookieManager.instance().deleteAllCookies(),
         WebStorageManager.instance().deleteAllData(),
@@ -179,6 +193,31 @@ class _LandPortalWebViewScreenState
               Platform.isWindows)) {
         _webViewUnavailable = true;
         return;
+      }
+
+      // Windows ডেস্কটপে WebView2 রানটাইম ও এনভায়রনমেন্ট প্রস্তুত করা
+      if (!kIsWeb && Platform.isWindows) {
+        try {
+          final version = await WebViewEnvironment.getAvailableVersion();
+          if (version == null || version.isEmpty) {
+            _webViewUnavailable = true;
+            return;
+          }
+          if (_sharedWindowsWebViewEnvironment == null) {
+            final appSupportDir = await getApplicationSupportDirectory();
+            final customUserDataFolder =
+                p.join(appSupportDir.path, 'webView2Data');
+            _sharedWindowsWebViewEnvironment = await WebViewEnvironment.create(
+              settings: WebViewEnvironmentSettings(
+                userDataFolder: customUserDataFolder,
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('Windows WebViewEnvironment init error: $e');
+          _webViewUnavailable = true;
+          return;
+        }
       }
 
       // Android System WebView অক্ষম বা অনুপলব্ধ হলে আগেই নিরাপদে শনাক্ত করা।
@@ -224,6 +263,8 @@ class _LandPortalWebViewScreenState
   }
 
   InAppWebViewSettings _buildSettings() {
+    final isWindows = !kIsWeb && Platform.isWindows;
+    final useDesktop = _isDesktopMode || isWindows;
     return InAppWebViewSettings(
       javaScriptEnabled: true,
       domStorageEnabled: true,
@@ -234,12 +275,12 @@ class _LandPortalWebViewScreenState
       useOnRenderProcessGone: true,
       allowFileAccess: true,
       allowContentAccess: true,
-      builtInZoomControls: true,
+      builtInZoomControls: !isWindows,
       displayZoomControls: false,
-      preferredContentMode: _isDesktopMode
+      preferredContentMode: useDesktop
           ? UserPreferredContentMode.DESKTOP
           : UserPreferredContentMode.MOBILE,
-      userAgent: _isDesktopMode ? _desktopUserAgent : null,
+      userAgent: useDesktop ? _desktopUserAgent : null,
     );
   }
 
@@ -1074,6 +1115,7 @@ class _LandPortalWebViewScreenState
                   Expanded(
                     child: InAppWebView(
                       windowId: action.windowId,
+                      webViewEnvironment: _sharedWindowsWebViewEnvironment,
                       initialSettings: _buildSettings(),
                       onWebViewCreated: (c) => popupCtrl = c,
                       onDownloadStartRequest: (c, req) =>
@@ -1140,7 +1182,10 @@ class _LandPortalWebViewScreenState
                   _currentUrl.isNotEmpty ? _currentUrl : widget.initialUrl,
                 );
               },
-              child: const Text('Chrome', style: TextStyle(fontSize: 12)),
+              child: Text(
+                !kIsWeb && Platform.isWindows ? 'ব্রাউজার' : 'Chrome',
+                style: const TextStyle(fontSize: 12),
+              ),
             ),
           ],
         ),
@@ -1149,6 +1194,7 @@ class _LandPortalWebViewScreenState
   }
 
   Widget _buildErrorOverlay({bool unavailableOnly = false}) {
+    final isWindows = !kIsWeb && Platform.isWindows;
     return Container(
       color: AppColors.background,
       padding: const EdgeInsets.all(AppSpacing.xl),
@@ -1180,7 +1226,9 @@ class _LandPortalWebViewScreenState
           const SizedBox(height: AppSpacing.xs),
           Text(
             unavailableOnly
-                ? 'এই ডিভাইসে Android System WebView অক্ষম বা অনুপলব্ধ। নিচের বাটন থেকে Chrome-এ খুলুন (উপরে চাবি আইকন থেকে নম্বর ও পাসওয়ার্ড কপি করতে পারবেন)।'
+                ? (isWindows
+                    ? 'এই কম্পিউটারে Microsoft Edge WebView2 সক্রিয় নেই বা ইন-অ্যাপ ব্রাউজার চালু করা যায়নি। নিচের বাটন থেকে ব্রাউজারে খুলুন (উপরে চাবি আইকন থেকে নম্বর ও পাসওয়ার্ড কপি করতে পারবেন)।'
+                    : 'এই ডিভাইসে Android System WebView অক্ষম বা অনুপলব্ধ। নিচের বাটন থেকে Chrome-এ খুলুন (উপরে চাবি আইকন থেকে নম্বর ও পাসওয়ার্ড কপি করতে পারবেন)।')
                 : (_pageErrorMessage ??
                     'আপনার ইন্টারনেট সংযোগ অথবা সরকারি সার্ভার সাময়িকভাবে অনুপলব্ধ হতে পারে।'),
             textAlign: TextAlign.center,
@@ -1204,7 +1252,7 @@ class _LandPortalWebViewScreenState
                 ),
               OutlinedButton.icon(
                 icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                label: const Text('Chrome-এ খুলুন'),
+                label: Text(isWindows ? 'ব্রাউজারে খুলুন' : 'Chrome-এ খুলুন'),
                 onPressed: () {
                   AppLauncher.launchWeb(
                     context,
@@ -1377,13 +1425,13 @@ class _LandPortalWebViewScreenState
                     title: Text('লগআউট / নতুন অ্যাকাউন্ট'),
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'chrome',
                   child: ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.open_in_browser_rounded),
-                    title: Text('Chrome-এ খুলুন'),
+                    leading: const Icon(Icons.open_in_browser_rounded),
+                    title: Text(!kIsWeb && Platform.isWindows ? 'ব্রাউজারে খুলুন' : 'Chrome-এ খুলুন'),
                   ),
                 ),
               ],
@@ -1414,6 +1462,8 @@ class _LandPortalWebViewScreenState
                             if (!_renderProcessCrashed)
                               InAppWebView(
                                 key: ValueKey(_webViewInstanceKey),
+                                webViewEnvironment:
+                                    _sharedWindowsWebViewEnvironment,
                                 initialUrlRequest: URLRequest(
                                   url: WebUri(widget.initialUrl),
                                 ),
