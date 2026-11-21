@@ -5,6 +5,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/app_search_bar.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -213,310 +214,372 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
           );
         },
       ),
-      body: Column(
-        children: [
-          // Search & Filter header
-          Container(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.sm),
-            color: Colors.white,
-            child: Column(
-              children: [
-                AppSearchBar(
-                  controller: _searchController,
-                  hint: 'গ্রাহক নাম, মোবাইল, আবেদন বা কেস নং...',
-                  activeFilterCount: _criteria.activeCount,
-                  onChanged: (val) {
-                    ref
-                        .read(applicationFilterProvider.notifier)
-                        .setSearchQuery(val);
-                  },
-                  onClear: () {
-                    _searchController.clear();
-                    ref
-                        .read(applicationFilterProvider.notifier)
-                        .setSearchQuery('');
-                  },
-                  onFilterTap: _openFilterBottomSheet,
-                ),
-                const SizedBox(height: AppSpacing.sm),
+      body: ResponsiveContainer(
+        maxWidth: ResponsiveBreakpoints.maxContentWidth,
+        child: Column(
+          children: [
+            // Search & Filter header
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                  context.isWide ? AppSpacing.xl : AppSpacing.base,
+                  AppSpacing.sm,
+                  context.isWide ? AppSpacing.xl : AppSpacing.base,
+                  AppSpacing.sm),
+              color: Colors.white,
+              child: Column(
+                children: [
+                  AppSearchBar(
+                    controller: _searchController,
+                    hint: 'গ্রাহক নাম, মোবাইল, আবেদন বা কেস নং...',
+                    activeFilterCount: _criteria.activeCount,
+                    onChanged: (val) {
+                      ref
+                          .read(applicationFilterProvider.notifier)
+                          .setSearchQuery(val);
+                    },
+                    onClear: () {
+                      _searchController.clear();
+                      ref
+                          .read(applicationFilterProvider.notifier)
+                          .setSearchQuery('');
+                    },
+                    onFilterTap: _openFilterBottomSheet,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
 
-                // Fast High-Efficiency Filter Chips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildQuickFilterPill(
-                        key: 'all',
-                        label:
-                            'সব (${BengaliDigits.toBengali(allApps.length)})',
-                        color: AppColors.primary,
-                        currentKey: filterState.quickFilterKey,
-                      ),
-                      _buildQuickFilterPill(
-                        key: 'ongoing',
-                        label:
-                            'চলমান (${BengaliDigits.toBengali(ongoingCount)})',
-                        color: AppColors.primary,
-                        currentKey: filterState.quickFilterKey,
-                      ),
-                      _buildQuickFilterPill(
-                        key: 'hearing',
-                        label:
-                            'শুনানি (${BengaliDigits.toBengali(hearingCount)})',
-                        color: const Color(0xFF8B5CF6),
-                        currentKey: filterState.quickFilterKey,
-                      ),
-                      _buildQuickFilterPill(
-                        key: 'has_due',
-                        label:
-                            'বকেয়া আছে (${BengaliDigits.toBengali(dueCount)})',
-                        color: AppColors.rose,
-                        currentKey: filterState.quickFilterKey,
-                      ),
-                      _buildQuickFilterPill(
-                        key: 'completed',
-                        label:
-                            'সম্পন্ন (${BengaliDigits.toBengali(completedCount)})',
-                        color: AppColors.emerald,
-                        currentKey: filterState.quickFilterKey,
-                      ),
-                      ...DemoStore.statuses
-                          .where((s) => s != 'শুনানি' && s != 'সম্পন্ন')
-                          .map((st) {
-                        final cnt = allApps
-                            .where((a) => a.application.status == st)
-                            .length;
-                        return _buildQuickFilterPill(
-                          key: st,
-                          label: '$st (${BengaliDigits.toBengali(cnt)})',
-                          color: AppColors.getStatusColor(st),
+                  // Fast High-Efficiency Filter Chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildQuickFilterPill(
+                          key: 'all',
+                          label:
+                              'সব (${BengaliDigits.toBengali(allApps.length)})',
+                          color: AppColors.primary,
                           currentKey: filterState.quickFilterKey,
-                        );
-                      }),
-                    ],
+                        ),
+                        _buildQuickFilterPill(
+                          key: 'ongoing',
+                          label:
+                              'চলমান (${BengaliDigits.toBengali(ongoingCount)})',
+                          color: AppColors.primary,
+                          currentKey: filterState.quickFilterKey,
+                        ),
+                        _buildQuickFilterPill(
+                          key: 'hearing',
+                          label:
+                              'শুনানি (${BengaliDigits.toBengali(hearingCount)})',
+                          color: const Color(0xFF8B5CF6),
+                          currentKey: filterState.quickFilterKey,
+                        ),
+                        _buildQuickFilterPill(
+                          key: 'has_due',
+                          label:
+                              'বকেয়া আছে (${BengaliDigits.toBengali(dueCount)})',
+                          color: AppColors.rose,
+                          currentKey: filterState.quickFilterKey,
+                        ),
+                        _buildQuickFilterPill(
+                          key: 'completed',
+                          label:
+                              'সম্পন্ন (${BengaliDigits.toBengali(completedCount)})',
+                          color: AppColors.emerald,
+                          currentKey: filterState.quickFilterKey,
+                        ),
+                        ...DemoStore.statuses
+                            .where((s) => s != 'শুনানি' && s != 'সম্পন্ন')
+                            .map((st) {
+                          final cnt = allApps
+                              .where((a) => a.application.status == st)
+                              .length;
+                          return _buildQuickFilterPill(
+                            key: st,
+                            label: '$st (${BengaliDigits.toBengali(cnt)})',
+                            color: AppColors.getStatusColor(st),
+                            currentKey: filterState.quickFilterKey,
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Active criteria indicator bar (when advanced filter used)
+            if (_criteria.activeCount > 0)
+              Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal:
+                        context.isWide ? AppSpacing.xl : AppSpacing.base,
+                    vertical: 8),
+                color: AppColors.primarySurface,
+                child: Row(
+                  children: [
+                    const Icon(Icons.tune, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            if (_criteria.selectedStatus != null)
+                              _buildActivePill(
+                                  'অবস্থা: ${_criteria.selectedStatus}', () {
+                                final removed = _criteria.selectedStatus;
+                                setState(() => _criteria.selectedStatus = null);
+                                final notifier = ref
+                                    .read(applicationFilterProvider.notifier);
+                                notifier.setSelectedStatus(null);
+                                if (removed != null &&
+                                    filterState.quickFilterKey ==
+                                        _statusToQuickKey(removed)) {
+                                  notifier.setQuickFilterKey('all');
+                                }
+                              }),
+                            if (_criteria.selectedWorkType != null)
+                              _buildActivePill(
+                                  'কাজের ধরন: ${_criteria.selectedWorkType}',
+                                  () {
+                                setState(
+                                    () => _criteria.selectedWorkType = null);
+                                ref
+                                    .read(applicationFilterProvider.notifier)
+                                    .setSelectedWorkType(null);
+                              }),
+                            if (_criteria.selectedOffice != null)
+                              _buildActivePill(
+                                  'অফিস: ${_criteria.selectedOffice}', () {
+                                setState(
+                                    () => _criteria.selectedOffice = null);
+                                ref
+                                    .read(applicationFilterProvider.notifier)
+                                    .setSelectedOffice(null);
+                              }),
+                            if (_criteria.dueStatus != null &&
+                                _criteria.dueStatus != 'all')
+                              _buildActivePill(
+                                _criteria.dueStatus == 'has_due'
+                                    ? 'বকেয়া আছে'
+                                    : 'পরিশোধিত',
+                                () {
+                                  setState(() => _criteria.dueStatus = 'all');
+                                  ref
+                                      .read(applicationFilterProvider.notifier)
+                                      .setDueStatus('all');
+                                },
+                              ),
+                            if (_criteria.sortBy != 'newest')
+                              _buildActivePill(
+                                'বাছাই: ${_getSortLabel(_criteria.sortBy)}',
+                                () {
+                                  setState(() => _criteria.sortBy = 'newest');
+                                  ref
+                                      .read(applicationFilterProvider.notifier)
+                                      .setSortBy('newest');
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _criteria.clear();
+                        });
+                        ref
+                            .read(applicationFilterProvider.notifier)
+                            .clearFilters();
+                      },
+                      child: Text(
+                        'রিসেট',
+                        style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.rose,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // প্রস্তাব প্রেরণ স্ট্যাটাস সিলেক্ট করা থাকলে এবং নতুন কেস প্রিন্ট বাকি থাকলে PDF প্রিন্ট ব্যানার
+            if (isProposalFilterActive && pendingProposalCount > 0)
+              Container(
+                margin: EdgeInsets.fromLTRB(
+                  context.isWide ? AppSpacing.xl : AppSpacing.base,
+                  AppSpacing.sm,
+                  context.isWide ? AppSpacing.xl : AppSpacing.base,
+                  0,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.35),
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Active criteria indicator bar (when advanced filter used)
-          if (_criteria.activeCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.base, vertical: 8),
-              color: AppColors.primarySurface,
-              child: Row(
-                children: [
-                  const Icon(Icons.tune, size: 14, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          if (_criteria.selectedStatus != null)
-                            _buildActivePill(
-                                'অবস্থা: ${_criteria.selectedStatus}', () {
-                              final removed = _criteria.selectedStatus;
-                              setState(() => _criteria.selectedStatus = null);
-                              final notifier = ref
-                                  .read(applicationFilterProvider.notifier);
-                              notifier.setSelectedStatus(null);
-                              if (removed != null &&
-                                  filterState.quickFilterKey ==
-                                      _statusToQuickKey(removed)) {
-                                notifier.setQuickFilterKey('all');
-                              }
-                            }),
-                          if (_criteria.selectedWorkType != null)
-                            _buildActivePill(
-                                'কাজের ধরন: ${_criteria.selectedWorkType}', () {
-                              setState(() => _criteria.selectedWorkType = null);
-                              ref
-                                  .read(applicationFilterProvider.notifier)
-                                  .setSelectedWorkType(null);
-                            }),
-                          if (_criteria.selectedOffice != null)
-                            _buildActivePill(
-                                'অফিস: ${_criteria.selectedOffice}', () {
-                              setState(() => _criteria.selectedOffice = null);
-                              ref
-                                  .read(applicationFilterProvider.notifier)
-                                  .setSelectedOffice(null);
-                            }),
-                          if (_criteria.dueStatus != null &&
-                              _criteria.dueStatus != 'all')
-                            _buildActivePill(
-                              _criteria.dueStatus == 'has_due'
-                                  ? 'বকেয়া আছে'
-                                  : 'পরিশোধিত',
-                              () {
-                                setState(() => _criteria.dueStatus = 'all');
-                                ref
-                                    .read(applicationFilterProvider.notifier)
-                                    .setDueStatus('all');
-                              },
-                            ),
-                          if (_criteria.sortBy != 'newest')
-                            _buildActivePill(
-                              'বাছাই: ${_getSortLabel(_criteria.sortBy)}',
-                              () {
-                                setState(() => _criteria.sortBy = 'newest');
-                                ref
-                                    .read(applicationFilterProvider.notifier)
-                                    .setSortBy('newest');
-                              },
-                            ),
-                        ],
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.picture_as_pdf_outlined,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'প্রিন্ট বাকি আছে: নতুন ${BengaliDigits.toBengali(pendingProposalCount)} টি কেস',
+                        style: AppTypography.bodySmall.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
                       ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (ctx) =>
+                                const ProposalPrintQueueScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'PDF প্রিন্ট',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Count summary bar
+            Padding(
+              padding: EdgeInsets.symmetric(
+                  horizontal:
+                      context.isWide ? AppSpacing.xl : AppSpacing.base,
+                  vertical: AppSpacing.sm),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'মোট দেখানো হচ্ছে: ${BengaliDigits.toBengali(filteredApps.length)} টি ফাইল',
+                    style: AppTypography.bodySmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   InkWell(
-                    onTap: () {
-                      setState(() {
-                        _criteria.clear();
-                      });
-                      ref
-                          .read(applicationFilterProvider.notifier)
-                          .clearFilters();
-                    },
-                    child: Text(
-                      'রিসেট',
-                      style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.rose, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // প্রস্তাব প্রেরণ স্ট্যাটাস সিলেক্ট করা থাকলে এবং নতুন কেস প্রিন্ট বাকি থাকলে PDF প্রিন্ট ব্যানার
-          if (isProposalFilterActive && pendingProposalCount > 0)
-            Container(
-              margin: const EdgeInsets.fromLTRB(
-                AppSpacing.base,
-                AppSpacing.sm,
-                AppSpacing.base,
-                0,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.primarySurface,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.35),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.picture_as_pdf_outlined,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'প্রিন্ট বাকি আছে: নতুন ${BengaliDigits.toBengali(pendingProposalCount)} টি কেস',
-                      style: AppTypography.bodySmall.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (ctx) => const ProposalPrintQueueScreen(),
+                    onTap: _openFilterBottomSheet,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sort,
+                            size: 14, color: AppColors.slate500),
+                        const SizedBox(width: 4),
+                        Text(
+                          _getSortLabel(_criteria.sortBy),
+                          style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondary, fontSize: 11),
                         ),
-                      );
-                    },
-                    child: const Text(
-                      'PDF প্রিন্ট',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
 
-          // Count summary bar
-          Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.base, vertical: AppSpacing.sm),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'মোট দেখানো হচ্ছে: ${BengaliDigits.toBengali(filteredApps.length)} টি ফাইল',
-                  style: AppTypography.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                InkWell(
-                  onTap: _openFilterBottomSheet,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.sort, size: 14, color: AppColors.slate500),
-                      const SizedBox(width: 4),
-                      Text(
-                        _getSortLabel(_criteria.sortBy),
-                        style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textSecondary, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+            // Application Cards List (১ কলাম বা ২ কলাম গ্রিড)
+            Expanded(
+              child: filteredApps.isEmpty
+                  ? EmptyState(
+                      icon: Icons.search_off,
+                      title: 'কোনো আবেদন পাওয়া যায়নি',
+                      message:
+                          'অনুসন্ধানের শব্দ পরিবর্তন করুন অথবা ফিল্টার রিসেট করুন।',
+                      actionText: 'সব ফিল্টার মুছুন',
+                      onAction: () {
+                        setState(() {
+                          _searchController.clear();
+                          _criteria.clear();
+                        });
+                        ref
+                            .read(applicationFilterProvider.notifier)
+                            .clearFilters();
+                      },
+                    )
+                  : context.isWide
+                      ? ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.xl, 0, AppSpacing.xl, 80),
+                          itemCount: (filteredApps.length / 2).ceil(),
+                          separatorBuilder: (ctx, i) =>
+                              const SizedBox(height: AppSpacing.base),
+                          itemBuilder: (ctx, rowIndex) {
+                            final first = filteredApps[rowIndex * 2];
+                            final hasSecond =
+                                rowIndex * 2 + 1 < filteredApps.length;
+                            final second = hasSecond
+                                ? filteredApps[rowIndex * 2 + 1]
+                                : null;
 
-          // Application Cards List
-          Expanded(
-            child: filteredApps.isEmpty
-                ? EmptyState(
-                    icon: Icons.search_off,
-                    title: 'কোনো আবেদন পাওয়া যায়নি',
-                    message:
-                        'অনুসন্ধানের শব্দ পরিবর্তন করুন অথবা ফিল্টার রিসেট করুন।',
-                    actionText: 'সব ফিল্টার মুছুন',
-                    onAction: () {
-                      setState(() {
-                        _searchController.clear();
-                        _criteria.clear();
-                      });
-                      ref
-                          .read(applicationFilterProvider.notifier)
-                          .clearFilters();
-                    },
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.base, 0, AppSpacing.base, 80),
-                    itemCount: filteredApps.length,
-                    separatorBuilder: (ctx, i) =>
-                        const SizedBox(height: AppSpacing.base),
-                    itemBuilder: (ctx, i) {
-                      final item = filteredApps[i];
-                      return ApplicationCard(
-                        application: item.toDemoApplication(),
-                        showFinancials: true,
-                        onRefresh: () {
-                          ref.invalidate(
-                              applicationsWithFinancialsStreamProvider);
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: ApplicationCard(
+                                    application: first.toDemoApplication(),
+                                    showFinancials: true,
+                                    onRefresh: () {
+                                      ref.invalidate(
+                                          applicationsWithFinancialsStreamProvider);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.base),
+                                if (second != null)
+                                  Expanded(
+                                    child: ApplicationCard(
+                                      application: second.toDemoApplication(),
+                                      showFinancials: true,
+                                      onRefresh: () {
+                                        ref.invalidate(
+                                            applicationsWithFinancialsStreamProvider);
+                                      },
+                                    ),
+                                  )
+                                else
+                                  const Expanded(child: SizedBox()),
+                              ],
+                            );
+                          },
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.base, 0, AppSpacing.base, 80),
+                          itemCount: filteredApps.length,
+                          separatorBuilder: (ctx, i) =>
+                              const SizedBox(height: AppSpacing.base),
+                          itemBuilder: (ctx, i) {
+                            final item = filteredApps[i];
+                            return ApplicationCard(
+                              application: item.toDemoApplication(),
+                              showFinancials: true,
+                              onRefresh: () {
+                                ref.invalidate(
+                                    applicationsWithFinancialsStreamProvider);
+                              },
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

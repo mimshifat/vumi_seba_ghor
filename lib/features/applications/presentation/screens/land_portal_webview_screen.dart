@@ -1120,7 +1120,15 @@ class _LandPortalWebViewScreenState
                       onWebViewCreated: (c) => popupCtrl = c,
                       onDownloadStartRequest: (c, req) =>
                           _handleDownload(req, sourceController: c),
-                      onPrintRequest: (_, __, ___) async => false,
+                      onPrintRequest: (c, _, __) async {
+                        try {
+                          await c.printCurrentPage();
+                          return true;
+                        } catch (e) {
+                          debugPrint('Popup print error: $e');
+                          return false;
+                        }
+                      },
                       shouldOverrideUrlLoading: (_, nav) =>
                           _handleOverrideUrlLoading(nav),
                       onPermissionRequest: (_, request) async =>
@@ -1597,10 +1605,7 @@ class _LandPortalWebViewScreenState
                                     sourceController: controller,
                                   );
                                 },
-                                onPrintRequest:
-                                    (controller, url, printJobController) async {
-                                  return false;
-                                },
+                                onPrintRequest: (controller, url, printJobController) async { try { await controller.printCurrentPage(); return true; } catch (e) { return false; } },
                                 onCreateWindow:
                                     (controller, createWindowAction) async {
                                   if (!mounted || _isDisposed) return false;

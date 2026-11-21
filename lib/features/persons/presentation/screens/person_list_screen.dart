@@ -7,6 +7,7 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
@@ -73,61 +74,75 @@ class _PersonListScreenState extends ConsumerState<PersonListScreen> {
           );
         },
       ),
-      body: Column(
-        children: [
-          // Search Bar
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            color: Colors.white,
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) => setState(() => _searchQuery = val.trim()),
-              decoration: InputDecoration(
-                hintText: 'ব্যক্তির নাম বা মোবাইল নম্বর দিয়ে খুঁজুন...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.slate400),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+      body: ResponsiveContainer(
+        maxWidth: 1100,
+        child: Column(
+          children: [
+            // Search Bar
+            Container(
+              padding: EdgeInsets.all(
+                context.isWide ? AppSpacing.xl : AppSpacing.base,
               ),
-            ),
-          ),
-          const Divider(),
-
-          // Person count info
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.sm),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'মোট সংরক্ষিত ব্যক্তি: ${BengaliDigits.toBengali(filteredPersons.length)} জন',
-                style: AppTypography.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+              color: Colors.white,
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                decoration: InputDecoration(
+                  hintText: 'ব্যক্তির নাম বা মোবাইল নম্বর দিয়ে খুঁজুন...',
+                  prefixIcon:
+                      const Icon(Icons.search, color: AppColors.slate400),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),
-          ),
+            const Divider(),
 
-          // List
-          Expanded(
-            child: filteredPersons.isEmpty
-                ? const EmptyState(
-                    icon: Icons.person_off_outlined,
-                    title: 'কোনো ব্যক্তি পাওয়া যায়নি',
-                    message: 'অন্য নামে বা নম্বরে খুঁজে দেখুন।',
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.base, 0, AppSpacing.base, 80),
-                    itemCount: filteredPersons.length,
-                    separatorBuilder: (ctx, i) => const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (ctx, i) {
+            // Person count info
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.isWide ? AppSpacing.xl : AppSpacing.base,
+                vertical: AppSpacing.sm,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'মোট সংরক্ষিত ব্যক্তি: ${BengaliDigits.toBengali(filteredPersons.length)} জন',
+                  style: AppTypography.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+
+            // List
+            Expanded(
+              child: filteredPersons.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.person_off_outlined,
+                      title: 'কোনো ব্যক্তি পাওয়া যায়নি',
+                      message: 'অন্য নামে বা নম্বরে খুঁজে দেখুন।',
+                    )
+                  : ListView.separated(
+                      padding: EdgeInsets.fromLTRB(
+                        context.isWide ? AppSpacing.xl : AppSpacing.base,
+                        0,
+                        context.isWide ? AppSpacing.xl : AppSpacing.base,
+                        80,
+                      ),
+                      itemCount: filteredPersons.length,
+                      separatorBuilder: (ctx, i) =>
+                          const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (ctx, i) {
                       final p = filteredPersons[i];
 
                       // Calculate person stats from live applications
@@ -264,6 +279,7 @@ class _PersonListScreenState extends ConsumerState<PersonListScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

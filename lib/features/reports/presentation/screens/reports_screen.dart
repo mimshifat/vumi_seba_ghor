@@ -8,6 +8,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../finance/presentation/providers/finance_providers.dart';
 
@@ -115,48 +116,86 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.xl),
-        children: [
-          // Period Selector Chips
-          _buildPeriodSelector(),
-
-          const SizedBox(height: AppSpacing.base),
-
-          // 4 Executive KPI Cards
-          _buildExecutiveSummary(
-            totalApps: totalApps,
-            completedApps: completedApps,
-            successRate: successRate,
-            appIncomeFormatted: appIncomeFormatted,
-            otherIncomeFormatted: otherIncomeFormatted,
+      body: ResponsiveContainer(
+        maxWidth: ResponsiveBreakpoints.maxContentWidth,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            context.isWide ? AppSpacing.xl : AppSpacing.base,
+            AppSpacing.sm,
+            context.isWide ? AppSpacing.xl : AppSpacing.base,
+            AppSpacing.xl,
           ),
+          children: [
+            // Period Selector Chips
+            _buildPeriodSelector(),
 
-          const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.base),
 
-          // Multi-Month Growth & Net Income Trend Chart
-          _buildTrendChartCard(allTxs),
+            // 4 Executive KPI Cards
+            _buildExecutiveSummary(
+              totalApps: totalApps,
+              completedApps: completedApps,
+              successRate: successRate,
+              appIncomeFormatted: appIncomeFormatted,
+              otherIncomeFormatted: otherIncomeFormatted,
+            ),
 
-          const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
 
-          // Work Type Distribution (Donut Chart & Legend)
-          _buildWorkTypeDistributionCard(filteredApps),
+            // Multi-Month Growth & Net Income Trend Chart
+            _buildTrendChartCard(allTxs),
 
-          const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
 
-          // Pipeline & Application Funnel
-          _buildPipelineFunnelCard(filteredApps),
+            if (context.isDesktop) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildWorkTypeDistributionCard(filteredApps),
+                  ),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: _buildPipelineFunnelCard(filteredApps),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildOfficePerformanceCard(filteredApps),
+                  ),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: _buildSmartInsightsCard(
+                        filteredApps, totalIncomePaisa, completedApps),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // Work Type Distribution (Donut Chart & Legend)
+              _buildWorkTypeDistributionCard(filteredApps),
 
-          const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.lg),
 
-          // Land Office Performance & Distribution
-          _buildOfficePerformanceCard(filteredApps),
+              // Pipeline & Application Funnel
+              _buildPipelineFunnelCard(filteredApps),
 
-          const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.lg),
 
-          // Smart Business Insights
-          _buildSmartInsightsCard(filteredApps, totalIncomePaisa, completedApps),
-        ],
+              // Land Office Performance & Distribution
+              _buildOfficePerformanceCard(filteredApps),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              // Smart Business Insights
+              _buildSmartInsightsCard(
+                  filteredApps, totalIncomePaisa, completedApps),
+            ],
+          ],
+        ),
       ),
     );
   }

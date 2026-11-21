@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -11,6 +13,7 @@ import '../../../../core/utils/app_launcher.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -916,24 +919,27 @@ class _ApplicationDetailScreenState
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // Quick Status & Action Strip
-          _buildQuickActionBar(),
+      body: ResponsiveContainer(
+        maxWidth: 1150,
+        child: Column(
+          children: [
+            // Quick Status & Action Strip
+            _buildQuickActionBar(),
 
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildAppInfoTab(),
-                _buildProgressTab(),
-                _buildFinanceTab(),
-                _buildDocumentsTab(),
-              ],
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildAppInfoTab(),
+                  _buildProgressTab(),
+                  _buildFinanceTab(),
+                  _buildDocumentsTab(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2357,6 +2363,52 @@ class _ApplicationDetailScreenState
                             );
                           },
                         ),
+                        if (doc.fileData != null)
+                          IconButton(
+                            icon: const Icon(Icons.print_outlined,
+                                color: AppColors.emerald, size: 20),
+                            tooltip: 'প্রিন্ট করুন',
+                            onPressed: () async {
+                              try {
+                                final isDocPdf = doc.type.toLowerCase() == 'pdf' ||
+                                    doc.name.toLowerCase().endsWith('.pdf');
+                                if (isDocPdf) {
+                                  await Printing.layoutPdf(
+                                    onLayout: (_) => doc.fileData!,
+                                    name: doc.name,
+                                  );
+                                } else {
+                                  await Printing.layoutPdf(
+                                    onLayout: (format) async {
+                                      final pdfDoc = pw.Document();
+                                      final img = pw.MemoryImage(doc.fileData!);
+                                      pdfDoc.addPage(
+                                        pw.Page(
+                                          pageFormat: format,
+                                          build: (ctx) => pw.Center(
+                                            child: pw.Image(img,
+                                                fit: pw.BoxFit.contain),
+                                          ),
+                                        ),
+                                      );
+                                      return pdfDoc.save();
+                                    },
+                                    name: doc.name,
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text('প্রিন্ট করতে সমস্যা হয়েছে: $e'),
+                                      backgroundColor: AppColors.rose,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
                         IconButton(
                           icon: const Icon(Icons.delete_outline_rounded,
                               color: AppColors.slate400, size: 20),

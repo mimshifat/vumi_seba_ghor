@@ -2,16 +2,70 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/responsive.dart';
 
 class DocumentViewerScreen extends StatelessWidget {
   final DemoDocument document;
 
   const DocumentViewerScreen({super.key, required this.document});
+
+  Future<void> _printDocument(BuildContext context) async {
+    if (document.fileData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('প্রিন্ট করার মতো ফাইল ডেটা পাওয়া যায়নি।')),
+      );
+      return;
+    }
+
+    try {
+      final isPdf = document.type.toLowerCase() == 'pdf' ||
+          document.name.toLowerCase().endsWith('.pdf');
+
+      if (isPdf) {
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => document.fileData!,
+          name: document.name,
+        );
+      } else {
+        // ছবি হলে তা A4 সাইজে প্রিন্ট করা
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async {
+            final doc = pw.Document();
+            final image = pw.MemoryImage(document.fileData!);
+            doc.addPage(
+              pw.Page(
+                pageFormat: format,
+                build: (pw.Context ctx) {
+                  return pw.Center(
+                    child: pw.Image(image, fit: pw.BoxFit.contain),
+                  );
+                },
+              ),
+            );
+            return doc.save();
+          },
+          name: document.name,
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('প্রিন্ট করতে ত্রুটি হয়েছে: $e'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +86,11 @@ class DocumentViewerScreen extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.print_outlined, color: Colors.white),
+            tooltip: 'প্রিন্ট করুন',
+            onPressed: () => _printDocument(context),
+          ),
           IconButton(
             icon: const Icon(Icons.share_outlined, color: Colors.white),
             tooltip: 'শেয়ার করুন',
@@ -69,7 +128,9 @@ class DocumentViewerScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Column(
+      body: ResponsiveContainer(
+        maxWidth: 1000,
+        child: Column(
         children: [
           // File Meta Header
           Container(
@@ -179,30 +240,47 @@ class DocumentViewerScreen extends StatelessWidget {
                               ),
                               if (document.fileData != null) ...[
                                 const SizedBox(height: AppSpacing.lg),
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.file_download_outlined, size: 18),
-                                  label: const Text('ডিভাইসে ডাউনলোড করুন'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  ),
-                                  onPressed: () async {
-                                    final savePath = await FilePicker.platform.saveFile(
-                                      dialogTitle: 'ফাইল সংরক্ষণ করুন',
-                                      fileName: document.name,
-                                    );
-                                    if (savePath != null) {
-                                      await File(savePath).writeAsBytes(document.fileData!);
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('"${document.name}" সংরক্ষিত হয়েছে।'),
-                                          backgroundColor: AppColors.emerald,
-                                        ),
-                                      );
-                                    }
-                                  },
+                                Wrap(
+                                  spacing: AppSpacing.md,
+                                  runSpacing: AppSpacing.sm,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.print_rounded, size: 18),
+                                      label: const Text('প্রিন্ট করুন'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.emerald,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                      ),
+                                      onPressed: () => _printDocument(context),
+                                    ),
+                                    OutlinedButton.icon(
+                                      icon: const Icon(Icons.file_download_outlined, size: 18),
+                                      label: const Text('ডিভাইসে সংরক্ষণ'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.primary,
+                                        side: const BorderSide(color: AppColors.primary),
+                                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                      ),
+                                      onPressed: () async {
+                                        final savePath = await FilePicker.platform.saveFile(
+                                          dialogTitle: 'ফাইল সংরক্ষণ করুন',
+                                          fileName: document.name,
+                                        );
+                                        if (savePath != null) {
+                                          await File(savePath).writeAsBytes(document.fileData!);
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('"${document.name}" সংরক্ষিত হয়েছে।'),
+                                              backgroundColor: AppColors.emerald,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ],
                               const SizedBox(height: AppSpacing.xl),
@@ -238,7 +316,8 @@ class DocumentViewerScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 

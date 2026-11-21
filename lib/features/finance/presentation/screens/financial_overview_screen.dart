@@ -8,6 +8,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/summary_card.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
@@ -567,33 +568,59 @@ class _FinancialOverviewScreenState
           ],
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.sm, AppSpacing.base, 96),
-        children: [
-          // 1. FILTER CONTROLLER & NAVIGATION STRIP
-          _buildFilterSection(),
+      body: ResponsiveContainer(
+        maxWidth: ResponsiveBreakpoints.maxContentWidth,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            context.isWide ? AppSpacing.xl : AppSpacing.base,
+            AppSpacing.sm,
+            context.isWide ? AppSpacing.xl : AppSpacing.base,
+            96,
+          ),
+          children: [
+            // 1. FILTER CONTROLLER & NAVIGATION STRIP
+            _buildFilterSection(),
 
-          const SizedBox(height: AppSpacing.base),
-
-          // 2. HERO SUMMARY CARD (DYNAMIC TO FILTER)
-          _buildHeroSummaryCard(),
-
-          // 3. DAILY SUMMARY (Shows when viewing current month)
-          if (_isCurrentMonthSelected) ...[
             const SizedBox(height: AppSpacing.base),
-            _buildTodaySummary(),
+
+            // 2. HERO SUMMARY CARD (DYNAMIC TO FILTER)
+            _buildHeroSummaryCard(),
+
+            // 3. DAILY SUMMARY (Shows when viewing current month)
+            if (_isCurrentMonthSelected) ...[
+              const SizedBox(height: AppSpacing.base),
+              _buildTodaySummary(),
+            ],
+
+            const SizedBox(height: AppSpacing.base),
+
+            // 4. INCOME VS EXPENSE COMPARISON CHART & 5. OUTSTANDING DUES
+            if (context.isDesktop) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: _buildComparisonChart(),
+                  ),
+                  const SizedBox(width: AppSpacing.base),
+                  Expanded(
+                    flex: 5,
+                    child: _buildOutstandingDuesSection(dueApps),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // 4. INCOME VS EXPENSE COMPARISON CHART
+              _buildComparisonChart(),
+
+              const SizedBox(height: AppSpacing.base),
+
+              // 5. OUTSTANDING DUES SECTION
+              _buildOutstandingDuesSection(dueApps),
+            ],
           ],
-
-          const SizedBox(height: AppSpacing.base),
-
-          // 4. INCOME VS EXPENSE COMPARISON CHART
-          _buildComparisonChart(),
-
-          const SizedBox(height: AppSpacing.base),
-
-          // 5. OUTSTANDING DUES SECTION
-          _buildOutstandingDuesSection(dueApps),
-        ],
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/app_launcher.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../applications/data/services/land_portal_helper.dart';
 import '../../../applications/presentation/screens/land_portal_webview_screen.dart';
 import '../../../applications/presentation/screens/proposal_print_queue_screen.dart';
@@ -24,13 +25,18 @@ class MoreMenuScreen extends StatelessWidget {
         title: const Text('মেনু ও অন্যান্য ব্যবস্থা'),
         automaticallyImplyLeading: false,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        children: [
-          // 1. Daily Ledgers & Management
-          _buildMenuSection(
-            title: 'দৈনিক ব্যবস্থাপনা ও খাতা',
-            items: [
+      body: ResponsiveContainer(
+        maxWidth: 1000,
+        child: ListView(
+          padding: EdgeInsets.all(
+            context.isWide ? AppSpacing.xl : AppSpacing.base,
+          ),
+          children: [
+            // 1. Daily Ledgers & Management
+            _buildMenuSection(
+              context,
+              title: 'দৈনিক ব্যবস্থাপনা ও খাতা',
+              items: [
               _MenuItem(
                 title: 'ভূমি পোর্টাল (LSG)',
                 subtitle: 'নাগরিক ও ভূমি মালিক সেবা পোর্টাল ব্রাউজার',
@@ -110,6 +116,7 @@ class MoreMenuScreen extends StatelessWidget {
 
           // 2. Configurations & Data Backup
           _buildMenuSection(
+            context,
             title: 'কনফিগারেশন ও ব্যাকআপ',
             items: [
               _MenuItem(
@@ -198,10 +205,16 @@ class MoreMenuScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildMenuSection({required String title, required List<_MenuItem> items}) {
+  Widget _buildMenuSection(
+    BuildContext context, {
+    required String title,
+    required List<_MenuItem> items,
+  }) {
+    final isWide = context.isWide;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -216,39 +229,118 @@ class MoreMenuScreen extends StatelessWidget {
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (ctx, i) => const Divider(height: 1),
-            itemBuilder: (ctx, i) {
-              final it = items[i];
-              return ListTile(
-                onTap: it.onTap,
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: it.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        if (!isWide)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (ctx, i) => const Divider(height: 1),
+              itemBuilder: (ctx, i) {
+                final it = items[i];
+                return ListTile(
+                  onTap: it.onTap,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: it.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Icon(it.icon, color: it.color, size: 20),
                   ),
-                  child: Icon(it.icon, color: it.color, size: 20),
-                ),
-                title: Text(
-                  it.title,
-                  style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(it.subtitle, style: AppTypography.bodySmall),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.slate400),
+                  title: Text(
+                    it.title,
+                    style: AppTypography.headingSmall.copyWith(
+                        fontSize: 14.5, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(it.subtitle, style: AppTypography.bodySmall),
+                  trailing: const Icon(Icons.arrow_forward_ios,
+                      size: 14, color: AppColors.slate400),
+                );
+              },
+            ),
+          )
+        else
+          // ডেস্কটপ ২-কলাম আধুনিক গ্রিড
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = (constraints.maxWidth - AppSpacing.base) / 2;
+              return Wrap(
+                spacing: AppSpacing.base,
+                runSpacing: AppSpacing.base,
+                children: items.map((it) {
+                  return SizedBox(
+                    width: cardWidth,
+                    child: Material(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusLg),
+                      child: InkWell(
+                        onTap: it.onTap,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusLg),
+                        hoverColor: AppColors.slate50,
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusLg),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: it.color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(
+                                      AppSpacing.radiusMd),
+                                ),
+                                child:
+                                    Icon(it.icon, color: it.color, size: 22),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      it.title,
+                                      style: AppTypography.headingSmall
+                                          .copyWith(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      it.subtitle,
+                                      style:
+                                          AppTypography.bodySmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios,
+                                  size: 14, color: AppColors.slate400),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               );
             },
           ),
-        ),
       ],
     );
   }

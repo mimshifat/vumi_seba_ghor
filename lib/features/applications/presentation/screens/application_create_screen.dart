@@ -9,6 +9,7 @@ import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/phone_input_formatter.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_dialog_action_row.dart';
@@ -638,34 +639,37 @@ class _ApplicationCreateScreenState
       appBar: AppBar(
         title: const Text('নতুন আবেদন এন্ট্রি'),
       ),
-      body: Column(
-        children: [
-          // Visual Step Indicator
-          FormStepIndicator(
-            currentStep: _currentStep,
-            steps: _steps,
-            onStepTapped: (step) => _goToStep(step),
-          ),
-
-          // Multi-step PageView
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(), // Managed via Next/Prev buttons
-              onPageChanged: (page) {
-                setState(() => _currentStep = page);
-              },
-              children: [
-                _KeepAlivePage(child: _buildStep1CustomerInfo()),
-                _KeepAlivePage(child: _buildStep2WorkAndOffice()),
-                _KeepAlivePage(child: _buildStep3PaymentAndFinish()),
-              ],
+      body: ResponsiveContainer(
+        maxWidth: 900,
+        child: Column(
+          children: [
+            // Visual Step Indicator
+            FormStepIndicator(
+              currentStep: _currentStep,
+              steps: _steps,
+              onStepTapped: (step) => _goToStep(step),
             ),
-          ),
 
-          // Pinned Bottom Navigation Controls
-          _buildBottomNavigationBar(),
-        ],
+            // Multi-step PageView
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(), // Managed via Next/Prev buttons
+                onPageChanged: (page) {
+                  setState(() => _currentStep = page);
+                },
+                children: [
+                  _KeepAlivePage(child: _buildStep1CustomerInfo()),
+                  _KeepAlivePage(child: _buildStep2WorkAndOffice()),
+                  _KeepAlivePage(child: _buildStep3PaymentAndFinish()),
+                ],
+              ),
+            ),
+
+            // Pinned Bottom Navigation Controls
+            _buildBottomNavigationBar(),
+          ],
+        ),
       ),
     );
   }

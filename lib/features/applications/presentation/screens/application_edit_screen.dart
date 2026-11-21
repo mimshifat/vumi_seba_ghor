@@ -9,6 +9,7 @@ import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/case_number_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/phone_input_formatter.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
@@ -183,11 +184,15 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
       appBar: AppBar(
         title: const Text('আবেদন তথ্য সম্পাদনা'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          children: [
+      body: ResponsiveContainer(
+        maxWidth: 850,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: EdgeInsets.all(
+              context.isWide ? AppSpacing.xl : AppSpacing.base,
+            ),
+            children: [
             _buildEditCard(
               title: 'আবেদনকারীর তথ্য',
               children: [
@@ -394,8 +399,9 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEditCard({required String title, required List<Widget> children}) {
     return Container(

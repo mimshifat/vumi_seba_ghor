@@ -6,6 +6,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_floating_button.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -251,15 +252,18 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           );
         },
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildTaskList(0, allTasks),
-          _buildTaskList(1, allTasks),
-          _buildTaskList(2, allTasks),
-          _buildTaskList(3, allTasks),
-          _buildTaskList(4, allTasks),
-        ],
+      body: ResponsiveContainer(
+        maxWidth: 1050,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildTaskList(0, allTasks),
+            _buildTaskList(1, allTasks),
+            _buildTaskList(2, allTasks),
+            _buildTaskList(3, allTasks),
+            _buildTaskList(4, allTasks),
+          ],
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../applications/data/services/land_portal_helper.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/screens/application_create_screen.dart';
@@ -38,6 +39,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     _isNavigatingToTasks = false;
   }
 
+  String _getTodayFormatted() {
+    final now = DateTime.now();
+    const dayNames = {
+      1: 'সোমবার',
+      2: 'মঙ্গলবার',
+      3: 'বুধবার',
+      4: 'বৃহস্পতিবার',
+      5: 'শুক্রবার',
+      6: 'শনিবার',
+      7: 'রবিবার',
+    };
+    final dayName = dayNames[now.weekday] ?? '';
+    final dateStr =
+        BengaliDigits.toBengali('${now.day}/${now.month}/${now.year}');
+    return 'আজ: $dateStr, $dayName';
+  }
+
   @override
   Widget build(BuildContext context) {
     final appsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
@@ -66,60 +84,94 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         apps.where((a) => a.application.status == 'সম্পন্ন').length;
 
     final recentApplications =
-        apps.take(4).map((a) => a.toDemoApplication()).toList();
+        apps.take(6).map((a) => a.toDemoApplication()).toList();
+
+    final isWide = context.isWide;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              margin: const EdgeInsets.only(right: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(color: AppColors.border, width: 1),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color.fromRGBO(15, 23, 42, 0.05),
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
+        title: isWide
+            ? Row(
+                children: [
+                  Text(
+                    'ড্যাশবোর্ড ওভারভিউ',
+                    style: AppTypography.headingSmall.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.slate100,
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
+                      border: Border.all(color: AppColors.border, width: 0.8),
+                    ),
+                    child: Text(
+                      _getTodayFormatted(),
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusMd),
+                      border: Border.all(color: AppColors.border, width: 1),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(15, 23, 42, 0.05),
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusMd),
+                      child: Image.asset(
+                        'assets/images/app_logo.jpeg',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'রজব ভূমি সেবা ঘর',
+                        style: AppTypography.headingSmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                        ),
+                      ),
+                      Text(
+                        _getTodayFormatted(),
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                child: Image.asset(
-                  'assets/images/app_logo.jpeg',
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'রজব ভূমি সেবা ঘর',
-                  style: AppTypography.headingSmall.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                  ),
-                ),
-                Text(
-                  BengaliDigits.toBengali(
-                    'আজ: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                  ),
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
         actions: [
           IconButton(
             icon: const Icon(
@@ -177,37 +229,65 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ref.invalidate(applicationsWithFinancialsStreamProvider);
           ref.invalidate(todayTasksCountProvider);
         },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.xl),
-          children: [
-            // Instant Search Box - Jump to file directly
-            _buildInstantSearchBar(),
-
-            const SizedBox(height: AppSpacing.base),
-
-            // Operational Quick Actions Bar
-            _buildQuickActions(),
-
-            const SizedBox(height: AppSpacing.base),
-
-            // Application Pipeline Status (Counts ONLY - Zero Money)
-            _buildApplicationStatusGrid(
-              totalCount: totalCount,
-              ongoingCount: ongoingCount,
-              hearingCount: hearingCount,
-              passedCount: passedCount,
-              completedCount: completedCount,
+        child: ResponsiveContainer(
+          maxWidth: ResponsiveBreakpoints.maxContentWidth,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              isWide ? AppSpacing.xl : AppSpacing.base,
+              isWide ? AppSpacing.base : AppSpacing.sm,
+              isWide ? AppSpacing.xl : AppSpacing.base,
+              AppSpacing.xl,
             ),
+            children: [
+              // Instant Search Box - Jump to file directly
+              _buildInstantSearchBar(),
 
-            const SizedBox(height: AppSpacing.base),
+              const SizedBox(height: AppSpacing.base),
 
-            // Recent Applications Section (Zero Money displayed)
-            _buildRecentApplicationsSection(
-              recentApplications: recentApplications,
-              totalCount: totalCount,
-            ),
-          ],
+              // Operational Quick Actions Bar & Pipeline Status
+              if (isWide) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: _buildQuickActions(),
+                    ),
+                    const SizedBox(width: AppSpacing.base),
+                    Expanded(
+                      flex: 6,
+                      child: _buildApplicationStatusGrid(
+                        totalCount: totalCount,
+                        ongoingCount: ongoingCount,
+                        hearingCount: hearingCount,
+                        passedCount: passedCount,
+                        completedCount: completedCount,
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                _buildQuickActions(),
+                const SizedBox(height: AppSpacing.base),
+                _buildApplicationStatusGrid(
+                  totalCount: totalCount,
+                  ongoingCount: ongoingCount,
+                  hearingCount: hearingCount,
+                  passedCount: passedCount,
+                  completedCount: completedCount,
+                ),
+              ],
+
+              const SizedBox(height: AppSpacing.xl),
+
+              // Recent Applications Section (Zero Money displayed)
+              _buildRecentApplicationsSection(
+                recentApplications: recentApplications,
+                totalCount: totalCount,
+                isWide: isWide,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -249,15 +329,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                  border: Border.all(color: AppColors.primaryLight, width: 0.8),
                 ),
                 child: Text(
                   'খুঁজুন',
-                  style: AppTypography.labelMedium
-                      .copyWith(color: AppColors.primary, fontSize: 11),
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.primary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -275,54 +359,74 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(15, 23, 42, 0.03),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildQuickActionBtn(
-            icon: Icons.post_add,
-            label: 'নতুন আবেদন',
-            color: AppColors.primary,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                    builder: (ctx) => const ApplicationCreateScreen()),
-              );
-            },
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 8),
+            child: Text(
+              'কুইক অ্যাকশন',
+              style: AppTypography.headingSmall
+                  .copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
+            ),
           ),
-          _buildQuickActionBtn(
-            icon: Icons.add_task,
-            label: 'নতুন কাজ',
-            color: const Color(0xFF8B5CF6),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                    builder: (ctx) => const TaskCreateEditScreen()),
-              );
-            },
-          ),
-          _buildQuickActionBtn(
-            icon: Icons.people_outline,
-            label: 'গ্রাহক খাতা',
-            color: AppColors.emerald,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const PersonListScreen()),
-              );
-            },
-          ),
-          _buildQuickActionBtn(
-            icon: Icons.task_alt,
-            label: 'সম্পন্ন',
-            color: const Color(0xFF16A34A),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (ctx) =>
-                      const ApplicationListScreen(initialStatusFilter: 'সম্পন্ন'),
-                ),
-              );
-            },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildQuickActionBtn(
+                icon: Icons.post_add,
+                label: 'নতুন আবেদন',
+                color: AppColors.primary,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (ctx) => const ApplicationCreateScreen()),
+                  );
+                },
+              ),
+              _buildQuickActionBtn(
+                icon: Icons.add_task,
+                label: 'নতুন কাজ',
+                color: const Color(0xFF8B5CF6),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (ctx) => const TaskCreateEditScreen()),
+                  );
+                },
+              ),
+              _buildQuickActionBtn(
+                icon: Icons.people_outline,
+                label: 'গ্রাহক খাতা',
+                color: AppColors.emerald,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (ctx) => const PersonListScreen()),
+                  );
+                },
+              ),
+              _buildQuickActionBtn(
+                icon: Icons.task_alt,
+                label: 'সম্পন্ন',
+                color: const Color(0xFF16A34A),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) =>
+                          const ApplicationListScreen(initialStatusFilter: 'সম্পন্ন'),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -378,6 +482,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(15, 23, 42, 0.03),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,10 +501,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: AppTypography.headingSmall
                     .copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
               ),
-              Text(
-                'মোট ${BengaliDigits.toBengali(totalCount)} টি ফাইল',
-                style: AppTypography.bodySmall
-                    .copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                ),
+                child: Text(
+                  'মোট ${BengaliDigits.toBengali(totalCount)} টি ফাইল',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                  ),
+                ),
               ),
             ],
           ),
@@ -489,6 +610,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildRecentApplicationsSection({
     required List<DemoApplication> recentApplications,
     required int totalCount,
+    required bool isWide,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,33 +618,109 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'সাম্প্রতিক ফাইলের অগ্রগতি',
-              style: AppTypography.headingSmall
-                  .copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'সাম্প্রতিক ফাইলের অগ্রগতি',
+                  style: AppTypography.headingSmall
+                      .copyWith(fontSize: 15.5, fontWeight: FontWeight.w700),
+                ),
+              ],
             ),
             InkWell(
               onTap: () => widget.onNavigateTab?.call(1),
-              child: Text(
-                'সকল আবেদন (${BengaliDigits.toBengali(totalCount)})',
-                style: AppTypography.labelMedium
-                    .copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Row(
+                  children: [
+                    Text(
+                      'সকল আবেদন (${BengaliDigits.toBengali(totalCount)})',
+                      style: AppTypography.labelMedium.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 11,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
-        // Render with showFinancials: false -> Zero Money on Home!
-        ...recentApplications.map((app) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.base),
-              child: ApplicationCard(
-                application: app,
-                showFinancials: false,
-                onRefresh: () {
-                  ref.invalidate(applicationsWithFinancialsStreamProvider);
-                },
-              ),
-            )),
+        const SizedBox(height: AppSpacing.md),
+        if (recentApplications.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.folder_open_outlined,
+                    size: 48, color: AppColors.slate400),
+                const SizedBox(height: 12),
+                Text(
+                  'কোনো সাম্প্রতিক আবেদন পাওয়া যায়নি',
+                  style: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.slate500),
+                ),
+              ],
+            ),
+          )
+        else if (!isWide)
+          // মোবাইল ১-কলাম লিস্ট
+          ...recentApplications.map((app) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.base),
+                child: ApplicationCard(
+                  application: app,
+                  showFinancials: false,
+                  onRefresh: () {
+                    ref.invalidate(applicationsWithFinancialsStreamProvider);
+                  },
+                ),
+              ))
+        else
+          // ডেস্কটপ/ট্যাবলেট ২-কলাম রেসপনসিভ গ্রিড
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = (constraints.maxWidth - AppSpacing.base) / 2;
+              return Wrap(
+                spacing: AppSpacing.base,
+                runSpacing: AppSpacing.base,
+                children: recentApplications.map((app) {
+                  return SizedBox(
+                    width: cardWidth,
+                    child: ApplicationCard(
+                      application: app,
+                      showFinancials: false,
+                      onRefresh: () {
+                        ref.invalidate(
+                            applicationsWithFinancialsStreamProvider);
+                      },
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
       ],
     );
   }
