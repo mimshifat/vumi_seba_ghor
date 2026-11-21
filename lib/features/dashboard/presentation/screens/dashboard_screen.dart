@@ -12,7 +12,6 @@ import '../../../applications/presentation/screens/application_list_screen.dart'
 import '../../../applications/presentation/screens/land_portal_webview_screen.dart';
 import '../../../applications/presentation/widgets/application_card.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
-import '../../../offices/presentation/screens/office_management_screen.dart';
 import '../../../persons/presentation/screens/person_list_screen.dart';
 import '../../../tasks/presentation/providers/task_providers.dart';
 import '../../../tasks/presentation/screens/task_create_edit_screen.dart';
@@ -313,13 +312,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             },
           ),
           _buildQuickActionBtn(
-            icon: Icons.account_balance_outlined,
-            label: 'অফিস সমূহ',
-            color: AppColors.slate600,
+            icon: Icons.task_alt,
+            label: 'সম্পন্ন',
+            color: const Color(0xFF16A34A),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                    builder: (ctx) => const OfficeManagementScreen()),
+                  builder: (ctx) =>
+                      const ApplicationListScreen(initialStatusFilter: 'সম্পন্ন'),
+                ),
               );
             },
           ),

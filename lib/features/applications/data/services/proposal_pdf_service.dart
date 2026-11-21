@@ -128,6 +128,7 @@ class ProposalPdfService {
         fontSize: 10.5,
         fontWeight: FontWeight.w500,
         color: const Color(0xFF0F172A),
+        textAlign: TextAlign.center,
         maxWidth: _colNameW - (_cellPadH * 2),
       );
       final casePainter = _makePainter(
@@ -135,6 +136,7 @@ class ProposalPdfService {
         fontSize: 10.5,
         fontWeight: FontWeight.w600,
         color: const Color(0xFF0F172A),
+        textAlign: TextAlign.center,
         maxWidth: _colCaseW - (_cellPadH * 2),
       );
 
@@ -193,12 +195,14 @@ class ProposalPdfService {
       'আবেদনকারীর নাম',
       fontSize: 10.5,
       fontWeight: FontWeight.w700,
+      textAlign: TextAlign.center,
       maxWidth: _colNameW - (_cellPadH * 2),
     );
     final thCase = _makePainter(
       'কেস নং',
       fontSize: 10.5,
       fontWeight: FontWeight.w700,
+      textAlign: TextAlign.center,
       maxWidth: _colCaseW - (_cellPadH * 2),
     );
 
@@ -238,14 +242,14 @@ class ProposalPdfService {
       thName.paint(
         canvas,
         ui.Offset(
-          _marginH + _colSerialW + _cellPadH,
+          _marginH + _colSerialW + (_colNameW - thName.width) / 2,
           tableY + (_tableHeaderHeight - thName.height) / 2,
         ),
       );
       thCase.paint(
         canvas,
         ui.Offset(
-          _marginH + _colSerialW + _colNameW + _cellPadH,
+          _marginH + _colSerialW + _colNameW + (_colCaseW - thCase.width) / 2,
           tableY + (_tableHeaderHeight - thCase.height) / 2,
         ),
       );
@@ -301,15 +305,15 @@ class ProposalPdfService {
           r.namePainter.paint(
             canvas,
             ui.Offset(
-              _marginH + _colSerialW + _cellPadH,
-              tableY + _cellPadV,
+              _marginH + _colSerialW + (_colNameW - r.namePainter.width) / 2,
+              tableY + (r.height - r.namePainter.height) / 2,
             ),
           );
           r.casePainter.paint(
             canvas,
             ui.Offset(
-              _marginH + _colSerialW + _colNameW + _cellPadH,
-              tableY + _cellPadV,
+              _marginH + _colSerialW + _colNameW + (_colCaseW - r.casePainter.width) / 2,
+              tableY + (r.height - r.casePainter.height) / 2,
             ),
           );
 

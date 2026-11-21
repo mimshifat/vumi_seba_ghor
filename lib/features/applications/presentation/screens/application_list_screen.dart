@@ -34,12 +34,28 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
   @override
   void initState() {
     super.initState();
-    _criteria = FilterCriteria(selectedStatus: widget.initialStatusFilter);
+    final quickKey = widget.initialStatusFilter != null
+        ? _statusToQuickKey(widget.initialStatusFilter!)
+        : null;
+    final isCustomStatus = quickKey != null &&
+        quickKey != 'all' &&
+        quickKey != 'ongoing' &&
+        quickKey != 'hearing' &&
+        quickKey != 'has_due' &&
+        quickKey != 'completed';
+
+    _criteria = FilterCriteria(
+      selectedStatus: isCustomStatus ? widget.initialStatusFilter : null,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.initialStatusFilter != null) {
-        ref
-            .read(applicationFilterProvider.notifier)
-            .setQuickFilterKey(widget.initialStatusFilter);
+        final notifier = ref.read(applicationFilterProvider.notifier);
+        notifier.setQuickFilterKey(quickKey);
+        if (isCustomStatus) {
+          notifier.setSelectedStatus(widget.initialStatusFilter);
+        } else {
+          notifier.setSelectedStatus(null);
+        }
       }
     });
   }
