@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,8 @@ import 'core/constants/app_colors.dart';
 import 'core/database/app_database.dart';
 import 'core/database/database_provider.dart';
 import 'core/database/database_seeder.dart';
+import 'features/backup/data/repositories/backup_repository.dart';
+import 'features/sync/data/services/sync_server_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,11 +118,48 @@ class AppRoot extends StatefulWidget {
 class AppRootState extends State<AppRoot> {
   late AppDatabase _currentDb;
   Key _scopeKey = UniqueKey();
+  SyncServerService? _backgroundSyncServer;
 
   @override
   void initState() {
     super.initState();
     _currentDb = widget.initialDb;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      _startPcBackgroundSyncServer();
+    }
+  }
+
+  void _startPcBackgroundSyncServer() {
+    final repo = BackupRepository(_currentDb);
+    _backgroundSyncServer = SyncServerService(repo);
+    _backgroundSyncServer?.startServer(
+      onDatabaseReopened: (newDb) {
+        replaceDatabase(newDb);
+        rootScaffoldMessengerKey.currentState?.showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
+                SizedBox(width: 10),
+                Text(
+                  'ফোন থেকে সমস্ত নতুন ডেটা সফলভাবে রিসিভ ও আপডেট হয়েছে!',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.emerald,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _backgroundSyncServer?.stopServer();
+    super.dispose();
   }
 
   /// ডেটাবেজ রিস্টোর সম্পন্ন হলে নতুন সংযোগ দিয়ে সমগ্র উইজেট ও প্রোভাইডার ট্রি রিলোড করে।

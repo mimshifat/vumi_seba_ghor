@@ -13,6 +13,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_field_label.dart';
 import '../../../backup/presentation/screens/backup_restore_screen.dart';
+import '../../../sync/presentation/screens/local_sync_screen.dart';
 import '../providers/settings_providers.dart';
 import 'category_management_screen.dart';
 
@@ -441,6 +442,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // 3. Data & Privacy
           _buildCategoryHeader('ডেটা ও নিরাপত্তা'),
           const SizedBox(height: AppSpacing.xs),
+          _buildSettingsTile(
+            icon: Icons.sync_rounded,
+            title: 'লোকাল ওয়াই-ফাই সিঙ্ক (ফোন ➔ পিসি)',
+            subtitle: 'ইন্টারনেট ছাড়া সরাসরি ফোন থেকে পিসিতে ডেটা পাঠান',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (ctx) => const LocalSyncScreen()),
+              );
+            },
+          ),
           _buildSettingsTile(
             icon: Icons.cloud_sync_outlined,
             title: 'ব্যাকআপ ও রিস্টোর',

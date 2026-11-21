@@ -16,6 +16,7 @@ import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../main.dart';
+import '../../../sync/presentation/screens/local_sync_screen.dart';
 import '../providers/backup_providers.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
@@ -390,6 +391,69 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.base),
+
+          // লোকাল ওয়াই-ফাই সিঙ্ক কার্ড (ফোন ➔ পিসি সরাসরি মিররিং)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.base),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: const Color(0xFFC7D2FE)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  child: const Icon(Icons.sync_rounded,
+                      color: Colors.white, size: 26),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'লোকাল ওয়াই-ফাই সিঙ্ক',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'ইন্টারনেট ছাড়া সরাসরি ফোন থেকে পিসিতে সমস্ত ডেটা এক ক্লিকে আপডেট করুন',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                AppButton(
+                  text: 'সিঙ্ক করুন',
+                  width: 92,
+                  height: 36,
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (ctx) => const LocalSyncScreen()),
+                    );
+                  },
                 ),
               ],
             ),
