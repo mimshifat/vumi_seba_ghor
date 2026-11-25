@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/demo/demo_data.dart';
 import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/full_screen_image_viewer.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/screens/application_detail_screen.dart';
 import '../providers/task_providers.dart';
@@ -28,6 +31,64 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
 
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   String get _id => widget.taskId ?? widget.task!.id;
+
+  Future<void> _pickAndAddPicture() async {
+    final pickedList = await AttachmentPickerSheet.pickMultiple(
+      context,
+      includeFileManager: false,
+      title: 'কাজের ছবি যুক্ত করুন',
+      subtitle: 'ক্যামেরা অথবা গ্যালারি থেকে ছবি নির্বাচন করুন',
+    );
+    if (pickedList.isEmpty || !mounted) return;
+
+    int successCount = 0;
+    for (final picked in pickedList) {
+      final res = await ref
+          .read(taskControllerProvider.notifier)
+          .addTaskAttachment(
+            taskId: _id,
+            fileName: picked.fileName,
+            fileData: picked.bytes,
+            fileSize: picked.fileSize,
+          );
+      if (res != null) successCount++;
+    }
+
+    if (!mounted) return;
+    if (successCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(successCount == 1
+              ? 'ছবি সফলভাবে সংযুক্ত হয়েছে।'
+              : '${BengaliDigits.toBengali(successCount)}টি ছবি যুক্ত হয়েছে।'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmDeletePicture(TaskAttachment att) async {
+    final ok = await ConfirmDialog.show(
+      context,
+      title: 'ছবিটি মুছে ফেলবেন?',
+      message: '"${att.fileName}" টাস্ক থেকে স্থায়ীভাবে মুছে যাবে।',
+      confirmText: 'মুছুন',
+      isDestructive: true,
+    );
+    if (ok == true) {
+      await ref.read(taskControllerProvider.notifier).deleteTaskAttachment(
+            id: att.id,
+            taskId: _id,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ছবি মুছে ফেলা হয়েছে।'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+    }
+  }
 
   Future<void> _setStatus(String newStatus, DemoTask currentTask) async {
     if (currentTask.status == newStatus) return;
@@ -87,6 +148,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final liveTask = ref.watch(taskDetailProvider(_id)).valueOrNull;
     final allAppsAsync = ref.watch(applicationsWithFinancialsStreamProvider);
     final allApps = allAppsAsync.valueOrNull ?? const [];
+    final attachmentsAsync = ref.watch(taskAttachmentsProvider(_id));
+    final attachments = attachmentsAsync.valueOrNull ?? const [];
 
     DemoTask task;
     if (liveTask != null) {
@@ -433,6 +496,11 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
           const SizedBox(height: AppSpacing.base),
 
+          // Attached Pictures Card
+          _buildAttachmentsCard(attachments),
+
+          const SizedBox(height: AppSpacing.base),
+
           // Status Action Buttons
           Container(
             padding: const EdgeInsets.all(AppSpacing.base),
@@ -500,6 +568,206 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             variant: isDone ? ButtonVariant.secondary : ButtonVariant.primary,
             onPressed: () => _advanceStatus(task),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttachmentsCard(List<TaskAttachment> attachments) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.photo_library_outlined,
+                        size: 16, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    attachments.isNotEmpty
+                        ? 'সংযুক্ত ছবিসমূহ (${BengaliDigits.toBengali(attachments.length)}টি)'
+                        : 'কাজের ছবি / ডকুমেন্টস',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.slate800,
+                    ),
+                  ),
+                ],
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.add_a_photo_outlined, size: 14),
+                label: Text(
+                  attachments.isNotEmpty ? 'আরও যোগ করুন' : 'ছবি যোগ করুন',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: _pickAndAddPicture,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (attachments.isEmpty)
+            InkWell(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              onTap: _pickAndAddPicture,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.slate50,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.add_photo_alternate_outlined,
+                        size: 18, color: AppColors.slate400),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'কোনো ছবি যুক্ত করা নেই। ছবি যুক্ত করতে ট্যাপ করুন।',
+                        style: TextStyle(fontSize: 12, color: AppColors.slate500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...attachments.map((att) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.slate50,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    // Clickable thumbnail with zoom icon
+                    GestureDetector(
+                      onTap: () {
+                        FullScreenImageViewer.open(
+                          context,
+                          imageBytes: att.fileData,
+                          title: att.fileName,
+                          subtitle: BengaliDigits.toBengali(att.fileSize),
+                        );
+                      },
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusSm),
+                            child: Image.memory(
+                              att.fileData,
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                              cacheWidth: 150,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(4),
+                              ),
+                            ),
+                            child: const Icon(Icons.zoom_in_rounded,
+                                size: 12, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          FullScreenImageViewer.open(
+                            context,
+                            imageBytes: att.fileData,
+                            title: att.fileName,
+                            subtitle: BengaliDigits.toBengali(att.fileSize),
+                          );
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              att.fileName,
+                              style: AppTypography.titleMedium.copyWith(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Text(
+                                  BengaliDigits.toBengali(att.fileSize),
+                                  style: AppTypography.bodySmall.copyWith(
+                                    fontSize: 11.5,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySurface,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'বড় করে দেখুন',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 20, color: AppColors.rose),
+                      tooltip: 'মুছে ফেলুন',
+                      onPressed: () => _confirmDeletePicture(att),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );

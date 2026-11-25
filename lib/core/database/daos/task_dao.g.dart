@@ -9,6 +9,7 @@ mixin _$TaskDaoMixin on DatabaseAccessor<AppDatabase> {
   $OfficesTable get offices => attachedDatabase.offices;
   $ApplicationsTable get applications => attachedDatabase.applications;
   $TasksTable get tasks => attachedDatabase.tasks;
+  $TaskAttachmentsTable get taskAttachments => attachedDatabase.taskAttachments;
   TaskDaoManager get managers => TaskDaoManager(this);
 }
 
@@ -25,4 +26,9 @@ class TaskDaoManager {
       $$ApplicationsTableTableManager(_db.attachedDatabase, _db.applications);
   $$TasksTableTableManager get tasks =>
       $$TasksTableTableManager(_db.attachedDatabase, _db.tasks);
+  $$TaskAttachmentsTableTableManager get taskAttachments =>
+      $$TaskAttachmentsTableTableManager(
+        _db.attachedDatabase,
+        _db.taskAttachments,
+      );
 }

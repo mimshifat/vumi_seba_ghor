@@ -195,5 +195,61 @@ class TaskRepository {
   Stream<int> watchTodayTasksCount() {
     return _db.taskDao.watchTodayTasksCount();
   }
+
+  /// নির্দিষ্ট কাজের ছবি/সংযুক্তি লাইভ স্ট্রিম
+  Stream<List<TaskAttachment>> watchTaskAttachments(String taskId) {
+    return _db.taskDao.watchTaskAttachments(taskId);
+  }
+
+  /// নির্দিষ্ট কাজের ছবি/সংযুক্তি তালিকা সংগ্রহ
+  Future<List<TaskAttachment>> getTaskAttachments(String taskId) async {
+    try {
+      return await _db.taskDao.getTaskAttachments(taskId);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
+  }
+
+  /// কাজের নতুন ছবি সংযোজন
+  Future<TaskAttachment> addTaskAttachment({
+    String? id,
+    required String taskId,
+    required String fileName,
+    required Uint8List fileData,
+    required String fileSize,
+    String fileType = 'image',
+  }) async {
+    try {
+      final attachId = id ?? _uuid.v4();
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      await _db.taskDao.insertTaskAttachment(
+        TaskAttachmentsCompanion.insert(
+          id: attachId,
+          taskId: taskId,
+          fileName: fileName,
+          fileType: Value(fileType),
+          fileData: fileData,
+          fileSize: fileSize,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      final list = await _db.taskDao.getTaskAttachments(taskId);
+      return list.firstWhere((a) => a.id == attachId);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
+  }
+
+  /// কাজের ছবি মুছে ফেলা
+  Future<void> deleteTaskAttachment(String id) async {
+    try {
+      await _db.taskDao.deleteTaskAttachment(id);
+    } catch (e, s) {
+      throw AppFailure.fromException(e, s);
+    }
+  }
 }
 

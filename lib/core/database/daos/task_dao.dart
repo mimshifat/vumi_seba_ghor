@@ -4,7 +4,7 @@ import '../app_database.dart';
 
 part 'task_dao.g.dart';
 
-@DriftAccessor(tables: [Tasks, Applications])
+@DriftAccessor(tables: [Tasks, Applications, TaskAttachments])
 class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
   TaskDao(super.db);
 
@@ -190,6 +190,32 @@ class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
           tasks.dueDate.isSmallerOrEqualValue(endOfToday));
 
     return query.watchSingle().map((row) => row.read(countCol) ?? 0);
+  }
+
+  /// নির্দিষ্ট কাজের ছবি/সংযুক্তি রিয়েক্টিভ ওয়াচ স্ট্রিম
+  Stream<List<TaskAttachment>> watchTaskAttachments(String taskId) {
+    return (select(taskAttachments)
+          ..where((tbl) => tbl.taskId.equals(taskId) & tbl.deletedAt.isNull())
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
+        .watch();
+  }
+
+  /// নির্দিষ্ট কাজের ছবি/সংযুক্তি তালিকা সংগ্রহ
+  Future<List<TaskAttachment>> getTaskAttachments(String taskId) {
+    return (select(taskAttachments)
+          ..where((tbl) => tbl.taskId.equals(taskId) & tbl.deletedAt.isNull())
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
+        .get();
+  }
+
+  /// টাস্কের নতুন ছবি সংযোজন
+  Future<int> insertTaskAttachment(TaskAttachmentsCompanion companion) {
+    return into(taskAttachments).insert(companion);
+  }
+
+  /// টাস্কের ছবি মুছে ফেলা (হার্ড ডিলিট)
+  Future<int> deleteTaskAttachment(String id) {
+    return (delete(taskAttachments)..where((tbl) => tbl.id.equals(id))).go();
   }
 }
 

@@ -21,6 +21,7 @@ import 'tables/proposal_print_batches_table.dart';
 import 'tables/references_table.dart';
 import 'tables/shop_settings_table.dart';
 import 'tables/status_history_table.dart';
+import 'tables/task_attachments_table.dart';
 import 'tables/tasks_table.dart';
 import 'tables/work_types_table.dart';
 
@@ -58,6 +59,7 @@ export 'tables/proposal_print_batches_table.dart';
 export 'tables/references_table.dart';
 export 'tables/shop_settings_table.dart';
 export 'tables/status_history_table.dart';
+export 'tables/task_attachments_table.dart';
 export 'tables/tasks_table.dart';
 export 'tables/work_types_table.dart';
 
@@ -76,6 +78,7 @@ part 'app_database.g.dart';
     StatusHistory,
     Documents,
     Tasks,
+    TaskAttachments,
     WorkTypes,
     ExpenseCategories,
     IncomeCategories,
@@ -176,7 +179,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// বর্তমান অ্যাপের ডেটাবেজ স্কিমা সংস্করণ
-  static const int currentSchemaVersion = 3;
+  static const int currentSchemaVersion = 4;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -206,6 +209,21 @@ class AppDatabase extends _$AppDatabase {
             }
             if (!colNames.contains('portal_password')) {
               await m.addColumn(applications, applications.portalPassword);
+            }
+          }
+          if (from < 4) {
+            final existing = await customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='task_attachments';",
+            ).get();
+            if (existing.isEmpty) {
+              await m.createTable(taskAttachments);
+            }
+            for (final index in allSchemaEntities.whereType<Index>()) {
+              if (index.entityName.contains('task_attachment')) {
+                try {
+                  await m.create(index);
+                } catch (_) {}
+              }
             }
           }
         },

@@ -369,20 +369,30 @@ class BackupRepository {
     }
   }
 
-  /// সাময়িক ব্যাকআপ ডাটাবেজ থেকে ভারী পিডিএফ ও ইমেজ বাইনারি ব্লব বাদ দিয়ে VACUUM করে ফাইলের সাইজ ন্যূনতম করে।
+  /// সাময়িক ব্যাকআপ ডাটাবেজ থেকে ভারী পিডিএফ ও ইমেজ বাইনারি ব্লব (আবেদন ডকুমেন্ট ও টাস্ক ছবি) বাদ দিয়ে VACUUM করে ফাইলের সাইজ ন্যূনতম করে।
   static void stripDocumentsAndCompact(File dbFile) {
     CommonDatabase? tempDb;
     try {
       tempDb = sqlite3.open(dbFile.path);
-      final tables = tempDb.select(
+      final docTables = tempDb.select(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='documents';",
       );
-      if (tables.isNotEmpty) {
+      if (docTables.isNotEmpty) {
         tempDb.execute(
           "UPDATE documents SET file_data = zeroblob(0);",
         );
-        tempDb.execute('VACUUM;');
       }
+
+      final taskAttTables = tempDb.select(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='task_attachments';",
+      );
+      if (taskAttTables.isNotEmpty) {
+        tempDb.execute(
+          "UPDATE task_attachments SET file_data = zeroblob(0);",
+        );
+      }
+
+      tempDb.execute('VACUUM;');
     } catch (_) {
     } finally {
       tempDb?.close();
@@ -723,6 +733,24 @@ class BackupRepository {
                 // totalDocs > 0: রেকর্ড আছে এবং সব empty → lightweight
                 // totalDocs == 0: রেকর্ড নেই, ফাইলের নাম দিয়ে ইতোমধ্যে চেক হয়েছে
                 if (totalDocs > 0 && emptyDocs == totalDocs) {
+                  isLightweight = true;
+                }
+              }
+            }
+
+            final taskAttTableExists = testDb.select(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='task_attachments';",
+            );
+            if (taskAttTableExists.isNotEmpty) {
+              final attStats = testDb.select(
+                "SELECT COUNT(*) as total_atts, "
+                "SUM(CASE WHEN length(file_data) = 0 THEN 1 ELSE 0 END) as empty_atts "
+                "FROM task_attachments WHERE deleted_at IS NULL;",
+              );
+              if (attStats.isNotEmpty) {
+                final totalAtts = (attStats.first['total_atts'] as int?) ?? 0;
+                final emptyAtts = (attStats.first['empty_atts'] as int?) ?? 0;
+                if (totalAtts > 0 && emptyAtts == totalAtts) {
                   isLightweight = true;
                 }
               }

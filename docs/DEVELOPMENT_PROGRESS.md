@@ -12,6 +12,8 @@
 | **Backend Phase 3** | UI Screen Migration to Live Providers | ✅ Completed (146/146 Tests Green) |
 | **Backend Phase 4** | Backup, Restore & Data Migration Safety (Lightweight Telegram & Daily Auto-Backup) | ✅ Completed (178/178 Tests Green) |
 | **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ✅ Completed (178/178 Tests Green) |
+| **Schema v3 (LSG Portal)** | In-App Browser Auto-Login & Downloads | ✅ Completed (194/194 Tests Green) |
+| **Schema v4 (Task Attachments)** | Task Picture Attachments (Camera/Gallery) & Fullscreen Zoom Viewer | ✅ Completed (197/197 Tests Green) |
 
 ---
 
@@ -464,3 +466,33 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
   - Added native Android `MethodChannel` (`com.rojob.bhumi_kajer_hisab/downloads` in `MainActivity.kt`) using `MediaStore.Downloads` (API 29+) and public `Download` directory (API < 29) with `BackupRepository.getExportDirectory()` fallback.
   - Supports HTTP/HTTPS (with session cookies & timeouts), `blob:`, and `data:` downloads, then prompts **"আবেদনে যোগ করুন"** (saves up to `15 MB` directly into `documents` table) and **"খুলুন / শেয়ার"**.
 - **Verification:** `flutter analyze` **0 issues**; `flutter test` **194 / 194 tests passed** (including `test/unit/land_portal_test.dart`).
+
+---
+
+## Task Picture Attachments & Database Schema v4 (Completed)
+
+- **Database Migration (v3 ➔ v4):**
+  - Added `TaskAttachments` table (`task_attachments`) storing `id`, `task_id` (FOREIGN KEY REFERENCES `tasks(id)` ON DELETE CASCADE), `file_name`, `file_type` ('image'), `file_data` (BLOB), `file_size`, `created_at`, `updated_at`, `deleted_at`.
+  - Added indexes: `idx_task_attachments_task` and `idx_task_attachments_active`.
+  - Idempotent migration in `AppDatabase.migration.onUpgrade` (`from < 4`) with `sqlite_master` table existence check to guarantee zero crashes on updates or restores.
+  - Updated `AppDatabase.currentSchemaVersion` to **4**.
+- **UI & Interaction Design:**
+  - **Task Create/Edit Screen (`TaskCreateEditScreen`):**
+    - Added dedicated "কাজের ছবি / ডকুমেন্টস" card section.
+    - Integrated `AttachmentPickerSheet.pickMultiple(context, includeFileManager: false)`: restricts selection strictly to **ক্যামেরা** and **গ্যালারি** (excluding PDF and file manager as requested).
+    - Image preview items with crisp 52x52 thumbnail, file name, formatted Bengali size (e.g. `১.২ MB`), zoom badge, and delete icon.
+  - **Fullscreen Zoomable Image Viewer (`FullScreenImageViewer`):**
+    - Built reusable immersive full-screen viewer with `InteractiveViewer`.
+    - Double-tap zoom (2.5x toggle) and smooth pinch-to-zoom (0.5x to 6.0x) with infinite boundary margins for inspecting seals, khotian numbers, and handwritten notes.
+    - Dark theme, zoom reset action button, image title, size subtitle, and helper bottom bar.
+  - **Task Detail Screen (`TaskDetailScreen`):**
+    - Reactive live attachments card with thumbnails, full-screen zoom preview, "+ ছবি যোগ করুন" action, and destructive delete confirmation.
+  - **Task List Screen (`TaskListScreen`):**
+    - Added photo count badge (`X ছবি`) on task cards.
+- **Backup & Cloud Stripping Architecture:**
+  - **অফলাইন ব্যাকআপ (`exportBackup`):** সম্পূর্ণ `.db` ব্যাকআপ ফাইলে আবেদন ডকুমেন্টস ও টাস্কের ছবি ১০০% অপরিবর্তিত বাইনারি ডেটা সহ সংরক্ষিত থাকে।
+  - **টেলিগ্রাম ক্লাউড ব্যাকআপ (`exportBackupToTelegram`):** `stripDocumentsAndCompact()` মেথডে `documents` এর পাশাপাশি `task_attachments` টেবিলের বাইনারি ডেটা `zeroblob(0)` দিয়ে শূন্য করে সাইজ ক্ষুদ্র রাখা হয়, যাতে দ্রুত আপলোড হয়।
+  - **ব্যাকআপ ভ্যালিডেশন:** `validateBackupFile` স্বয়ংক্রিয়ভাবে স্কিমা সংস্করণ ও লাইটওয়েট স্ট্যাটাস যাচাই করে।
+- **Verification:**
+  - Static Analysis (`flutter analyze`): **0 issues found**.
+  - Test Suite (`test/unit/task_attachments_test.dart` & `test/unit/phase_four_backup_test.dart`): **All 197 tests passed green**.

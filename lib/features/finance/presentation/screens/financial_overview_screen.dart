@@ -10,7 +10,6 @@ import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_floating_button.dart';
-import '../../../../core/widgets/summary_card.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../applications/presentation/screens/application_detail_screen.dart';
 import '../providers/finance_providers.dart';
@@ -21,6 +20,7 @@ import 'payment_form_screen.dart';
 import 'transaction_history_screen.dart';
 
 enum FinancialFilterType {
+  today,
   thisMonth,
   lastMonth,
   thisYear,
@@ -65,6 +65,16 @@ class _FinancialOverviewScreenState
     final now = DateTime.now();
     _selectedYear = now.year;
     _selectedMonth = now.month;
+  }
+
+  void _selectToday() {
+    final now = DateTime.now();
+    setState(() {
+      _filterType = FinancialFilterType.today;
+      _selectedYear = now.year;
+      _selectedMonth = now.month;
+      _customDateRange = null;
+    });
   }
 
   void _selectThisMonth() {
@@ -400,7 +410,10 @@ class _FinancialOverviewScreenState
 
   List<DemoTransaction> _getFilteredTransactions() {
     final all = _getAllTransactions();
+    final now = DateTime.now();
     switch (_filterType) {
+      case FinancialFilterType.today:
+        return all.where((t) => t.date.year == now.year && t.date.month == now.month && t.date.day == now.day).toList();
       case FinancialFilterType.thisMonth:
       case FinancialFilterType.lastMonth:
       case FinancialFilterType.customMonth:
@@ -437,6 +450,12 @@ class _FinancialOverviewScreenState
 
   String get _periodTitle {
     switch (_filterType) {
+      case FinancialFilterType.today:
+        final n1 = DateTime.now();
+        final d1 = BengaliDigits.toBengali(n1.day);
+        final m1 = BengaliDigits.toBengali(n1.month);
+        final y1 = BengaliDigits.toBengali(n1.year);
+        return 'আজকের হিসাব ($d1/$m1/$y1)';
       case FinancialFilterType.thisMonth:
         return '${_bengaliMonths[_selectedMonth - 1]} ${BengaliDigits.toBengali(_selectedYear)} (চলতি মাস)';
       case FinancialFilterType.lastMonth:
@@ -459,6 +478,11 @@ class _FinancialOverviewScreenState
 
   String get _periodBadgeText {
     switch (_filterType) {
+      case FinancialFilterType.today:
+        final n2 = DateTime.now();
+        final d2 = BengaliDigits.toBengali(n2.day);
+        final m2 = BengaliDigits.toBengali(n2.month);
+        return 'আজ $d2/$m2';
       case FinancialFilterType.thisMonth:
       case FinancialFilterType.lastMonth:
       case FinancialFilterType.customMonth:
@@ -475,10 +499,23 @@ class _FinancialOverviewScreenState
     }
   }
 
-  bool get _isCurrentMonthSelected {
-    final now = DateTime.now();
-    return (_filterType == FinancialFilterType.thisMonth) ||
-        ((_filterType == FinancialFilterType.customMonth) && _selectedYear == now.year && _selectedMonth == now.month);
+  String get _periodLabel {
+    switch (_filterType) {
+      case FinancialFilterType.today:
+        return 'আজকের';
+      case FinancialFilterType.thisMonth:
+        return 'চলতি মাসের';
+      case FinancialFilterType.lastMonth:
+        return 'বিগত মাসের';
+      case FinancialFilterType.thisYear:
+        return 'চলতি বছরের';
+      case FinancialFilterType.allTime:
+        return 'সর্বমোট';
+      case FinancialFilterType.customMonth:
+        return '${_bengaliMonths[_selectedMonth - 1]} মাসের';
+      case FinancialFilterType.customRange:
+        return 'নির্বাচিত সময়ের';
+    }
   }
 
   @override
@@ -586,11 +623,10 @@ class _FinancialOverviewScreenState
             // 2. HERO SUMMARY CARD (DYNAMIC TO FILTER)
             _buildHeroSummaryCard(),
 
-            // 3. DAILY SUMMARY (Shows when viewing current month)
-            if (_isCurrentMonthSelected) ...[
-              const SizedBox(height: AppSpacing.base),
-              _buildTodaySummary(),
-            ],
+            const SizedBox(height: AppSpacing.base),
+
+            // 3. PERIOD BREAKDOWN CARDS (DYNAMIC TO SELECTED FILTER - NEVER VANISHES)
+            _buildPeriodBreakdownCards(),
 
             const SizedBox(height: AppSpacing.base),
 
@@ -648,6 +684,8 @@ class _FinancialOverviewScreenState
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 8),
             child: Row(
               children: [
+                _buildFilterChip('আজকে', _filterType == FinancialFilterType.today, _selectToday),
+                const SizedBox(width: 6),
                 _buildFilterChip('চলতি মাস', _filterType == FinancialFilterType.thisMonth, _selectThisMonth),
                 const SizedBox(width: 6),
                 _buildFilterChip('বিগত মাস', _filterType == FinancialFilterType.lastMonth, _selectLastMonth),
@@ -674,7 +712,7 @@ class _FinancialOverviewScreenState
           ),
 
           // Period Navigator Banner (for Month or Year mode)
-          if (_filterType != FinancialFilterType.allTime && _filterType != FinancialFilterType.customRange)
+          if (_filterType != FinancialFilterType.allTime && _filterType != FinancialFilterType.customRange && _filterType != FinancialFilterType.today)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
               decoration: const BoxDecoration(
@@ -997,55 +1035,235 @@ class _FinancialOverviewScreenState
     );
   }
 
-  /// 3. Daily Summary Cards (Shows today's snapshot when viewing current month)
-  Widget _buildTodaySummary() {
-    final now = DateTime.now();
-    int todayIncomePaisa = 0;
-    int todayExpensePaisa = 0;
-    for (final t in _getAllTransactions()) {
-      if (t.date.year == now.year && t.date.month == now.month && t.date.day == now.day) {
-        if (t.type == TransactionType.income) {
-          todayIncomePaisa += t.amount.paisa;
+  /// 3. Period Breakdown Cards (Dynamic to selected filter - application income, other income, expense)
+  Widget _buildPeriodBreakdownCards() {
+    int appIncomePaisa = 0;
+    int otherIncomePaisa = 0;
+    int periodExpensePaisa = 0;
+
+    for (final t in _getFilteredTransactions()) {
+      if (t.isIncome) {
+        final isAppIncome = t.source == TransactionSource.applicationPayment ||
+            t.source == TransactionSource.statusIncome ||
+            (t.applicationId != null && t.applicationId!.trim().isNotEmpty);
+        if (isAppIncome) {
+          appIncomePaisa += t.amount.paisa;
         } else {
-          todayExpensePaisa += t.amount.paisa;
+          otherIncomePaisa += t.amount.paisa;
         }
+      } else {
+        periodExpensePaisa += t.amount.paisa;
       }
     }
-    final todayIncome = Money.fromPaisa(todayIncomePaisa);
-    final todayExpense = Money.fromPaisa(todayExpensePaisa);
 
-    return Row(
+    final appIncome = Money.fromPaisa(appIncomePaisa);
+    final otherIncome = Money.fromPaisa(otherIncomePaisa);
+    final periodExpense = Money.fromPaisa(periodExpensePaisa);
+    final periodTotalIncome = Money.fromPaisa(appIncomePaisa + otherIncomePaisa);
+
+    void openTxHistory() {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (ctx) => const TransactionHistoryScreen()),
+      ).then((_) {
+        ref.invalidate(allUnifiedTransactionsStreamProvider);
+        if (mounted) setState(() {});
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: SummaryCard(
-            title: 'আজকের আয়',
-            value: todayIncome.formatBengali(),
-            icon: Icons.south_west,
-            accentColor: AppColors.emerald,
-            subtitle: 'আজকে প্রাপ্ত মোট নগদ ও অনলাইন জমা',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const TransactionHistoryScreen()),
-              );
-            },
+        // Section Header Row with Grand Total Badge
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs + 2),
+          child: Row(
+            children: [
+              Container(
+                width: 3.5,
+                height: 15,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$_periodLabel আয় ও ব্যয় বিভাজন',
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: openTxHistory,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.emerald.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    border: Border.all(
+                      color: AppColors.emerald.withValues(alpha: 0.25),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_outline, size: 12, color: AppColors.emerald),
+                      const SizedBox(width: 4),
+                      Text(
+                        'মোট আদায়: ${periodTotalIncome.formatBengali()}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.emeraldDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: SummaryCard(
-            title: 'আজকের খরচ',
-            value: todayExpense.formatBengali(),
-            icon: Icons.north_east,
-            accentColor: AppColors.rose,
-            subtitle: 'আজকে ব্যয়িত সরকারি ও সাধারণ খরচ',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const TransactionHistoryScreen()),
-              );
-            },
-          ),
+
+        // 3 Distinct Cards: আবেদন আয়, অন্য আয়, মোট খরচ
+        Row(
+          children: [
+            // ১. আবেদন আয় (Application Payments)
+            Expanded(
+              child: _buildBreakdownCard(
+                title: 'আবেদন আয়',
+                value: appIncome.formatBengali(),
+                subtitle: '$_periodLabel ফাইল আদায়',
+                icon: Icons.folder_shared_outlined,
+                accentColor: const Color(0xFF2563EB), // Blue
+                onTap: openTxHistory,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+
+            // ২. অন্য আয় (Independent / Shop Income)
+            Expanded(
+              child: _buildBreakdownCard(
+                title: 'অন্য আয়',
+                value: otherIncome.formatBengali(),
+                subtitle: '$_periodLabel দোকান ও অন্যান্য',
+                icon: Icons.add_business_outlined,
+                accentColor: AppColors.emerald,
+                onTap: openTxHistory,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+
+            // ৩. মোট খরচ (Expenses)
+            Expanded(
+              child: _buildBreakdownCard(
+                title: 'মোট খরচ',
+                value: periodExpense.formatBengali(),
+                subtitle: '$_periodLabel ব্যয়িত পরিমাণ',
+                icon: Icons.arrow_outward_rounded,
+                accentColor: AppColors.rose,
+                onTap: openTxHistory,
+              ),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  /// Compact, responsive metric breakdown card
+  Widget _buildBreakdownCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(
+              color: accentColor.withValues(alpha: 0.22),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: accentColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Icon(icon, size: 14, color: accentColor),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1152,7 +1370,15 @@ class _FinancialOverviewScreenState
   }
 
   Widget _getChartLabel(int index) {
-    if (_filterType == FinancialFilterType.thisYear) {
+    if (_filterType == FinancialFilterType.today) {
+      if (index == 0) {
+        return const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Text('আজকের দিন', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+        );
+      }
+      return const SizedBox();
+    } else if (_filterType == FinancialFilterType.thisYear) {
       // 12 months
       if (index >= 0 && index < 12) {
         return Padding(
@@ -1185,7 +1411,15 @@ class _FinancialOverviewScreenState
   }
 
   List<BarChartGroupData> _computeChartGroups(List<DemoTransaction> txs) {
-    if (_filterType == FinancialFilterType.thisYear) {
+    if (_filterType == FinancialFilterType.today) {
+      int inc = 0;
+      int exp = 0;
+      for (final t in txs) {
+        if (t.isIncome) inc += t.amount.paisa;
+        if (t.isExpense) exp += t.amount.paisa;
+      }
+      return [_makeGroup(0, inc, exp, rodWidth: 26)];
+    } else if (_filterType == FinancialFilterType.thisYear) {
       // 12 months
       final groups = <BarChartGroupData>[];
       for (int m = 1; m <= 12; m++) {

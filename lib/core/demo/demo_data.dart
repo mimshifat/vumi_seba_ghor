@@ -370,6 +370,7 @@ class DemoTask {
   final String? relatedApplicationId;
   final String? relatedApplicantName;
   final DateTime? completedAt;
+  final List<DemoDocument> attachments;
 
   const DemoTask({
     required this.id,
@@ -383,6 +384,7 @@ class DemoTask {
     this.relatedApplicationId,
     this.relatedApplicantName,
     this.completedAt,
+    this.attachments = const [],
   });
 
   bool get isToday {
@@ -413,6 +415,7 @@ class DemoTask {
     String? relatedApplicationId,
     String? relatedApplicantName,
     DateTime? completedAt,
+    List<DemoDocument>? attachments,
   }) {
     return DemoTask(
       id: id ?? this.id,
@@ -426,6 +429,7 @@ class DemoTask {
       relatedApplicationId: relatedApplicationId ?? this.relatedApplicationId,
       relatedApplicantName: relatedApplicantName ?? this.relatedApplicantName,
       completedAt: completedAt ?? this.completedAt,
+      attachments: attachments ?? this.attachments,
     );
   }
 }

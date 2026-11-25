@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
@@ -60,6 +61,13 @@ final todayTasksCountProvider = StreamProvider<int>((ref) {
 final taskDetailProvider = StreamProvider.family<Task?, String>((ref, id) {
   final repo = ref.watch(taskRepositoryProvider);
   return repo.watchTask(id);
+});
+
+/// নির্দিষ্ট কাজের ছবি/সংযুক্তির রিয়েক্টিভ ওয়াচ
+final taskAttachmentsProvider =
+    StreamProvider.family<List<TaskAttachment>, String>((ref, taskId) {
+  final repo = ref.watch(taskRepositoryProvider);
+  return repo.watchTaskAttachments(taskId);
 });
 
 /// কাজ মিউটেশন কন্ট্রোলার (সেফটি লক সহ)
@@ -144,6 +152,34 @@ class TaskController extends MutationController {
     await execute(() => _repo.deleteTask(id));
     _invalidateAll();
     _ref?.invalidate(taskDetailProvider(id));
+  }
+
+  /// কাজের নতুন ছবি সংযোজন
+  Future<TaskAttachment?> addTaskAttachment({
+    required String taskId,
+    required String fileName,
+    required Uint8List fileData,
+    required String fileSize,
+    String fileType = 'image',
+  }) async {
+    final res = await execute(() => _repo.addTaskAttachment(
+          taskId: taskId,
+          fileName: fileName,
+          fileData: fileData,
+          fileSize: fileSize,
+          fileType: fileType,
+        ));
+    _ref?.invalidate(taskAttachmentsProvider(taskId));
+    return res;
+  }
+
+  /// কাজের ছবি মুছে ফেলা
+  Future<void> deleteTaskAttachment({
+    required String id,
+    required String taskId,
+  }) async {
+    await execute(() => _repo.deleteTaskAttachment(id));
+    _ref?.invalidate(taskAttachmentsProvider(taskId));
   }
 }
 

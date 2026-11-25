@@ -466,6 +466,8 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
   Widget _buildTaskCard(DemoTask task) {
     final allApps =
         ref.watch(applicationsWithFinancialsStreamProvider).valueOrNull ?? [];
+    final atts =
+        ref.watch(taskAttachmentsProvider(task.id)).valueOrNull ?? const [];
     final isDone = task.status == 'সম্পন্ন';
     final isOverdue = task.isOverdue;
     final isToday = task.isToday;
@@ -739,6 +741,35 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
                             task.dueTime!,
                             style: const TextStyle(
                                 fontSize: 11, color: AppColors.slate600),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Attachments photo badge if any
+                  if (atts.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusXs),
+                        border: Border.all(color: const Color(0xFFDBEAFE)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.image_outlined,
+                              size: 11, color: Color(0xFF1D4ED8)),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${BengaliDigits.toBengali(atts.length)} ছবি',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1D4ED8),
+                            ),
                           ),
                         ],
                       ),

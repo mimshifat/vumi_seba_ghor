@@ -1,10 +1,11 @@
 # রজব ভূমি সেবা ঘর — Database Schema Specification
 
-> **Status:** Production-Ready & Enterprise Audit Standard (Soft Delete & Historical Snapshot Preserved)  
+> **Status:** Production-Ready & Enterprise Audit Standard (Schema Version 4, Soft Delete & Historical Snapshot Preserved)  
 > **Engine:** SQLite 3 via `drift` (Dart ORM)  
+> **Current Schema Version:** `4` (v1: Base tables, v2: Proposal batches, v3: LSG Portal credentials, v4: Task attachments)  
 > **Currency Precision:** Integer-based Paisa (৳1 = 100 Paisa; ৳7,000 = 700000)  
 > **Primary Key Standard:** UUID v4 (String / TEXT) for conflict-free offline operation  
-> **Deletion Standard:** **Zero Hard Deletes (কখনো হার্ড ডিলিট হবে না)** — All deletions are Soft Deletes (`deleted_at INTEGER NULL`) with Frozen Historical Snapshots.
+> **Deletion Standard:** **Zero Hard Deletes (কখনো হার্ড ডিলিট নয় — কেবল ভারী ফাইল ব্লব ব্যতিরেকে)** — All operational deletions are Soft Deletes (`deleted_at INTEGER NULL`) with Frozen Historical Snapshots.
 
 ---
 
@@ -90,15 +91,21 @@
 │ amount (INTEGER)        │     │ description (TEXT NULL)           │     │ updated_at (INTEGER)    │
 │ date (INTEGER)          │     │ due_date (INTEGER NOT NULL)       │     └─────────────────────────┘
 │ payment_method (TEXT)   │     │ due_time (TEXT NULL)              │
-│ customer_name (TEXT)    │     │ priority (TEXT NOT NULL)          │
-│ note (TEXT NULL)        │     │ status (TEXT NOT NULL)            │
-│ created_at (INTEGER)    │     │ category (TEXT NOT NULL)          │
-│ deleted_at (INT NULL)   │     │ application_id (FK TEXT NULL)     │
-└─────────────────────────┘     │ completed_at (INTEGER NULL)       │
-                                │ created_at (INTEGER)              │
-                                │ updated_at (INTEGER)              │
-                                │ deleted_at (INTEGER NULL)         │
-                                └───────────────────────────────────┘
+│ customer_name (TEXT)    │     │ priority (TEXT NOT NULL)          │  ┌─────────────────────────────┐
+│ note (TEXT NULL)        │     │ status (TEXT NOT NULL)            │  │      task_attachments       │
+│ created_at (INTEGER)    │     │ category (TEXT NOT NULL)          │  ├─────────────────────────────┤
+│ deleted_at (INT NULL)   │     │ application_id (FK TEXT NULL)     │  │ id (PK TEXT)                │
+└─────────────────────────┘     │ completed_at (INTEGER NULL)       │  │ task_id (FK TEXT NOT NULL)  │◄──┐
+                                │ created_at (INTEGER)              │  │ file_name (TEXT NOT NULL)   │   │
+                                │ updated_at (INTEGER)              │  │ file_type (TEXT NOT NULL)   │   │
+                                │ deleted_at (INTEGER NULL)         │──┤ file_data (BLOB NOT NULL)   │   │
+                                └───────────────────────────────────┘  │ file_size (TEXT NOT NULL)   │   │
+                                                                       │ created_at (INTEGER)        │   │
+                                                                       │ updated_at (INTEGER)        │   │
+                                                                       │ deleted_at (INTEGER NULL)   │   │
+                                                                       └─────────────────────────────┘   │
+                                                                                      ▲                  │
+                                                                                      └──────────────────┘
 
 ┌───────────────────────────┐     ┌───────────────────────────┐     ┌───────────────────────────┐
 │        work_types         │     │    expense_categories     │     │     income_categories     │
@@ -273,7 +280,7 @@
 
 ---
 
-### 3.9 `documents` (সংযুক্ত ফাইল — ১০০% হার্ড ডিলিট পলিসি)
+### 3.9 `documents` (আবেদনের সংযুক্ত ফাইল — ১০০% হার্ড ডিলিট পলিসি)
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
@@ -290,7 +297,27 @@
 
 ---
 
-### 3.10 কাস্টমাইজযোগ্য ক্যাটাগরি টেবিলসমূহ (`work_types`, `expense_categories`, `income_categories`)
+### 3.10 `task_attachments` (কাজের সাথে সংযুক্ত ছবি — Schema v4)
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | TEXT | PRIMARY KEY | UUID string |
+| `task_id` | TEXT | NOT NULL, REFERENCES `tasks(id)` ON DELETE CASCADE | সংশ্লিষ্ট কাজ (টাস্ক) |
+| `file_name` | TEXT | NOT NULL | ফাইলের নাম |
+| `file_type` | TEXT | NOT NULL DEFAULT 'image' | 'image' (ক্যামেরা বা গ্যালারি থেকে গৃহীত ছবি) |
+| `file_data` | BLOB | NOT NULL | ছবির বাইনারি ডেটা |
+| `file_size` | TEXT | NOT NULL | ফাইলের সাইজ স্ট্রিং (যেমন: '1.2 MB') |
+| `created_at` | INTEGER | NOT NULL | যুক্ত করার সময় (ইপক মিলিসেকেন্ড) |
+| `updated_at` | INTEGER | NOT NULL | হালনাগাদের সময় (ইপক মিলিসেকেন্ড) |
+| `deleted_at` | INTEGER | NULL | সফট ডিলিট টাইমস্ট্যাম্প |
+
+- **ইনডেক্স:** `idx_task_attachments_task` (`task_id` কলামে) এবং `idx_task_attachments_active` (`deleted_at` কলামে)।
+- **ক্যাস্কেড রিমুভাল:** মূল কাজ (`tasks`) ডিলিট হলে সংশ্লিষ্ট ছবি ডাটাবেজ লেভেলে স্বয়ংক্রিয়ভাবে মুছে যায় (`ON DELETE CASCADE`)।
+- **টেলিগ্রাম ব্যাকআপ আচরণ:** অফলাইন ব্যাকআপে সম্পূর্ণ বাইনারি ডেটা সংরক্ষিত থাকে, কিন্তু টেলিগ্রাম ক্লাউড ব্যাকআপের সময় ফাইলের আকার হালকা রাখতে `file_data = zeroblob(0)` দিয়ে কম্প্যাক্ট করা হয়।
+
+---
+
+### 3.11 কাস্টমাইজযোগ্য ক্যাটাগরি টেবিলসমূহ (`work_types`, `expense_categories`, `income_categories`)
 - প্রতিটিতে `deleted_at INTEGER NULL` যুক্ত।
 - ব্যবহারকারী সেটিংস থেকে কোনো ক্যাটাগরি "মুছে" দিলে সেটি নিস্ক্রিয় হবে, কিন্তু অতীত লেনদেনে সেই ক্যাটাগরির নাম অক্ষত থাকবে।
 
@@ -476,12 +503,13 @@ The double-count predicates are corrected:
 ### 11.5 Schema creation order is explicit, not generator order
 drift's generator emits the **triggers and the view before the tables** in `allSchemaEntities`, so `m.createAll()` fails with `no such table: main.applications`. `AppDatabase` therefore creates entities in an explicit order — **tables → indexes → views → triggers** — in both `onCreate` and `onUpgrade`.
 
-### 11.6 `onUpgrade` is version-aware (currently Schema v3)
-`AppDatabase.currentSchemaVersion` is **3**, with non-destructive migrations preserving all existing user data:
+### 11.6 `onUpgrade` is version-aware (currently Schema v4)
+`AppDatabase.currentSchemaVersion` is **4**, with non-destructive migrations preserving all existing user data:
 - `from < 2`: creates `proposal_print_batches`, `proposal_print_batch_items`, and their indexes.
 - `from < 3`: adds `portal_phone` and `portal_password` columns to `applications`.
+- `from < 4`: creates `task_attachments` table with foreign key to `tasks(id)` ON DELETE CASCADE and indexes.
 
-Each future version adds its own conditional step (`m.addColumn()`, `m.alterTable()`, `m.create()`).
+Each future version adds its own conditional step (`m.addColumn()`, `m.alterTable()`, `m.createTable()`, `m.create()`).
 
 ### 11.7 Integrity triggers
 `lib/core/database/integrity_guards.drift` adds three `BEFORE UPDATE` triggers that `RAISE(ABORT)`:
@@ -495,3 +523,68 @@ Each trigger's comparison list **excludes** `deleted_at` and `updated_at`, so th
 All monetary columns are `INTEGER` paisa. `Money.fromJson` parses string input with **integer-only** arithmetic and throws `FormatException` on malformed input rather than silently returning zero (BACKEND_MASTER_PLAN.md §1.2). `Money.operator*` accepts `int` only.
 
 ---
+
+## 12. ডাটাবেজ ভার্সন কন্ট্রোলিং ও স্কিমা মাইগ্রেশন প্রোটোকল (Database Version Control & Migration Protocol)
+
+> **গোল্ডেন রুল:** ব্যবহারকারী যখন গুগল প্লে-স্টোর বা APK থেকে অ্যাপ আপডেট করবেন, তখন তার বর্তমান ডেটাবেজে **বিন্দু পরিমাণ ডেটা লস হওয়া বা ক্র্যাশ করা সম্পূর্ণ নিষিদ্ধ**। একই সাথে যেকোনো পুরনো ব্যাকআপ ফাইল রিস্টোর করলেও ডেটাবেজ ক্র্যাশ না করে স্বয়ংক্রিয়ভাবে সর্বশেষ সংস্করণে মাইগ্রেট হতে হবে।
+
+### ১২.১ স্কিমা সংস্করণ বৃদ্ধির সাধারণ নিয়মাবলি (Rules for Bumping Schema Version)
+১. ডাটাবেজের যেকোনো টেবিলে নতুন ফিল্ড/কলাম যোগ হলে, ফিল্ডের ধরন পরিবর্তন হলে, অথবা নতুন টেবিল যোগ হলে **অবশ্যই** `AppDatabase.currentSchemaVersion` ১ বাড়াতে হবে (`N -> N + 1`)।
+২. `lib/core/database/app_database.dart`-এর `schemaVersion` গেটার এই `currentSchemaVersion` রিটার্ন করবে।
+
+### ১২.২ নতুন কলাম যোগ করার প্রোটোকল (Protocol for Adding a New Column)
+যখন বিদ্যমান কোনো টেবিলে নতুন ফিল্ড যোগ করার প্রয়োজন হবে:
+1. সংশ্লিষ্ট টেবিলে কলামটি সংজ্ঞায়িত করুন (যেমন: `TextColumn get newField => text().nullable()();`)। **সর্বদা নালযোগ্য (`nullable()`) অথবা ডিফল্ট মান সহ কলাম যোগ করতে হবে**, যাতে পূর্ববর্তী বিদ্যমান রেকর্ডে কোনো কনস্ট্রেইন্ট ভায়োলেশন না ঘটে।
+2. `AppDatabase.currentSchemaVersion` ১ বৃদ্ধি করুন (যেমন: ৩ থেকে ৪)।
+3. `app_database.dart`-এর `onUpgrade: (Migrator m, int from, int to) async` মেথডে আইডেমপোটেন্ট (Idempotent) চেক সহ কলাম যোগ করুন:
+   ```dart
+   if (from < N) {
+     final cols = await customSelect("PRAGMA table_info('table_name')").get();
+     final colNames = cols.map((r) => r.read<String>('name')).toSet();
+     if (!colNames.contains('new_column_name')) {
+       await m.addColumn(tableName, tableName.newColumnName);
+     }
+   }
+   ```
+4. টার্মিনালে `dart run build_runner build --delete-conflicting-outputs` রান করে কোড জেনারেট করুন।
+
+### ১২.৩ নতুন টেবিল যোগ করার প্রোটোকল (Protocol for Adding a New Table)
+যখন সম্পূর্ণ নতুন টেবিল যোগ করার প্রয়োজন হবে:
+1. `lib/core/database/tables/` ফোল্ডারে টেবিল ক্লাস তৈরি করুন (যেমন: `TaskAttachments`)।
+2. `lib/core/database/app_database.dart`-এর `@DriftDatabase(tables: [...])` তালিকায় টেবিলটি যুক্ত করুন এবং export করুন।
+3. `AppDatabase.currentSchemaVersion` ১ বৃদ্ধি করুন।
+4. `onUpgrade` মেথডে সেফটি গার্ড সহ টেবিল ও ইনডেক্স তৈরি করুন:
+   ```dart
+   if (from < N) {
+     final existing = await customSelect(
+       "SELECT name FROM sqlite_master WHERE type='table' AND name='new_table_name';",
+     ).get();
+     if (existing.isEmpty) {
+       await m.createTable(newTable);
+     }
+     for (final index in allSchemaEntities.whereType<Index>()) {
+       if (index.entityName.contains('new_table_keyword')) {
+         try {
+           await m.create(index);
+         } catch (_) {}
+       }
+     }
+   }
+   ```
+5. `_createSchema(Migrator m)` মেথড নিশ্চিত করে যে নতুন অ্যাপ ফ্রেশ ইন্সটল হলে জেনারেটরের ভুল ক্রম রোধ করে স্বয়ংক্রিয়ভাবে **টেবিল ➔ ইনডেক্স ➔ ভিউ ➔ ট্রিগার** ক্রমানুসারে তৈরি হবে।
+
+### ১২.৪ কলাম মোছা বা পরিবর্তনের প্রোটোকল (Protocol for Dropping or Altering Columns)
+SQLite সরাসরি সব কলাম ড্রপ করা সমর্থন করে না। তাই কোনো কলাম অপ্রয়োজনীয় হলে:
+1. **পছন্দসই পদ্ধতি (Preferred):** কলামটি ডাটাবেজ স্কিমায় `nullable` রেখে দিন এবং কোড লেভেলে এর ব্যবহার বন্ধ করুন (ডিপ্রিকেট করুন)। এতে পূর্বের সব ব্যাকআপ ও ডেটা ১০০% অক্ষত থাকে।
+2. **যদি অবশ্যই কলাম পরিবর্তন/মুছতে হয় (Table Rebuild Protocol):**
+   - সাময়িক টেবিল তৈরি ➔ ডেটা কপি ➔ পুরনো টেবিল ড্রপ ➔ রিনেম ➔ ইনডেক্স পুনঃতৈরি। এটি Drift-এর `m.alterTable()` বা ম্যানুয়াল ট্রানজ্যাকশনে চালাতে হবে।
+
+### ১২.৫ ব্যাকআপ ফাইল যাচাই ও ডাউনগ্রেড সুরক্ষা (Backup Validation & Downgrade Protection)
+[backup_repository.dart](file:///f:/Personal%20Project/Rojob/lib/features/backup/data/repositories/backup_repository.dart)-এ ব্যাকগ্রাউন্ড আইসোলেটে প্রতিটি ব্যাকআপ ফাইলের `PRAGMA user_version` পরীক্ষা করা হয়:
+- `schemaVersion <= AppDatabase.currentSchemaVersion`: **সম্পূর্ণ বৈধ**। ফাইলটি গ্রহণ করা হবে এবং যদি ব্যাকআপের ভার্সন বর্তমান অ্যাপের চেয়ে পুরনো হয়, রিস্টোর হওয়ার পরপরই Drift-এর `onUpgrade` স্বয়ংক্রিয়ভাবে চালিয়ে ডেটাবেজকে বর্তমান ভার্সনে আপডেট করে নেওয়া হবে।
+- `schemaVersion > AppDatabase.currentSchemaVersion`: **প্রত্যাখ্যাত (Rejected)**। ব্যবহারকারীকে সুস্পষ্ট বাংলা সতর্কবার্তা দেওয়া হয়:
+  > *"বাছাইকৃত ব্যাকআপ ফাইলটি অ্যাপের নতুন সংস্করণ (Version X) থেকে তৈরি। ফাইলটি রিস্টোর করতে অনুগ্রহ করে অ্যাপটি প্লে-স্টোর থেকে সর্বশেষ সংস্করণে আপডেট করুন।"*
+
+### ১২.৬ ব্যাকআপ ও ইমেজ ব্লব ব্যবস্থাপনা পলিসি (Offline vs Cloud Backup Policy)
+- **অফলাইন ব্যাকআপ (`exportBackup`):** ফোনের Downloads ফোল্ডারে যে `.db` ফাইল সংরক্ষিত হয়, তাতে `VACUUM INTO` ব্যবহারের মাধ্যমে সমস্ত টেবিল, আবেদনের ডকুমেন্টস এবং টাস্কের ছবিসমূহ (`task_attachments`) **১০০% ফুল বাইনারি ডেটা সহ সংরক্ষিত থাকে**।
+- **টেলিগ্রাম ক্লাউড ব্যাকআপ (`exportBackupToTelegram`):** ইন্টারনেট ডাটা সাশ্রয় এবং দ্রুত আপলোডের জন্য `stripDocumentsAndCompact()` মেথডের মাধ্যমে `documents` ও `task_attachments` টেবিলের বাইনারি ডেটা `zeroblob(0)` দিয়ে খালি করে ডেটাবেজ সাইজ ক্ষুদ্র (কয়েক কেবি/এমবি) রাখা হয়। এর ফলে টেক্সট, মেটাডাটা, তারিখ, হিসাব-নিকাশ সবই ক্লাউডে সুরক্ষিত থাকে কিন্তু বড় সাইজের ছবির কারণে ব্যাকআপ আটকে যায় না।
