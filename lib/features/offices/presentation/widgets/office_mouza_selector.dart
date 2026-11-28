@@ -132,6 +132,10 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(
+        minWidth: MediaQuery.of(context).size.width,
+        maxWidth: MediaQuery.of(context).size.width,
+      ),
       builder: (sheetCtx) {
         String query = '';
         final searchController = TextEditingController();
@@ -363,6 +367,10 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(
+        minWidth: MediaQuery.of(context).size.width,
+        maxWidth: MediaQuery.of(context).size.width,
+      ),
       builder: (sheetCtx) {
         String query = '';
         final searchController = TextEditingController();

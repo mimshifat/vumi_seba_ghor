@@ -158,8 +158,14 @@ class _OfficeManagementScreenState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
+      constraints: BoxConstraints(
+        minWidth: MediaQuery.of(context).size.width,
+        maxWidth: MediaQuery.of(context).size.width,
+      ),
+      builder: (sheetCtx) {
         String filter = '';
+        final searchController = TextEditingController();
+
         return Consumer(
           builder: (context, ref, _) {
             final mouzas = ref.watch(mouzasForOfficeProvider(office.name));
@@ -177,100 +183,134 @@ class _OfficeManagementScreenState
                             .contains(filter.trim().toLowerCase()))
                         .toList();
 
-                return Container(
+                return SizedBox(
                   width: double.infinity,
-                  height: MediaQuery.of(context).size.height * 0.75,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 12),
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppColors.slate300,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    office.name,
-                                    style: AppTypography.headingSmall
-                                        .copyWith(fontSize: 16),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'মোট ${BengaliDigits.toBengali(mouzas.length.toString())}টি মৌজা',
-                                    style: AppTypography.bodySmall
-                                        .copyWith(color: AppColors.slate500),
-                                  ),
-                                ],
+                  height: MediaQuery.of(context).size.height * 0.78,
+                  child: Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 12),
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AppColors.slate300,
+                                borderRadius: BorderRadius.circular(2),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                _showAddMouzaDialog(office.name);
-                              },
-                              icon: const Icon(Icons.add, size: 16),
-                              label: const Text('নতুন মৌজা'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                textStyle: AppTypography.labelMedium.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 24),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'মৌজা খুঁজুন...',
-                            prefixIcon: const Icon(Icons.search,
-                                size: 20, color: AppColors.slate400),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: AppColors.border),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: AppColors.border),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        office.name,
+                                        style: AppTypography.headingSmall
+                                            .copyWith(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'মোট ${BengaliDigits.toBengali(mouzas.length.toString())}টি মৌজা',
+                                        style: AppTypography.bodySmall
+                                            .copyWith(
+                                          color: AppColors.slate500,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    _showAddMouzaDialog(office.name);
+                                  },
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('নতুন মৌজা'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    textStyle:
+                                        AppTypography.labelMedium.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          onChanged: (val) => setSheetState(() => filter = val),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                          const Divider(height: 24, thickness: 1, color: AppColors.slate100),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: TextField(
+                              controller: searchController,
+                              decoration: InputDecoration(
+                                hintText: 'মৌজা খুঁজুন...',
+                                prefixIcon: const Icon(Icons.search,
+                                    size: 20, color: AppColors.primary),
+                                suffixIcon: filter.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 18),
+                                        onPressed: () {
+                                          searchController.clear();
+                                          setSheetState(() => filter = '');
+                                        },
+                                      )
+                                    : null,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                filled: true,
+                                fillColor: AppColors.slate50,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      const BorderSide(color: AppColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      const BorderSide(color: AppColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                      color: AppColors.primary, width: 1.5),
+                                ),
+                              ),
+                              onChanged: (val) => setSheetState(() => filter = val),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                       Expanded(
                         child: filtered.isEmpty
                             ? Center(
@@ -361,7 +401,9 @@ class _OfficeManagementScreenState
                                 },
                               ),
                       ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },
@@ -564,7 +606,9 @@ class _OfficeManagementScreenState
                             const SizedBox(height: 4),
                             () {
                               final mouzas = ref.watch(mouzasForOfficeProvider(off.name));
-                              return Row(
+                              return Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 2,
                                 children: [
                                   Text(
                                     'চলমান কাজ: ${BengaliDigits.toBengali(activeAppsCount.toString())} টি',
@@ -580,12 +624,15 @@ class _OfficeManagementScreenState
                                         const Icon(Icons.map_outlined,
                                             size: 14, color: AppColors.primary),
                                         const SizedBox(width: 2),
-                                        Text(
-                                          'মৌজা: ${BengaliDigits.toBengali(mouzas.length.toString())} টি',
-                                          style: AppTypography.bodySmall.copyWith(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                            decoration: TextDecoration.underline,
+                                        Flexible(
+                                          child: Text(
+                                            'মৌজা: ${BengaliDigits.toBengali(mouzas.length.toString())} টি',
+                                            style: AppTypography.bodySmall.copyWith(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],
@@ -599,14 +646,21 @@ class _OfficeManagementScreenState
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit_outlined,
-                            size: 20, color: AppColors.slate500),
+                            size: 18, color: AppColors.slate500),
                         tooltip: 'সম্পাদনা',
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
                         onPressed: () => _showAddEditDialog(off),
                       ),
+                      const SizedBox(width: 4),
                       IconButton(
                         icon: const Icon(Icons.delete_outline,
-                            size: 20, color: AppColors.rose),
+                            size: 18, color: AppColors.rose),
                         tooltip: 'মুছুন',
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
                         onPressed: () => _deleteOffice(off),
                       ),
                     ],
