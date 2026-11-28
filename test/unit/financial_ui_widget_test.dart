@@ -65,12 +65,12 @@ void main() {
       // 3. Overall summary hero metrics exist
       expect(find.text('প্রকৃত নিট ইনকাম'), findsOneWidget);
       expect(find.text('মোট আদায়'), findsOneWidget);
-      expect(find.text('মোট খরচ'), findsOneWidget);
+      expect(find.text('মোট খরচ'), findsWidgets);
       expect(find.text('মোট বকেয়া'), findsOneWidget);
 
-      // 4. Daily summary cards exist
-      expect(find.text('আজকের আয়'), findsOneWidget);
-      expect(find.text('আজকের খরচ'), findsOneWidget);
+      // 4. Breakdown summary cards exist
+      expect(find.text('আবেদন আয়'), findsOneWidget);
+      expect(find.text('অন্য আয়'), findsOneWidget);
 
       // 5. Chart section exists
       expect(find.text('আয় বনাম ব্যয়ের তুলনা'), findsOneWidget);
@@ -285,6 +285,79 @@ void main() {
 
       expect(find.text('অবস্থা পরিবর্তন খরচ (শুনানি)'), findsOneWidget);
       expect(find.text('অবস্থা পরিবর্তন ফি (প্রস্তাব প্রেরণ)'), findsOneWidget);
+    });
+
+    testWidgets('TransactionHistoryScreen filters correctly for appIncome, otherIncome and expense', (tester) async {
+      final now = DateTime.now();
+      final nowMs = now.millisecondsSinceEpoch;
+      final txs = [
+        UnifiedTransactionsViewData(
+          id: 'tx-1',
+          type: 'income',
+          source: 'applicationPayment',
+          amount: 650000,
+          date: nowMs,
+          category: 'আবেদন কিস্তি জমা',
+          applicationId: 'app-1',
+          applicantName: 'সামাদ',
+        ),
+        UnifiedTransactionsViewData(
+          id: 'tx-2',
+          type: 'income',
+          source: 'independentIncome',
+          amount: 300000,
+          date: nowMs,
+          category: 'অনলাইন আবেদন ও প্রিন্টিং',
+        ),
+        UnifiedTransactionsViewData(
+          id: 'tx-3',
+          type: 'expense',
+          source: 'applicationExpense',
+          amount: 200000,
+          date: nowMs,
+          category: 'কাজের খরচ',
+        ),
+      ];
+
+      // 1. Initialized with initialTypeFilter: 'appIncome'
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            applicationsWithFinancialsStreamProvider.overrideWith((ref) => Stream.value([])),
+            allUnifiedTransactionsStreamProvider.overrideWith((ref) => Stream.value(txs)),
+          ],
+          child: const MaterialApp(
+            home: TransactionHistoryScreen(
+              initialTypeFilter: 'appIncome',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Only application income should be visible in list
+      expect(find.text('আবেদন কিস্তি জমা'), findsWidgets);
+      expect(find.text('অনলাইন আবেদন ও প্রিন্টিং'), findsNothing);
+      expect(find.text('কাজের খরচ'), findsNothing);
+      expect(find.text('মোট আবেদন আয়'), findsOneWidget);
+
+      // Tap 'অন্য আয়' chip
+      await tester.tap(find.text('অন্য আয়'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('আবেদন কিস্তি জমা'), findsNothing);
+      expect(find.text('অনলাইন আবেদন ও প্রিন্টিং'), findsOneWidget);
+      expect(find.text('কাজের খরচ'), findsNothing);
+      expect(find.text('মোট অন্য আয়'), findsOneWidget);
+
+      // Tap 'শুধু খরচ' chip
+      await tester.tap(find.text('শুধু খরচ'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('আবেদন কিস্তি জমা'), findsNothing);
+      expect(find.text('অনলাইন আবেদন ও প্রিন্টিং'), findsNothing);
+      expect(find.text('কাজের খরচ'), findsWidgets);
+      expect(find.text('মোট খরচ'), findsWidgets);
     });
   });
 }

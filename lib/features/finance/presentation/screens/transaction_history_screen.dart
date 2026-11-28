@@ -12,8 +12,21 @@ import '../providers/finance_providers.dart';
 
 class TransactionHistoryScreen extends ConsumerStatefulWidget {
   final String? initialApplicationId;
+  final String? initialTypeFilter;
+  final String? initialDateFilter;
+  final DateTimeRange? initialCustomDateRange;
+  final int? initialMonth;
+  final int? initialYear;
 
-  const TransactionHistoryScreen({super.key, this.initialApplicationId});
+  const TransactionHistoryScreen({
+    super.key,
+    this.initialApplicationId,
+    this.initialTypeFilter,
+    this.initialDateFilter,
+    this.initialCustomDateRange,
+    this.initialMonth,
+    this.initialYear,
+  });
 
   @override
   ConsumerState<TransactionHistoryScreen> createState() =>
@@ -23,9 +36,11 @@ class TransactionHistoryScreen extends ConsumerStatefulWidget {
 class _TransactionHistoryScreenState
     extends ConsumerState<TransactionHistoryScreen> {
   // Filter States
-  String _typeFilter = 'all'; // 'all', 'income', 'expense'
+  String _typeFilter = 'all'; // 'all', 'appIncome', 'otherIncome', 'income', 'expense'
   String _dateFilter = 'all'; // 'all', 'today', 'month', 'year', 'custom'
   DateTimeRange? _customDateRange;
+  int? _selectedMonth;
+  int? _selectedYear;
   String? _selectedCategory;
   String? _selectedApplicationId;
 
@@ -35,6 +50,17 @@ class _TransactionHistoryScreenState
     if (widget.initialApplicationId != null) {
       _selectedApplicationId = widget.initialApplicationId;
     }
+    if (widget.initialTypeFilter != null) {
+      _typeFilter = widget.initialTypeFilter!;
+    }
+    if (widget.initialDateFilter != null) {
+      _dateFilter = widget.initialDateFilter!;
+    }
+    if (widget.initialCustomDateRange != null) {
+      _customDateRange = widget.initialCustomDateRange;
+    }
+    _selectedMonth = widget.initialMonth;
+    _selectedYear = widget.initialYear;
   }
 
   void _resetFilters() {
@@ -42,6 +68,8 @@ class _TransactionHistoryScreenState
       _typeFilter = 'all';
       _dateFilter = 'all';
       _customDateRange = null;
+      _selectedMonth = null;
+      _selectedYear = null;
       _selectedCategory = null;
       _selectedApplicationId = null;
     });
@@ -99,6 +127,35 @@ class _TransactionHistoryScreenState
     return const [];
   }
 
+  bool _isApplicationIncome(DemoTransaction tx) {
+    return tx.isIncome &&
+        (tx.source == TransactionSource.applicationPayment ||
+            tx.source == TransactionSource.statusIncome ||
+            (tx.applicationId != null && tx.applicationId!.trim().isNotEmpty));
+  }
+
+  bool _isOtherIncome(DemoTransaction tx) {
+    return tx.isIncome && !_isApplicationIncome(tx);
+  }
+
+  String get _monthFilterLabel {
+    final now = DateTime.now();
+    if (_selectedMonth != null && _selectedYear != null) {
+      if (_selectedMonth == now.month && _selectedYear == now.year) {
+        return 'চলতি মাস';
+      }
+      const months = [
+        'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+        'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+      ];
+      final monthName = (_selectedMonth! >= 1 && _selectedMonth! <= 12)
+          ? months[_selectedMonth! - 1]
+          : 'মাস';
+      return '$monthName ${BengaliDigits.toBengali(_selectedYear!)}';
+    }
+    return 'চলতি মাস';
+  }
+
   List<DemoTransaction> _getFilteredTransactions() {
     final now = DateTime.now();
 
@@ -106,6 +163,8 @@ class _TransactionHistoryScreenState
       // 1. Type Filter
       if (_typeFilter == 'income' && !tx.isIncome) return false;
       if (_typeFilter == 'expense' && !tx.isExpense) return false;
+      if (_typeFilter == 'appIncome' && !_isApplicationIncome(tx)) return false;
+      if (_typeFilter == 'otherIncome' && !_isOtherIncome(tx)) return false;
 
       // 2. Date Filter
       if (_dateFilter == 'today') {
@@ -115,11 +174,14 @@ class _TransactionHistoryScreenState
           return false;
         }
       } else if (_dateFilter == 'month') {
-        if (tx.date.year != now.year || tx.date.month != now.month) {
+        final targetYear = _selectedYear ?? now.year;
+        final targetMonth = _selectedMonth ?? now.month;
+        if (tx.date.year != targetYear || tx.date.month != targetMonth) {
           return false;
         }
       } else if (_dateFilter == 'year') {
-        if (tx.date.year != now.year) {
+        final targetYear = _selectedYear ?? now.year;
+        if (tx.date.year != targetYear) {
           return false;
         }
       } else if (_dateFilter == 'custom' && _customDateRange != null) {
@@ -194,15 +256,30 @@ class _TransactionHistoryScreenState
                     onTap: () => setState(() => _typeFilter = 'all'),
                   ),
                   _buildFilterPill(
-                    label: 'শুধু আয়',
-                    isSelected: _typeFilter == 'income',
+                    label: 'আবেদন আয়',
+                    isSelected: _typeFilter == 'appIncome',
+                    color: const Color(0xFF2563EB),
+                    icon: Icons.folder_shared_outlined,
+                    onTap: () => setState(() => _typeFilter = 'appIncome'),
+                  ),
+                  _buildFilterPill(
+                    label: 'অন্য আয়',
+                    isSelected: _typeFilter == 'otherIncome',
                     color: AppColors.emerald,
+                    icon: Icons.add_business_outlined,
+                    onTap: () => setState(() => _typeFilter = 'otherIncome'),
+                  ),
+                  _buildFilterPill(
+                    label: 'সব আয়',
+                    isSelected: _typeFilter == 'income',
+                    color: AppColors.emeraldDark,
                     onTap: () => setState(() => _typeFilter = 'income'),
                   ),
                   _buildFilterPill(
                     label: 'শুধু খরচ',
                     isSelected: _typeFilter == 'expense',
                     color: AppColors.rose,
+                    icon: Icons.arrow_outward_rounded,
                     onTap: () => setState(() => _typeFilter = 'expense'),
                   ),
 
@@ -217,14 +294,23 @@ class _TransactionHistoryScreenState
                     onTap: () => setState(() => _dateFilter = 'today'),
                   ),
                   _buildFilterPill(
-                    label: 'চলতি মাস',
+                    label: _monthFilterLabel,
                     isSelected: _dateFilter == 'month',
-                    onTap: () => setState(() => _dateFilter = 'month'),
+                    onTap: () => setState(() {
+                      _dateFilter = 'month';
+                      _selectedMonth ??= DateTime.now().month;
+                      _selectedYear ??= DateTime.now().year;
+                    }),
                   ),
                   _buildFilterPill(
-                    label: 'চলতি বছর',
+                    label: (_selectedYear != null && _selectedYear != DateTime.now().year)
+                        ? '${BengaliDigits.toBengali(_selectedYear!)} সাল'
+                        : 'চলতি বছর',
                     isSelected: _dateFilter == 'year',
-                    onTap: () => setState(() => _dateFilter = 'year'),
+                    onTap: () => setState(() {
+                      _dateFilter = 'year';
+                      _selectedYear ??= DateTime.now().year;
+                    }),
                   ),
                   _buildFilterPill(
                     label: _customDateRange != null ? 'কাস্টম রেঞ্জ' : 'তারিখ রেঞ্জ...',
@@ -260,26 +346,11 @@ class _TransactionHistoryScreenState
                 bottom: BorderSide(color: AppColors.border, width: 1),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildSummaryBadge(
-                  'মোট আয়',
-                  filteredTotalIncome.formatBengali(),
-                  AppColors.emerald,
-                ),
-                _buildSummaryBadge(
-                  'মোট খরচ',
-                  filteredTotalExpense.formatBengali(),
-                  AppColors.rose,
-                ),
-                _buildSummaryBadge(
-                  'নিট হিসাব',
-                  filteredNet.formatBengali(),
-                  filteredNet.isPositive ? AppColors.emerald : AppColors.rose,
-                  isBold: true,
-                ),
-              ],
+            child: _buildSummaryStrip(
+              filteredTotalIncome: filteredTotalIncome,
+              filteredTotalExpense: filteredTotalExpense,
+              filteredNet: filteredNet,
+              count: filtered.length,
             ),
           ),
 
@@ -498,6 +569,125 @@ class _TransactionHistoryScreenState
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSummaryStrip({
+    required Money filteredTotalIncome,
+    required Money filteredTotalExpense,
+    required Money filteredNet,
+    required int count,
+  }) {
+    if (_typeFilter == 'appIncome') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildSummaryBadge(
+            'মোট আবেদন আয়',
+            filteredTotalIncome.formatBengali(),
+            const Color(0xFF2563EB),
+            isBold: true,
+          ),
+          _buildSummaryBadge(
+            'মোট লেনদেন',
+            '${BengaliDigits.toBengali(count)} টি',
+            AppColors.textSecondary,
+          ),
+          _buildSummaryBadge(
+            'ধরন',
+            'আবেদন কিস্তি ও ফি',
+            const Color(0xFF2563EB),
+          ),
+        ],
+      );
+    } else if (_typeFilter == 'otherIncome') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildSummaryBadge(
+            'মোট অন্য আয়',
+            filteredTotalIncome.formatBengali(),
+            AppColors.emerald,
+            isBold: true,
+          ),
+          _buildSummaryBadge(
+            'মোট লেনদেন',
+            '${BengaliDigits.toBengali(count)} টি',
+            AppColors.textSecondary,
+          ),
+          _buildSummaryBadge(
+            'ধরন',
+            'দোকান ও স্বতন্ত্র',
+            AppColors.emerald,
+          ),
+        ],
+      );
+    } else if (_typeFilter == 'expense') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildSummaryBadge(
+            'মোট খরচ',
+            filteredTotalExpense.formatBengali(),
+            AppColors.rose,
+            isBold: true,
+          ),
+          _buildSummaryBadge(
+            'মোট লেনদেন',
+            '${BengaliDigits.toBengali(count)} টি',
+            AppColors.textSecondary,
+          ),
+          _buildSummaryBadge(
+            'খরচের হিসাব',
+            'সকল ব্যয়',
+            AppColors.rose,
+          ),
+        ],
+      );
+    } else if (_typeFilter == 'income') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildSummaryBadge(
+            'মোট আয় (সকল)',
+            filteredTotalIncome.formatBengali(),
+            AppColors.emerald,
+            isBold: true,
+          ),
+          _buildSummaryBadge(
+            'মোট লেনদেন',
+            '${BengaliDigits.toBengali(count)} টি',
+            AppColors.textSecondary,
+          ),
+          _buildSummaryBadge(
+            'আয়ের হিসাব',
+            'ফাইল + অন্য আয়',
+            AppColors.emerald,
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildSummaryBadge(
+          'মোট আয়',
+          filteredTotalIncome.formatBengali(),
+          AppColors.emerald,
+        ),
+        _buildSummaryBadge(
+          'মোট খরচ',
+          filteredTotalExpense.formatBengali(),
+          AppColors.rose,
+        ),
+        _buildSummaryBadge(
+          'নিট হিসাব',
+          filteredNet.formatBengali(),
+          filteredNet.isPositive ? AppColors.emerald : AppColors.rose,
+          isBold: true,
+        ),
+      ],
     );
   }
 

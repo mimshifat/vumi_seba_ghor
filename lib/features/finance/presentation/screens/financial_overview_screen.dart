@@ -550,15 +550,7 @@ class _FinancialOverviewScreenState
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
             tooltip: 'সকল লেনদেন',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const TransactionHistoryScreen()),
-              ).then((_) {
-                ref.invalidate(allUnifiedTransactionsStreamProvider);
-                ref.invalidate(applicationsWithFinancialsStreamProvider);
-                if (mounted) setState(() {});
-              });
-            },
+            onPressed: () => _openTxHistory(typeFilter: 'all'),
           ),
         ],
       ),
@@ -1000,16 +992,40 @@ class _FinancialOverviewScreenState
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildHeroMetric('মোট আদায়', totalIncome.formatBengali(), Colors.white),
+                _buildHeroMetric(
+                  'মোট আদায়',
+                  totalIncome.formatBengali(),
+                  Colors.white,
+                  onTap: () => _openTxHistory(typeFilter: 'income'),
+                ),
                 Container(height: 24, width: 1, color: Colors.white24),
-                _buildHeroMetric('মোট খরচ', totalExpense.formatBengali(), AppColors.roseLight),
+                _buildHeroMetric(
+                  'মোট খরচ',
+                  totalExpense.formatBengali(),
+                  AppColors.roseLight,
+                  onTap: () => _openTxHistory(typeFilter: 'expense'),
+                ),
                 Container(height: 24, width: 1, color: Colors.white24),
-                _buildHeroMetric('মোট বকেয়া', totalDue.formatBengali(), AppColors.amberLight),
+                _buildHeroMetric(
+                  'মোট বকেয়া',
+                  totalDue.formatBengali(),
+                  AppColors.amberLight,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (ctx) => const DueManagementScreen()),
+                    ).then((_) {
+                      ref.invalidate(allUnifiedTransactionsStreamProvider);
+                      ref.invalidate(applicationsWithFinancialsStreamProvider);
+                      if (mounted) setState(() {});
+                    });
+                  },
+                ),
                 Container(height: 24, width: 1, color: Colors.white24),
                 _buildHeroMetric(
                   'মোট লেনদেন',
                   '${BengaliDigits.toBengali(filteredTxs.length)} টি',
                   Colors.white.withValues(alpha: 0.95),
+                  onTap: () => _openTxHistory(typeFilter: 'all'),
                 ),
               ],
             ),
@@ -1019,8 +1035,8 @@ class _FinancialOverviewScreenState
     );
   }
 
-  Widget _buildHeroMetric(String label, String value, Color valueColor) {
-    return Column(
+  Widget _buildHeroMetric(String label, String value, Color valueColor, {VoidCallback? onTap}) {
+    final content = Column(
       children: [
         Text(
           label,
@@ -1033,6 +1049,64 @@ class _FinancialOverviewScreenState
         ),
       ],
     );
+
+    if (onTap == null) return content;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: content,
+      ),
+    );
+  }
+
+  void _openTxHistory({String typeFilter = 'all'}) {
+    String dateFilter = 'all';
+    DateTimeRange? customDateRange;
+    int? month;
+    int? year;
+
+    switch (_filterType) {
+      case FinancialFilterType.today:
+        dateFilter = 'today';
+        break;
+      case FinancialFilterType.thisMonth:
+      case FinancialFilterType.lastMonth:
+      case FinancialFilterType.customMonth:
+        dateFilter = 'month';
+        month = _selectedMonth;
+        year = _selectedYear;
+        break;
+      case FinancialFilterType.thisYear:
+        dateFilter = 'year';
+        year = _selectedYear;
+        break;
+      case FinancialFilterType.customRange:
+        dateFilter = 'custom';
+        customDateRange = _customDateRange;
+        break;
+      case FinancialFilterType.allTime:
+        dateFilter = 'all';
+        break;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => TransactionHistoryScreen(
+          initialTypeFilter: typeFilter,
+          initialDateFilter: dateFilter,
+          initialCustomDateRange: customDateRange,
+          initialMonth: month,
+          initialYear: year,
+        ),
+      ),
+    ).then((_) {
+      ref.invalidate(allUnifiedTransactionsStreamProvider);
+      ref.invalidate(applicationsWithFinancialsStreamProvider);
+      if (mounted) setState(() {});
+    });
   }
 
   /// 3. Period Breakdown Cards (Dynamic to selected filter - application income, other income, expense)
@@ -1061,15 +1135,6 @@ class _FinancialOverviewScreenState
     final periodExpense = Money.fromPaisa(periodExpensePaisa);
     final periodTotalIncome = Money.fromPaisa(appIncomePaisa + otherIncomePaisa);
 
-    void openTxHistory() {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (ctx) => const TransactionHistoryScreen()),
-      ).then((_) {
-        ref.invalidate(allUnifiedTransactionsStreamProvider);
-        if (mounted) setState(() {});
-      });
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1097,7 +1162,7 @@ class _FinancialOverviewScreenState
               ),
               const Spacer(),
               InkWell(
-                onTap: openTxHistory,
+                onTap: () => _openTxHistory(typeFilter: 'income'),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1141,7 +1206,7 @@ class _FinancialOverviewScreenState
                 subtitle: '$_periodLabel ফাইল আদায়',
                 icon: Icons.folder_shared_outlined,
                 accentColor: const Color(0xFF2563EB), // Blue
-                onTap: openTxHistory,
+                onTap: () => _openTxHistory(typeFilter: 'appIncome'),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -1154,7 +1219,7 @@ class _FinancialOverviewScreenState
                 subtitle: '$_periodLabel দোকান ও অন্যান্য',
                 icon: Icons.add_business_outlined,
                 accentColor: AppColors.emerald,
-                onTap: openTxHistory,
+                onTap: () => _openTxHistory(typeFilter: 'otherIncome'),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -1167,7 +1232,7 @@ class _FinancialOverviewScreenState
                 subtitle: '$_periodLabel ব্যয়িত পরিমাণ',
                 icon: Icons.arrow_outward_rounded,
                 accentColor: AppColors.rose,
-                onTap: openTxHistory,
+                onTap: () => _openTxHistory(typeFilter: 'expense'),
               ),
             ),
           ],
@@ -1539,23 +1604,29 @@ class _FinancialOverviewScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.amberSurface,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.amberSurface,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      ),
+                      child: const Icon(Icons.assignment_late_outlined, color: AppColors.amberDark, size: 16),
                     ),
-                    child: const Icon(Icons.assignment_late_outlined, color: AppColors.amberDark, size: 16),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    'বকেয়া তালিকা (${BengaliDigits.toBengali(dueApps.length)} জন গ্রাহক)',
-                    style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'বকেয়া তালিকা (${BengaliDigits.toBengali(dueApps.length)} জন গ্রাহক)',
+                        style: AppTypography.headingSmall.copyWith(fontSize: 14.5, fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 totalDue.formatBengali(),
                 style: AppTypography.titleMedium.copyWith(
