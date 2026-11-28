@@ -426,18 +426,28 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                             ],
                           ),
                         ),
-                        if (officeName != null)
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(sheetCtx);
-                              _showAddMouzaDialog(officeName);
-                            },
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('নতুন মৌজা'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                            ),
+                        TextButton.icon(
+                          onPressed: () {
+                            if (officeName == null ||
+                                officeName.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'নতুন মৌজা যুক্ত করার পূর্বে অনুগ্রহ করে প্রথমে অফিস নির্বাচন করুন।'),
+                                  backgroundColor: AppColors.rose,
+                                ),
+                              );
+                              return;
+                            }
+                            Navigator.pop(sheetCtx);
+                            _showAddMouzaDialog(officeName);
+                          },
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('নতুন মৌজা'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -756,15 +766,26 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
               label: 'মৌজার নাম',
               isRequired: widget.isRequiredMouza,
             ),
-            if (currentOffice != null)
-              InkWell(
-                onTap: () => _showAddMouzaDialog(currentOffice),
-                child: Text(
-                  '+ নতুন মৌজা',
-                  style: AppTypography.labelMedium
-                      .copyWith(color: AppColors.primary),
-                ),
+            InkWell(
+              onTap: () {
+                if (currentOffice == null || currentOffice.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'নতুন মৌজা যুক্ত করার পূর্বে অনুগ্রহ করে প্রথমে একটি অফিস নির্বাচন করুন।'),
+                      backgroundColor: AppColors.rose,
+                    ),
+                  );
+                  return;
+                }
+                _showAddMouzaDialog(currentOffice);
+              },
+              child: Text(
+                '+ নতুন মৌজা',
+                style: AppTypography.labelMedium
+                    .copyWith(color: AppColors.primary),
               ),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xs + 2),
