@@ -509,9 +509,9 @@ class DemoStore {
     ),
     DemoOffice(
       id: 'off-6',
-      name: 'ইউনিয়ন ভূমি অফিস, আলাতূলী',
+      name: 'ইউনিয়ন ভূমি অফিস, আলাতুলী',
       activeApplications: 0,
-      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, আলাতূলী'),
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, আলাতুলী'),
     ),
     DemoOffice(
       id: 'off-7',
