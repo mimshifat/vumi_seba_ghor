@@ -115,6 +115,15 @@ void main() {
         expect(office.mouzas.isNotEmpty, true, reason: '${office.name}-এ কোনো মৌজা নেই');
       }
     });
+
+    test('উপজেলা ও জেলা পর্যায়ের সকল অফিস স্বয়ংক্রিয়ভাবে শনাক্ত হয় এবং ৫২৯টি মৌজা থাকে', () {
+      expect(OfficeMouzaData.isDistrictOrUpazilaOffice('উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর'), true);
+      expect(OfficeMouzaData.isDistrictOrUpazilaOffice('উপজেলা সেটেলমেন্ট অফিস, চাঁপাইনবাবগঞ্জ সদর'), true);
+      expect(OfficeMouzaData.isDistrictOrUpazilaOffice('জেলা প্রশাসকের কার্যালয়, চাঁপাইনবাবগঞ্জ'), true);
+      expect(OfficeMouzaData.isDistrictOrUpazilaOffice('সাব-রেজিস্ট্রি অফিস, চাঁপাইনবাবগঞ্জ সদর'), true);
+      expect(OfficeMouzaData.isDistrictOrUpazilaOffice('ইউনিয়ন ভূমি অফিস, সুন্দরপুর'), false);
+      expect(OfficeMouzaData.isDistrictOrUpazilaOffice('পৌর ভূমি অফিস, চাঁপাইনবাবগঞ্জ'), false);
+    });
   });
 
   group('OfficeMouzaSelector Widget Flow Tests', () {

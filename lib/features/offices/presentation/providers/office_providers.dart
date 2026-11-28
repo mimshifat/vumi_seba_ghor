@@ -66,10 +66,36 @@ final mouzasForOfficeProvider =
     Provider.family<List<String>, String?>((ref, officeName) {
   final customMap = ref.watch(customMouzasStreamProvider).valueOrNull ?? {};
   final deletedMap = ref.watch(deletedMouzasStreamProvider).valueOrNull ?? {};
-  final customList =
-      officeName != null ? (customMap[officeName.trim()] ?? []) : <String>[];
-  final deletedList =
-      officeName != null ? (deletedMap[officeName.trim()] ?? []) : <String>[];
+
+  List<String> customList;
+  List<String> deletedList;
+
+  if (officeName != null &&
+      OfficeMouzaData.isDistrictOrUpazilaOffice(officeName)) {
+    // উপজেলা ও জেলা পর্যায়ের সকল অফিসের জন্য কাস্টম ও ডিলিট তালিকা সমন্বিত রাখা
+    final customSet = <String>{};
+    for (final entry in customMap.entries) {
+      if (entry.key == '__upazila_wide__' ||
+          OfficeMouzaData.isDistrictOrUpazilaOffice(entry.key)) {
+        customSet.addAll(entry.value);
+      }
+    }
+    customList = customSet.toList();
+
+    final deletedSet = <String>{};
+    for (final entry in deletedMap.entries) {
+      if (entry.key == '__upazila_wide__' ||
+          OfficeMouzaData.isDistrictOrUpazilaOffice(entry.key)) {
+        deletedSet.addAll(entry.value);
+      }
+    }
+    deletedList = deletedSet.toList();
+  } else {
+    final key = officeName?.trim();
+    customList = key != null ? (customMap[key] ?? []) : <String>[];
+    deletedList = key != null ? (deletedMap[key] ?? []) : <String>[];
+  }
+
   return OfficeMouzaData.getMouzasForOffice(
     officeName,
     customMouzas: customList,
@@ -138,10 +164,22 @@ class OfficeController extends MutationController {
                   k.toString(),
                   (v as List).map((e) => e.toString()).toList(),
                 ));
-            final delList = delMap[cleanOffice] ?? [];
-            if (delList.contains(cleanMouza)) {
-              delMap[cleanOffice] =
-                  delList.where((e) => e != cleanMouza).toList();
+            final isUpazila =
+                OfficeMouzaData.isDistrictOrUpazilaOffice(cleanOffice);
+            bool delChanged = false;
+            for (final k in delMap.keys.toList()) {
+              if (k == cleanOffice ||
+                  (isUpazila &&
+                      (k == '__upazila_wide__' ||
+                          OfficeMouzaData.isDistrictOrUpazilaOffice(k)))) {
+                final delList = delMap[k] ?? [];
+                if (delList.contains(cleanMouza)) {
+                  delMap[k] = delList.where((e) => e != cleanMouza).toList();
+                  delChanged = true;
+                }
+              }
+            }
+            if (delChanged) {
               await db.shopSettingsDao.setSetting(
                 'deleted_mouzas_json',
                 jsonEncode(delMap),
@@ -166,9 +204,11 @@ class OfficeController extends MutationController {
         } catch (_) {}
       }
 
-      final current = map[cleanOffice] ?? [];
+      final isUpazila = OfficeMouzaData.isDistrictOrUpazilaOffice(cleanOffice);
+      final storeKey = isUpazila ? '__upazila_wide__' : cleanOffice;
+      final current = map[storeKey] ?? [];
       if (!current.contains(cleanMouza)) {
-        map[cleanOffice] = [...current, cleanMouza];
+        map[storeKey] = [...current, cleanMouza];
         await db.shopSettingsDao
             .setSetting('custom_mouzas_json', jsonEncode(map));
       }
@@ -176,7 +216,7 @@ class OfficeController extends MutationController {
 
     _ref.invalidate(customMouzasStreamProvider);
     _ref.invalidate(deletedMouzasStreamProvider);
-    _ref.invalidate(mouzasForOfficeProvider(cleanOffice));
+    _ref.invalidate(mouzasForOfficeProvider);
   }
 
   /// নির্দিষ্ট অফিসের যেকোনো (প্রমিত বা কাস্টম) মৌজার নাম পরিবর্তন (Edit)
@@ -260,7 +300,7 @@ class OfficeController extends MutationController {
 
     _ref.invalidate(customMouzasStreamProvider);
     _ref.invalidate(deletedMouzasStreamProvider);
-    _ref.invalidate(mouzasForOfficeProvider(cleanOffice));
+    _ref.invalidate(mouzasForOfficeProvider);
   }
 
   /// নির্দিষ্ট অফিসের যেকোনো (প্রমিত বা কাস্টম) মৌজা মুছে ফেলা (Delete)
@@ -287,10 +327,23 @@ class OfficeController extends MutationController {
                   k.toString(),
                   (v as List).map((e) => e.toString()).toList(),
                 ));
-            final current = customMap[cleanOffice] ?? [];
-            if (current.contains(cleanMouza)) {
-              customMap[cleanOffice] =
-                  current.where((e) => e != cleanMouza).toList();
+            final isUpazila =
+                OfficeMouzaData.isDistrictOrUpazilaOffice(cleanOffice);
+            bool changed = false;
+            for (final k in customMap.keys.toList()) {
+              if (k == cleanOffice ||
+                  (isUpazila &&
+                      (k == '__upazila_wide__' ||
+                          OfficeMouzaData.isDistrictOrUpazilaOffice(k)))) {
+                final current = customMap[k] ?? [];
+                if (current.contains(cleanMouza)) {
+                  customMap[k] =
+                      current.where((e) => e != cleanMouza).toList();
+                  changed = true;
+                }
+              }
+            }
+            if (changed) {
               await db.shopSettingsDao.setSetting(
                 'custom_mouzas_json',
                 jsonEncode(customMap),
@@ -316,9 +369,12 @@ class OfficeController extends MutationController {
         } catch (_) {}
       }
 
-      final curDel = delMap[cleanOffice] ?? [];
+      final isUpazila =
+          OfficeMouzaData.isDistrictOrUpazilaOffice(cleanOffice);
+      final delKey = isUpazila ? '__upazila_wide__' : cleanOffice;
+      final curDel = delMap[delKey] ?? [];
       if (!curDel.contains(cleanMouza)) {
-        delMap[cleanOffice] = [...curDel, cleanMouza];
+        delMap[delKey] = [...curDel, cleanMouza];
         await db.shopSettingsDao.setSetting(
           'deleted_mouzas_json',
           jsonEncode(delMap),
@@ -328,7 +384,7 @@ class OfficeController extends MutationController {
 
     _ref.invalidate(customMouzasStreamProvider);
     _ref.invalidate(deletedMouzasStreamProvider);
-    _ref.invalidate(mouzasForOfficeProvider(cleanOffice));
+    _ref.invalidate(mouzasForOfficeProvider);
   }
 
   /// Backward compatible wrapper

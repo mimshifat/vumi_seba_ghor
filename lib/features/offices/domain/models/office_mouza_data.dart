@@ -653,6 +653,21 @@ class OfficeMouzaData {
         .trim();
   }
 
+  /// জেলা বা উপজেলা পর্যায়ের অফিস কিনা যা পুরো সদর উপজেলার মৌজার এখতিয়ারভুক্ত
+  static bool isDistrictOrUpazilaOffice(String? officeName) {
+    if (officeName == null || officeName.trim().isEmpty) return false;
+    final trimmed = officeName.trim();
+    final normInput = normalizeOfficeName(trimmed);
+    return trimmed.contains('জেলা প্রশাসক') ||
+        trimmed.contains('উপজেলা ভূমি অফিস') ||
+        trimmed.contains('উপজেলা সেটেলমেন্ট') ||
+        trimmed.contains('সাব-রেজিস্ট্রি') ||
+        normInput.contains('জেলাপশাসক') ||
+        normInput.contains('উপজেলাভুমিঅফিস') ||
+        normInput.contains('উপজেলাসেটেলমেন্ট') ||
+        normInput.contains('সাবরেজিস্ট্রি');
+  }
+
   /// নির্দিষ্ট অফিসের জন্য মৌজার তালিকা সংগ্রহ।
   ///
   /// - নির্দিষ্ট ইউনিয়ন বা পৌর ভূমি অফিস হলে সেই অফিসের অধীনস্থ মৌজাসমূহ রিটার্ন করে।
@@ -679,16 +694,7 @@ class OfficeMouzaData {
     final normInput = normalizeOfficeName(trimmed);
 
     // সদর উপজেলা ও জেলা পর্যায়ের অফিস: উপজেলার সকল মৌজা উন্মুক্ত
-    final isDistrictOrUpazila = trimmed.contains('জেলা প্রশাসক') ||
-        trimmed.contains('উপজেলা ভূমি অফিস') ||
-        trimmed.contains('উপজেলা সেটেলমেন্ট') ||
-        trimmed.contains('সাব-রেজিস্ট্রি') ||
-        normInput.contains('জেলাপশাসক') ||
-        normInput.contains('উপজেলাভুমিঅফিস') ||
-        normInput.contains('উপজেলাসেটেলমেন্ট') ||
-        normInput.contains('সাবরেজিস্ট্রি');
-
-    if (isDistrictOrUpazila) {
+    if (isDistrictOrUpazilaOffice(trimmed)) {
       final combined = {...allUpazilaMouzas, ...customMouzas}
           .where((m) => !deletedSet.contains(m))
           .toList();
