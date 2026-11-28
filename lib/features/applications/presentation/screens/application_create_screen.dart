@@ -19,7 +19,7 @@ import '../../../../core/widgets/attachment_picker_sheet.dart';
 import '../../../../core/widgets/case_number_field.dart';
 import '../../../../core/widgets/money_field.dart';
 import '../../../finance/presentation/providers/finance_providers.dart';
-import '../../../offices/presentation/providers/office_providers.dart';
+import '../../../offices/presentation/widgets/office_mouza_selector.dart';
 import '../../../persons/presentation/providers/person_providers.dart';
 import '../../../references/presentation/widgets/reference_selector_sheet.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
@@ -341,42 +341,6 @@ class _ApplicationCreateScreenState
             ),
           );
         },
-      ),
-    );
-  }
-
-  void _showAddOfficeDialog({void Function(String)? onAdded}) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('নতুন অফিস যোগ করুন'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            label: AppFieldLabel.inline(label: 'অফিসের নাম', isRequired: true),
-            hintText: 'যেমন: উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর',
-          ),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
-        actions: [
-          AppDialogActionRow(
-            confirmText: 'যোগ করুন',
-            onConfirm: () {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty) {
-                ref
-                    .read(officeControllerProvider.notifier)
-                    .createOffice(name: newName);
-                setState(() {
-                  _selectedOffice = newName;
-                });
-                onAdded?.call(newName);
-                Navigator.pop(ctx);
-              }
-            },
-          ),
-        ],
       ),
     );
   }
@@ -1186,79 +1150,16 @@ class _ApplicationCreateScreenState
 
                 const SizedBox(height: AppSpacing.lg),
 
-                // 3. Office Selection
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const AppFieldLabel(
-                      label: 'অফিসের নাম',
-                      isRequired: true,
-                    ),
-                    InkWell(
-                      onTap: () => _showAddOfficeDialog(onAdded: (val) {
-                        setState(() => _selectedOffice = val);
-                      }),
-                      child: Text(
-                        '+ নতুন অফিস',
-                        style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
-                      ),
-                    ),
-                  ],
+                // 3. Office & Mouza Selection (অফিস নির্বাচন ও তার অধীনস্থ সকল মৌজা)
+                OfficeMouzaSelector(
+                  selectedOffice: _selectedOffice,
+                  onOfficeChanged: (val) {
+                    setState(() => _selectedOffice = val);
+                  },
+                  mouzaController: _mouzaController,
+                  isRequiredOffice: true,
+                  isRequiredMouza: false,
                 ),
-                const SizedBox(height: AppSpacing.xs + 2),
-                () {
-                  final liveOffices = ref
-                      .watch(officesStreamProvider)
-                      .valueOrNull
-                      ?.map((o) => o.name)
-                      .toList();
-                  final officeList =
-                      (liveOffices != null && liveOffices.isNotEmpty)
-                          ? liveOffices
-                          : DemoStore.offices.map((o) => o.name).toList();
-
-                  final effectiveOffice = _selectedOffice.isNotEmpty &&
-                          officeList.contains(_selectedOffice)
-                      ? _selectedOffice
-                      : (officeList.isNotEmpty ? officeList.first : null);
-
-                  return DropdownButtonFormField<String>(
-                    initialValue: effectiveOffice,
-                    isExpanded: true,
-                    icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.account_balance_outlined, size: 18, color: AppColors.slate400),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                        borderSide: const BorderSide(color: AppColors.rose),
-                      ),
-                    ),
-                    items: officeList.map((offName) {
-                      return DropdownMenuItem(
-                        value: offName,
-                        child: Text(offName, style: AppTypography.bodyMedium),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedOffice = val);
-                    },
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'ভূমি অফিস নির্বাচন আবশ্যক';
-                      }
-                      return null;
-                    },
-                  );
-                }(),
 
                 const SizedBox(height: AppSpacing.md),
 
@@ -1296,16 +1197,6 @@ class _ApplicationCreateScreenState
                       ),
                     ),
                   ],
-                ),
-
-                const SizedBox(height: AppSpacing.md),
-
-                // 5. Mouza Input
-                AppTextField(
-                  label: 'মৌজার নাম',
-                  hint: 'যেমন: বাগবাড়ী (জে.এল নং ৪৫)',
-                  controller: _mouzaController,
-                  prefixIcon: const Icon(Icons.map_outlined, size: 18, color: AppColors.slate400),
                 ),
               ],
             ),

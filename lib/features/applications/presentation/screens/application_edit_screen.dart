@@ -16,6 +16,7 @@ import '../../../../core/widgets/app_field_label.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/case_number_field.dart';
 import '../../../../core/widgets/money_field.dart';
+import '../../../offices/presentation/widgets/office_mouza_selector.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/services/land_portal_helper.dart';
 import '../providers/application_providers.dart';
@@ -45,6 +46,7 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
   late final TextEditingController _notesController;
 
   late String _selectedWorkType;
+  late String _selectedOffice;
   late bool _useSamePhoneForPortal;
   bool _obscurePortalPassword = true;
 
@@ -72,6 +74,7 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
     _portalPasswordController = TextEditingController(text: app.portalPassword ?? '');
     _notesController = TextEditingController(text: app.notes ?? '');
     _selectedWorkType = app.workType;
+    _selectedOffice = app.officeName;
   }
 
   @override
@@ -119,6 +122,9 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
     try {
       await ref.read(applicationControllerProvider.notifier).updateApplication(
             id: widget.application.id,
+            officeName: _selectedOffice.trim().isNotEmpty
+                ? _selectedOffice.trim()
+                : null,
             mouza: _mouzaController.text.trim().isNotEmpty
                 ? _mouzaController.text.trim()
                 : null,
@@ -290,11 +296,14 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
                   },
                 ),
                 const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'মৌজার নাম',
-                  hint: 'যেমন: বাগবাড়ী (জে.এল নং ৪৫)',
-                  controller: _mouzaController,
-                  prefixIcon: const Icon(Icons.map_outlined, size: 18, color: AppColors.slate400),
+                OfficeMouzaSelector(
+                  selectedOffice: _selectedOffice,
+                  onOfficeChanged: (val) {
+                    setState(() => _selectedOffice = val);
+                  },
+                  mouzaController: _mouzaController,
+                  isRequiredOffice: true,
+                  isRequiredMouza: false,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(

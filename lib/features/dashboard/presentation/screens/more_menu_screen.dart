@@ -99,8 +99,8 @@ class MoreMenuScreen extends StatelessWidget {
                 },
               ),
               _MenuItem(
-                title: 'ভূমি অফিস তালিকা',
-                subtitle: 'উপজেলা ও ইউনিয়ন ভূমি অফিসের নাম সংরক্ষণ',
+                title: 'ভূমি অফিস ও মৌজা ব্যবস্থাপনা',
+                subtitle: 'ভূমি অফিস ও মৌজা তৈরি, সম্পাদনা ও মোছা',
                 icon: Icons.account_balance_outlined,
                 color: const Color(0xFF8B5CF6),
                 onTap: () {

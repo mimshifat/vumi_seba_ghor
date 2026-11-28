@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../../features/offices/domain/models/office_mouza_data.dart';
 import '../utils/case_number_formatter.dart';
 import '../utils/money.dart';
 
@@ -46,11 +47,13 @@ class DemoOffice {
   final String id;
   final String name;
   final int activeApplications;
+  final List<String> mouzas;
 
   const DemoOffice({
     required this.id,
     required this.name,
     this.activeApplications = 0,
+    this.mouzas = const [],
   });
 }
 
@@ -474,25 +477,120 @@ class DemoStore {
   ];
 
   static List<DemoOffice> offices = [
-    const DemoOffice(id: 'off-1', name: 'জেলা প্রশাসকের কার্যালয়, চাঁপাইনবাবগঞ্জ', activeApplications: 0),
-    const DemoOffice(id: 'off-2', name: 'উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর', activeApplications: 0),
-    const DemoOffice(id: 'off-3', name: 'পৌর ভূমি অফিস, চাঁপাইনবাবগঞ্জ', activeApplications: 0),
-    const DemoOffice(id: 'off-4', name: 'উপজেলা সেটেলমেন্ট অফিস, চাঁপাইনবাবগঞ্জ সদর', activeApplications: 0),
-    const DemoOffice(id: 'off-5', name: 'সাব-রেজিস্ট্রি অফিস, চাঁপাইনবাবগঞ্জ সদর', activeApplications: 0),
-    const DemoOffice(id: 'off-6', name: 'ইউনিয়ন ভূমি অফিস, আলাতুলী', activeApplications: 0),
-    const DemoOffice(id: 'off-7', name: 'ইউনিয়ন ভূমি অফিস, ইসলামপুর', activeApplications: 0),
-    const DemoOffice(id: 'off-8', name: 'ইউনিয়ন ভূমি অফিস, গোবরাতলা', activeApplications: 0),
-    const DemoOffice(id: 'off-9', name: 'ইউনিয়ন ভূমি অফিস, চর অনুপনগর', activeApplications: 0),
-    const DemoOffice(id: 'off-10', name: 'ইউনিয়ন ভূমি অফিস, চরবাগডাঙ্গা', activeApplications: 0),
-    const DemoOffice(id: 'off-11', name: 'ইউনিয়ন ভূমি অফিস, ঝিলিম', activeApplications: 0),
-    const DemoOffice(id: 'off-12', name: 'ইউনিয়ন ভূমি অফিস, দেবীনগর', activeApplications: 0),
-    const DemoOffice(id: 'off-13', name: 'ইউনিয়ন ভূমি অফিস, নারায়ণপুর', activeApplications: 0),
-    const DemoOffice(id: 'off-14', name: 'ইউনিয়ন ভূমি অফিস, বারঘরিয়া', activeApplications: 0),
-    const DemoOffice(id: 'off-15', name: 'ইউনিয়ন ভূমি অফিস, বালিয়াডাঙ্গা', activeApplications: 0),
-    const DemoOffice(id: 'off-16', name: 'ইউনিয়ন ভূমি অফিস, মহারাজপুর', activeApplications: 0),
-    const DemoOffice(id: 'off-17', name: 'ইউনিয়ন ভূমি অফিস, রানীহাটি', activeApplications: 0),
-    const DemoOffice(id: 'off-18', name: 'ইউনিয়ন ভূমি অফিস, শাহজাহানপুর', activeApplications: 0),
-    const DemoOffice(id: 'off-19', name: 'ইউনিয়ন ভূমি অফিস, সুন্দরপুর', activeApplications: 0),
+    DemoOffice(
+      id: 'off-1',
+      name: 'জেলা প্রশাসকের কার্যালয়, চাঁপাইনবাবগঞ্জ',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('জেলা প্রশাসকের কার্যালয়, চাঁপাইনবাবগঞ্জ'),
+    ),
+    DemoOffice(
+      id: 'off-2',
+      name: 'উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('উপজেলা ভূমি অফিস, চাঁপাইনবাবগঞ্জ সদর'),
+    ),
+    DemoOffice(
+      id: 'off-3',
+      name: 'পৌর ভূমি অফিস, চাঁপাইনবাবগঞ্জ',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('পৌর ভূমি অফিস, চাঁপাইনবাবগঞ্জ'),
+    ),
+    DemoOffice(
+      id: 'off-4',
+      name: 'উপজেলা সেটেলমেন্ট অফিস, চাঁপাইনবাবগঞ্জ সদর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('উপজেলা সেটেলমেন্ট অফিস, চাঁপাইনবাবগঞ্জ সদর'),
+    ),
+    DemoOffice(
+      id: 'off-5',
+      name: 'সাব-রেজিস্ট্রি অফিস, চাঁপাইনবাবগঞ্জ সদর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('সাব-রেজিস্ট্রি অফিস, চাঁপাইনবাবগঞ্জ সদর'),
+    ),
+    DemoOffice(
+      id: 'off-6',
+      name: 'ইউনিয়ন ভূমি অফিস, আলাতূলী',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, আলাতূলী'),
+    ),
+    DemoOffice(
+      id: 'off-7',
+      name: 'ইউনিয়ন ভূমি অফিস, ইসলামপুর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, ইসলামপুর'),
+    ),
+    DemoOffice(
+      id: 'off-8',
+      name: 'ইউনিয়ন ভূমি অফিস, গোবরাতলা',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, গোবরাতলা'),
+    ),
+    DemoOffice(
+      id: 'off-9',
+      name: 'ইউনিয়ন ভূমি অফিস, চর অনুপনগর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, চর অনুপনগর'),
+    ),
+    DemoOffice(
+      id: 'off-10',
+      name: 'ইউনিয়ন ভূমি অফিস, চরবাগডাঙ্গা',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, চরবাগডাঙ্গা'),
+    ),
+    DemoOffice(
+      id: 'off-11',
+      name: 'ইউনিয়ন ভূমি অফিস, ঝিলিম',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, ঝিলিম'),
+    ),
+    DemoOffice(
+      id: 'off-12',
+      name: 'ইউনিয়ন ভূমি অফিস, দেবীনগর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, দেবীনগর'),
+    ),
+    DemoOffice(
+      id: 'off-13',
+      name: 'ইউনিয়ন ভূমি অফিস, নারায়ণপুর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, নারায়ণপুর'),
+    ),
+    DemoOffice(
+      id: 'off-14',
+      name: 'ইউনিয়ন ভূমি অফিস, বারঘরিয়া',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, বারঘরিয়া'),
+    ),
+    DemoOffice(
+      id: 'off-15',
+      name: 'ইউনিয়ন ভূমি অফিস, বালিয়াডাঙ্গা',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, বালিয়াডাঙ্গা'),
+    ),
+    DemoOffice(
+      id: 'off-16',
+      name: 'ইউনিয়ন ভূমি অফিস, মহারাজপুর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, মহারাজপুর'),
+    ),
+    DemoOffice(
+      id: 'off-17',
+      name: 'ইউনিয়ন ভূমি অফিস, রানীহাটি',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, রানীহাটি'),
+    ),
+    DemoOffice(
+      id: 'off-18',
+      name: 'ইউনিয়ন ভূমি অফিস, শাহজাহানপুর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, শাহজাহানপুর'),
+    ),
+    DemoOffice(
+      id: 'off-19',
+      name: 'ইউনিয়ন ভূমি অফিস, সুন্দরপুর',
+      activeApplications: 0,
+      mouzas: OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, সুন্দরপুর'),
+    ),
   ];
 
   static List<String> applicationExpenseCategories = [
