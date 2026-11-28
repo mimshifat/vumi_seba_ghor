@@ -130,6 +130,7 @@ class _ApplicationCreateScreenState
 
   void _goToStep(int targetStep) {
     if (targetStep < 0 || targetStep >= _steps.length) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     if (targetStep > _currentStep) {
       for (int s = _currentStep; s < targetStep; s++) {
         if (!_validateStep(s)) return;
@@ -143,6 +144,7 @@ class _ApplicationCreateScreenState
   }
 
   void _onNextStep() {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep == 0) {
       if (!_step1FormKey.currentState!.validate()) return;
       _goToStep(1);
@@ -157,14 +159,16 @@ class _ApplicationCreateScreenState
   }
 
   void _onPrevStep() {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep > 0) {
       _goToStep(_currentStep - 1);
     }
   }
 
-  void _showPersonSelector() {
+  void _showPersonSelector() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     String searchQuery = '';
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -323,6 +327,8 @@ class _ApplicationCreateScreenState
                                     ? const Icon(Icons.check_circle, size: 20, color: AppColors.primary)
                                     : const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.slate400),
                                 onTap: () {
+                                  FocusScope.of(ctx).unfocus();
+                                  FocusManager.instance.primaryFocus?.unfocus();
                                   setState(() {
                                     _selectedPersonId = p.id;
                                     _isSavedCustomerSelected = true;
@@ -343,6 +349,11 @@ class _ApplicationCreateScreenState
         },
       ),
     );
+
+    if (mounted) {
+      FocusScope.of(context).unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
   }
 
   void _showAddWorkTypeDialog({void Function(String)? onAdded}) {
@@ -603,36 +614,40 @@ class _ApplicationCreateScreenState
       appBar: AppBar(
         title: const Text('নতুন আবেদন এন্ট্রি'),
       ),
-      body: ResponsiveContainer(
-        maxWidth: 900,
-        child: Column(
-          children: [
-            // Visual Step Indicator
-            FormStepIndicator(
-              currentStep: _currentStep,
-              steps: _steps,
-              onStepTapped: (step) => _goToStep(step),
-            ),
-
-            // Multi-step PageView
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(), // Managed via Next/Prev buttons
-                onPageChanged: (page) {
-                  setState(() => _currentStep = page);
-                },
-                children: [
-                  _KeepAlivePage(child: _buildStep1CustomerInfo()),
-                  _KeepAlivePage(child: _buildStep2WorkAndOffice()),
-                  _KeepAlivePage(child: _buildStep3PaymentAndFinish()),
-                ],
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: ResponsiveContainer(
+          maxWidth: 900,
+          child: Column(
+            children: [
+              // Visual Step Indicator
+              FormStepIndicator(
+                currentStep: _currentStep,
+                steps: _steps,
+                onStepTapped: (step) => _goToStep(step),
               ),
-            ),
 
-            // Pinned Bottom Navigation Controls
-            _buildBottomNavigationBar(),
-          ],
+              // Multi-step PageView
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(), // Managed via Next/Prev buttons
+                  onPageChanged: (page) {
+                    setState(() => _currentStep = page);
+                  },
+                  children: [
+                    _KeepAlivePage(child: _buildStep1CustomerInfo()),
+                    _KeepAlivePage(child: _buildStep2WorkAndOffice()),
+                    _KeepAlivePage(child: _buildStep3PaymentAndFinish()),
+                  ],
+                ),
+              ),
+
+              // Pinned Bottom Navigation Controls
+              _buildBottomNavigationBar(),
+            ],
+          ),
         ),
       ),
     );
@@ -1257,11 +1272,15 @@ class _ApplicationCreateScreenState
                     const SizedBox(height: AppSpacing.xs + 2),
                     InkWell(
                       onTap: () async {
+                        FocusManager.instance.primaryFocus?.unfocus();
                         final selected = await ReferenceSelectorSheet.show(
                           context,
                           initialReference: _selectedReference,
                         );
-                        setState(() => _selectedReference = selected);
+                        if (mounted) {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          setState(() => _selectedReference = selected);
+                        }
                       },
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       child: Container(

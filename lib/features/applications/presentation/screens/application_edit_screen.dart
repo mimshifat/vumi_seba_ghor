@@ -190,14 +190,17 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
       appBar: AppBar(
         title: const Text('আবেদন তথ্য সম্পাদনা'),
       ),
-      body: ResponsiveContainer(
-        maxWidth: 850,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: EdgeInsets.all(
-              context.isWide ? AppSpacing.xl : AppSpacing.base,
-            ),
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: ResponsiveContainer(
+          maxWidth: 850,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: EdgeInsets.all(
+                context.isWide ? AppSpacing.xl : AppSpacing.base,
+              ),
             children: [
             _buildEditCard(
               title: 'আবেদনকারীর তথ্য',
@@ -409,7 +412,8 @@ class _ApplicationEditScreenState extends ConsumerState<ApplicationEditScreen> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 
   Widget _buildEditCard({required String title, required List<Widget> children}) {

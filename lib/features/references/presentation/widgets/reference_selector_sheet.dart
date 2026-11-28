@@ -27,8 +27,9 @@ class ReferenceSelectorSheet extends ConsumerStatefulWidget {
   static Future<DemoReference?> show(
     BuildContext context, {
     DemoReference? initialReference,
-  }) {
-    return showModalBottomSheet<DemoReference>(
+  }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final result = await showModalBottomSheet<DemoReference>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -37,9 +38,18 @@ class ReferenceSelectorSheet extends ConsumerStatefulWidget {
       ),
       builder: (ctx) => ReferenceSelectorSheet(
         initialReference: initialReference,
-        onSelected: (ref) => Navigator.of(ctx).pop(ref),
+        onSelected: (ref) {
+          FocusScope.of(ctx).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+          Navigator.of(ctx).pop(ref);
+        },
       ),
     );
+    if (context.mounted) {
+      FocusScope.of(context).unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+    return result;
   }
 
   @override

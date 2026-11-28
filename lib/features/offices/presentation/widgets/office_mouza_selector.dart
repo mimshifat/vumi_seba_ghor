@@ -60,6 +60,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
           AppDialogActionRow(
             confirmText: 'যোগ করুন',
             onConfirm: () async {
+              FocusManager.instance.primaryFocus?.unfocus();
               final text = controller.text.trim();
               if (text.isEmpty) return;
               try {
@@ -71,6 +72,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                 }
               } catch (_) {}
               if (!ctx.mounted) return;
+              FocusManager.instance.primaryFocus?.unfocus();
               Navigator.pop(ctx);
             },
           ),
@@ -103,6 +105,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
           AppDialogActionRow(
             confirmText: 'যুক্ত করুন',
             onConfirm: () async {
+              FocusManager.instance.primaryFocus?.unfocus();
               final text = controller.text.trim();
               if (text.isEmpty) return;
               try {
@@ -116,6 +119,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                 setState(() {});
               } catch (_) {}
               if (!ctx.mounted) return;
+              FocusManager.instance.primaryFocus?.unfocus();
               Navigator.pop(ctx);
             },
           ),
@@ -124,11 +128,12 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
     );
   }
 
-  void _openOfficeSearchSheet(
-    BuildContext context,
+  Future<void> _openOfficeSearchSheet(
     List<String> officeList,
-  ) {
-    showModalBottomSheet(
+  ) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -186,6 +191,8 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                         ),
                         TextButton.icon(
                           onPressed: () {
+                            FocusScope.of(sheetCtx).unfocus();
+                            FocusManager.instance.primaryFocus?.unfocus();
                             Navigator.pop(sheetCtx);
                             _showAddOfficeDialog();
                           },
@@ -203,7 +210,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: TextField(
                       controller: searchController,
-                      autofocus: true,
+                      autofocus: false,
                       decoration: InputDecoration(
                         hintText: 'অফিসের নাম দিয়ে সার্চ করুন...',
                         prefixIcon: const Icon(Icons.search,
@@ -272,6 +279,8 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                                     const SizedBox(height: 12),
                                     ElevatedButton.icon(
                                       onPressed: () async {
+                                        FocusScope.of(sheetCtx).unfocus();
+                                        FocusManager.instance.primaryFocus?.unfocus();
                                         final newName = query.trim();
                                         final created = await ref
                                             .read(officeControllerProvider
@@ -310,8 +319,10 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
 
                               return ListTile(
                                 onTap: () {
+                                  FocusScope.of(sheetCtx).unfocus();
+                                  FocusManager.instance.primaryFocus?.unfocus();
                                   widget.onOfficeChanged?.call(off);
-                                  setState(() {});
+                                  if (mounted) setState(() {});
                                   Navigator.pop(sheetCtx);
                                 },
                                 leading: Icon(
@@ -356,14 +367,26 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
         );
       },
     );
+
+    if (mounted) {
+      FocusScope.of(context).unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+      });
+    }
   }
 
-  void _openMouzaSearchSheet(
-    BuildContext context,
+  Future<void> _openMouzaSearchSheet(
     String? officeName,
     List<String> mouzas,
-  ) {
-    showModalBottomSheet(
+  ) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -447,6 +470,8 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                               );
                               return;
                             }
+                            FocusScope.of(sheetCtx).unfocus();
+                            FocusManager.instance.primaryFocus?.unfocus();
                             Navigator.pop(sheetCtx);
                             _showAddMouzaDialog(officeName);
                           },
@@ -464,7 +489,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: TextField(
                       controller: searchController,
-                      autofocus: true,
+                      autofocus: false,
                       decoration: InputDecoration(
                         hintText: 'মৌজার নাম দিয়ে সার্চ করুন...',
                         prefixIcon: const Icon(Icons.search,
@@ -513,8 +538,10 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                         if (widget.mouzaController.text.isNotEmpty)
                           InkWell(
                             onTap: () {
+                              FocusScope.of(sheetCtx).unfocus();
+                              FocusManager.instance.primaryFocus?.unfocus();
                               widget.mouzaController.clear();
-                              setState(() {});
+                              if (mounted) setState(() {});
                               Navigator.pop(sheetCtx);
                             },
                             child: Text(
@@ -551,6 +578,8 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                                     const SizedBox(height: 12),
                                     ElevatedButton.icon(
                                       onPressed: () async {
+                                        FocusScope.of(sheetCtx).unfocus();
+                                        FocusManager.instance.primaryFocus?.unfocus();
                                         final newName = query.trim();
                                         await ref
                                             .read(officeControllerProvider
@@ -590,8 +619,10 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
 
                               return ListTile(
                                 onTap: () {
+                                  FocusScope.of(sheetCtx).unfocus();
+                                  FocusManager.instance.primaryFocus?.unfocus();
                                   widget.mouzaController.text = m;
-                                  setState(() {});
+                                  if (mounted) setState(() {});
                                   Navigator.pop(sheetCtx);
                                 },
                                 leading: Icon(
@@ -636,6 +667,17 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
         );
       },
     );
+
+    if (mounted) {
+      FocusScope.of(context).unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+      });
+    }
   }
 
   @override
@@ -698,7 +740,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InkWell(
-                  onTap: () => _openOfficeSearchSheet(context, officeList),
+                  onTap: () => _openOfficeSearchSheet(officeList),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -814,7 +856,6 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
               children: [
                 InkWell(
                   onTap: () => _openMouzaSearchSheet(
-                    context,
                     currentOffice,
                     mouzas,
                   ),
@@ -860,6 +901,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                         if (currentMouza.isNotEmpty)
                           GestureDetector(
                             onTap: () {
+                              FocusManager.instance.primaryFocus?.unfocus();
                               widget.mouzaController.clear();
                               setState(() {});
                             },
