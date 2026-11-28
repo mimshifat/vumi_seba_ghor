@@ -95,6 +95,20 @@ void main() {
       expect(afterDelete.contains('লাহারপুর'), true);
     });
 
+    test('আলাতুলী এবং আলাতূলী বানানভেদে সঠিক ১৯টি মৌজা লোড হয়, কোনোভাবেই ৫২৯টি নয়', () {
+      final mouzasHraswa = OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, আলাতুলী');
+      final mouzasDirgha = OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, আলাতূলী');
+
+      expect(mouzasHraswa.length, 19);
+      expect(mouzasDirgha.length, 19);
+      expect(mouzasHraswa.length, isNot(529));
+    });
+
+    test('অপরিচিত বা কাস্টম ইউনিয়ন অফিসে ৫২৯টি সদর মৌজা ওভারফ্লো করে না', () {
+      final res = OfficeMouzaData.getMouzasForOffice('ইউনিয়ন ভূমি অফিস, অজানা কোনো ইউনিয়ন');
+      expect(res.isEmpty, true);
+    });
+
     test('DemoStore.offices শুধুমাত্র চাঁপাইনবাবগঞ্জ সদরের ১৯টি অফিস রয়েছে', () {
       expect(DemoStore.offices.length, 19);
       for (final office in DemoStore.offices) {

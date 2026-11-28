@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../demo/demo_data.dart';
+import '../../features/offices/domain/models/office_mouza_data.dart';
 
 /// ডেমো ডেটাকে ডেটাবেজে বসানোর সহায়ক।
 class DatabaseSeeder {
@@ -150,11 +151,38 @@ class DatabaseSeeder {
         }
       }
 
-      // সদর উপজেলার অফিসসমূহ নিশ্চিত করা
-      final existingOffices = await db.offices.select().get();
-      final existingOfficeNames = existingOffices.map((o) => o.name.trim()).toSet();
+      // সদর উপজেলার অফিসসমূহ নিশ্চিত করা ও ডুপ্লিকেট পরিষ্কার করা
+      var currentDbOffices = await db.offices.select().get();
+
+      // বানান পার্থক্যের কারণে তৈরি হওয়া ডুপ্লিকেট অফিস মার্জ করা (যেমন: আলাতুলী বনাম আলাতূলী)
+      final seenNormMap = <String, Office>{};
+      for (final off in currentDbOffices) {
+        final norm = OfficeMouzaData.normalizeOfficeName(off.name);
+        if (seenNormMap.containsKey(norm)) {
+          final canonical = seenNormMap[norm]!;
+          // ডুপ্লিকেট অফিসের অধীনে থাকা আবেদনসমূহ ক্যানোনিক্যাল অফিসে রি-লিংক করা
+          await (db.applications.update()
+                ..where((tbl) => tbl.officeId.equals(off.id)))
+              .write(ApplicationsCompanion(
+                officeId: Value(canonical.id),
+                officeName: Value(canonical.name),
+              ));
+          // ডুপ্লিকেট অফিসটি ডেটাবেজ থেকে মুছে ফেলা
+          await (db.offices.delete()..where((tbl) => tbl.id.equals(off.id))).go();
+        } else {
+          seenNormMap[norm] = off;
+        }
+      }
+
+      // আপডেট হওয়া তালিকা পুনরায় সংগ্রহ
+      currentDbOffices = await db.offices.select().get();
+      final existingNormSet = currentDbOffices
+          .map((o) => OfficeMouzaData.normalizeOfficeName(o.name))
+          .toSet();
+
       for (final office in DemoStore.offices) {
-        if (!existingOfficeNames.contains(office.name.trim())) {
+        final norm = OfficeMouzaData.normalizeOfficeName(office.name);
+        if (!existingNormSet.contains(norm)) {
           await db.into(db.offices).insert(
                 OfficesCompanion.insert(
                   id: uuid.v4(),
@@ -163,7 +191,7 @@ class DatabaseSeeder {
                   updatedAt: now,
                 ),
               );
-          existingOfficeNames.add(office.name.trim());
+          existingNormSet.add(norm);
         }
       }
 

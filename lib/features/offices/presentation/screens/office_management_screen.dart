@@ -178,6 +178,7 @@ class _OfficeManagementScreenState
                         .toList();
 
                 return Container(
+                  width: double.infinity,
                   height: MediaQuery.of(context).size.height * 0.75,
                   decoration: const BoxDecoration(
                     color: Colors.white,
@@ -185,33 +186,38 @@ class _OfficeManagementScreenState
                         BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 12),
-                      Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.slate300,
-                          borderRadius: BorderRadius.circular(2),
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.slate300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     office.name,
                                     style: AppTypography.headingSmall
                                         .copyWith(fontSize: 16),
-                                    maxLines: 1,
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
                                     'মোট ${BengaliDigits.toBengali(mouzas.length.toString())}টি মৌজা',
                                     style: AppTypography.bodySmall
@@ -220,6 +226,7 @@ class _OfficeManagementScreenState
                                 ],
                               ),
                             ),
+                            const SizedBox(width: 12),
                             ElevatedButton.icon(
                               onPressed: () {
                                 _showAddMouzaDialog(office.name);
@@ -230,7 +237,7 @@ class _OfficeManagementScreenState
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 8),
+                                    horizontal: 12, vertical: 8),
                                 textStyle: AppTypography.labelMedium.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white),

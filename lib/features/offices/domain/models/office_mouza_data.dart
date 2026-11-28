@@ -55,8 +55,29 @@ class OfficeMouzaData {
       'মহারাজপুর সীমানা (পৌর অংশ)',
     ],
 
-    // ইউনিয়ন ভূমি অফিস, আলাতূলী
+    // ইউনিয়ন ভূমি অফিস, আলাতূলী (আলাতুলী)
     'ইউনিয়ন ভূমি অফিস, আলাতূলী': [
+      'আলাতূলী',
+      'চর আলাতূলী',
+      'মধ্য আলাতূলী',
+      'উত্তর আলাতূলী',
+      'দক্ষিণ আলাতূলী',
+      'পশ্চিম আলাতূলী',
+      'বাঘের ডাঙ্গা',
+      'পোড়াবাড়ী',
+      'দশরশিয়া চর',
+      'মিয়াপাড়া চর',
+      'সোনাকান্দর',
+      'লালপুর চর',
+      'কাচারিপাড়া',
+      'বালুচর',
+      'বকশীচর',
+      'চর মধ্যপাড়া',
+      'দিয়ারা আলাতূলী',
+      'পদ্মার চর আলাতূলী',
+      'কোদালকাটি চর',
+    ],
+    'ইউনিয়ন ভূমি অফিস, আলাতুলী': [
       'আলাতূলী',
       'চর আলাতূলী',
       'মধ্য আলাতূলী',
@@ -616,6 +637,22 @@ class OfficeMouzaData {
     return result;
   }
 
+  /// অফিসের নাম বাংলা ধ্বনিগত ও বানানগতভাবে নরমালাইজ করা
+  static String normalizeOfficeName(String name) {
+    return name
+        .replaceAll('ূ', 'ু')
+        .replaceAll('ী', 'ি')
+        .replaceAll('ণ', 'ন')
+        .replaceAll('ড়', 'র')
+        .replaceAll('ঢ়', 'র')
+        .replaceAll('শ', 'স')
+        .replaceAll('ষ', 'স')
+        .replaceAll('ৎ', 'ত')
+        .replaceAll('্', '')
+        .replaceAll(RegExp(r'[\s\-_,()\.•]'), '')
+        .trim();
+  }
+
   /// নির্দিষ্ট অফিসের জন্য মৌজার তালিকা সংগ্রহ।
   ///
   /// - নির্দিষ্ট ইউনিয়ন বা পৌর ভূমি অফিস হলে সেই অফিসের অধীনস্থ মৌজাসমূহ রিটার্ন করে।
@@ -639,12 +676,19 @@ class OfficeMouzaData {
     }
 
     final trimmed = officeName.trim();
+    final normInput = normalizeOfficeName(trimmed);
 
     // সদর উপজেলা ও জেলা পর্যায়ের অফিস: উপজেলার সকল মৌজা উন্মুক্ত
-    if (trimmed.contains('জেলা প্রশাসকের') ||
+    final isDistrictOrUpazila = trimmed.contains('জেলা প্রশাসক') ||
         trimmed.contains('উপজেলা ভূমি অফিস') ||
         trimmed.contains('উপজেলা সেটেলমেন্ট') ||
-        trimmed.contains('সাব-রেজিস্ট্রি')) {
+        trimmed.contains('সাব-রেজিস্ট্রি') ||
+        normInput.contains('জেলাপশাসক') ||
+        normInput.contains('উপজেলাভুমিঅফিস') ||
+        normInput.contains('উপজেলাসেটেলমেন্ট') ||
+        normInput.contains('সাবরেজিস্ট্রি');
+
+    if (isDistrictOrUpazila) {
       final combined = {...allUpazilaMouzas, ...customMouzas}
           .where((m) => !deletedSet.contains(m))
           .toList();
@@ -652,20 +696,48 @@ class OfficeMouzaData {
       return combined;
     }
 
-    // নির্দিষ্ট ইউনিয়ন বা পৌর ভূমি অফিস
+    // নির্দিষ্ট ইউনিয়ন বা পৌর ভূমি অফিস খোঁজা
     List<String>? matched;
+
+    // ১. হুবহু মিল
     if (officeMouzaMap.containsKey(trimmed)) {
       matched = officeMouzaMap[trimmed];
-    } else {
+    }
+
+    // ২. নরমালাইজড মিল (বানানের পার্থক্য যেমন আলাতুলী বনাম আলাতূলী, দেবীনগর বনাম দেবিনগর)
+    if (matched == null) {
       for (final entry in officeMouzaMap.entries) {
-        if (entry.key.contains(trimmed) || trimmed.contains(entry.key)) {
+        final normKey = normalizeOfficeName(entry.key);
+        if (normKey == normInput ||
+            normKey.contains(normInput) ||
+            normInput.contains(normKey)) {
           matched = entry.value;
           break;
         }
       }
     }
 
-    final baseList = matched ?? allUpazilaMouzas;
+    // ৩. মূল ইউনিয়ন বা এলাকার নাম দিয়ে মিল (যেমন: আলাতুলি, ইসলামপুর, ঝিলিম ইত্যাদি)
+    if (matched == null) {
+      for (final entry in officeMouzaMap.entries) {
+        final keyWords = entry.key
+            .replaceAll('ইউনিয়ন ভূমি অফিস,', '')
+            .replaceAll('পৌর ভূমি অফিস,', '')
+            .replaceAll('ইউনিয়ন ভূমি অফিস', '')
+            .replaceAll('পৌর ভূমি অফিস', '')
+            .trim();
+        final normKeyWord = normalizeOfficeName(keyWords);
+        if (normKeyWord.isNotEmpty &&
+            (normInput.contains(normKeyWord) ||
+                normKeyWord.contains(normInput))) {
+          matched = entry.value;
+          break;
+        }
+      }
+    }
+
+    // ইউনিয়ন বা পৌর ভূমি অফিসের ক্ষেত্রে কোনো মিল না পেলে কখনোই ৫২৯টি সদর মৌজা দেওয়া যাবে না
+    final baseList = matched ?? const <String>[];
     final combined = {...baseList, ...customMouzas}
         .where((m) => !deletedSet.contains(m))
         .toList();

@@ -146,6 +146,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                     .toList();
 
             return Container(
+              width: double.infinity,
               height: MediaQuery.of(context).size.height * 0.78,
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -155,14 +156,17 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 12),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.slate300,
-                      borderRadius: BorderRadius.circular(2),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.slate300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -373,6 +377,7 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                     .toList();
 
             return Container(
+              width: double.infinity,
               height: MediaQuery.of(context).size.height * 0.78,
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -382,14 +387,17 @@ class _OfficeMouzaSelectorState extends ConsumerState<OfficeMouzaSelector> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 12),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.slate300,
-                      borderRadius: BorderRadius.circular(2),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.slate300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
