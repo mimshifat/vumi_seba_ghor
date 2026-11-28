@@ -827,17 +827,17 @@ To ensure data integrity and prevent accidental empty submissions in a fast-pace
 
 The application is complete when:
 
-- [ ] All 27 screens are implemented and functional
-- [ ] All navigation flows work correctly
-- [ ] Application CRUD with all fields (including mouza) works
-- [ ] Reference person management (list, profile, aggregated stats, inline selector) works
-- [ ] Status changes create history records
-- [ ] Person and office management works
-- [ ] Payment and expense recording works
-- [ ] Financial calculations are accurate (integer math)
-- [ ] Dashboard shows real aggregated data
-- [ ] Search finds applications by name, phone, app number, case number
-- [ ] Filters work for status, work type, office, date range
+- [x] All 29 screens are implemented and functional
+- [x] All navigation flows work correctly
+- [x] Application CRUD with all fields (including mouza) works
+- [x] Reference person management (list, profile, aggregated stats, inline selector) works
+- [x] Status changes create history records
+- [x] Person and office/mouza management works (Chapainawabganj Sadar 19 offices & 529 cadastral mouzas with full CRUD and phonetic normalization)
+- [x] Payment and expense recording works
+- [x] Financial calculations are accurate (integer math)
+- [x] Dashboard shows real aggregated data
+- [x] Search finds applications by name, phone, app number, case number
+- [x] Filters and searchable dropdowns work for status, work type, office, mouza, date range
 - [x] Documents (PDF/images) attach, preview, and persist in SQLite
 - [x] Tasks can be created, edited, and completed with picture attachments (camera/gallery) and interactive fullscreen zoom (Schema v4)
 - [x] Notifications and task indicators fire for task reminders

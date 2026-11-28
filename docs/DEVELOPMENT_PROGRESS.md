@@ -14,6 +14,7 @@
 | **Backend Phase 5** | Stress Testing, End-to-End Verification & Release | ✅ Completed (178/178 Tests Green) |
 | **Schema v3 (LSG Portal)** | In-App Browser Auto-Login & Downloads | ✅ Completed (194/194 Tests Green) |
 | **Schema v4 (Task Attachments)** | Task Picture Attachments (Camera/Gallery) & Fullscreen Zoom Viewer | ✅ Completed (197/197 Tests Green) |
+| **Offices & Mouzas (Sadar Cadastral)** | Chapainawabganj Sadar Full Directory (19 Offices & 529 Mouzas) with CRUD & Searchable Dropdowns | ✅ Completed (197/197 Tests Green) |
 
 ---
 
@@ -493,6 +494,36 @@ The `expenses` table enforced only `is_general = 1 ⇒ application_id IS NULL`. 
   - **অফলাইন ব্যাকআপ (`exportBackup`):** সম্পূর্ণ `.db` ব্যাকআপ ফাইলে আবেদন ডকুমেন্টস ও টাস্কের ছবি ১০০% অপরিবর্তিত বাইনারি ডেটা সহ সংরক্ষিত থাকে।
   - **টেলিগ্রাম ক্লাউড ব্যাকআপ (`exportBackupToTelegram`):** `stripDocumentsAndCompact()` মেথডে `documents` এর পাশাপাশি `task_attachments` টেবিলের বাইনারি ডেটা `zeroblob(0)` দিয়ে শূন্য করে সাইজ ক্ষুদ্র রাখা হয়, যাতে দ্রুত আপলোড হয়।
   - **ব্যাকআপ ভ্যালিডেশন:** `validateBackupFile` স্বয়ংক্রিয়ভাবে স্কিমা সংস্করণ ও লাইটওয়েট স্ট্যাটাস যাচাই করে।
-- **Verification:**
-  - Static Analysis (`flutter analyze`): **0 issues found**.
-  - Test Suite (`test/unit/task_attachments_test.dart` & `test/unit/phase_four_backup_test.dart`): **All 197 tests passed green**.
+497: - **Verification:**
+498:   - Static Analysis (`flutter analyze`): **0 issues found**.
+499:   - Test Suite (`test/unit/task_attachments_test.dart` & `test/unit/phase_four_backup_test.dart`): **All 197 tests passed green**.
+500: 
+501: ---
+502: 
+503: ## Chapainawabganj Sadar Full Cadastral Mouza & Office Management Directory (Completed)
+504: 
+505: - **Complete Sadar Cadastral Directory (`OfficeMouzaData`):**
+506:   - **১৯টি অফিস ও ৫২৯টি মৌজার সুনির্দিষ্ট ম্যাপিং:**
+507:     - *উপজেলা/জেলা পর্যায় (৪টি অফিস):* জেলা প্রশাসকের কার্যালয়, উপজেলা ভূমি অফিস (সদর), উপজেলা সেটেলমেন্ট অফিস (সদর), সাব-রেজিস্ট্রি অফিস (সদর) — সমগ্র চাঁপাইনবাবগঞ্জ সদর উপজেলার ৫২৯টি মৌজার সম্পূর্ণ অ্যাক্সেস।
+508:     - *পৌর ভূমি অফিস, চাঁপাইনবাবগঞ্জ:* ৪৭টি মৌজা ও ৮২+ প্রমিত মহল্লা।
+509:     - *১৪টি ইউনিয়ন ভূমি অফিস:* আলাতুলী (১৯), ইসলামপুর (২৪), গোবরাতলা (৫১), চর অনুপনগর (১৫), চরবাগডাঙ্গা (১৯), ঝিলিম (৯০), দেবীনগর (৩৩), নারায়ণপুর (২১), বারঘরিয়া (২১), বালিয়াডাঙ্গা (৭৪), মহারাজপুর (৫৪), রানীহাটি (২০), শাহজাহানপুর (২০), সুন্দরপুর (৩২)।
+510: - **বাংলা ধ্বনিগত ও বানানগত স্বাভাবিকীকরণ (`normalizeOfficeName`):**
+511:   - বাংলা বানানের বহুল প্রচলিত ভ্যারিয়েশন (`তু/তূ`, `বি/বী`, `নি/নী`, `র/ড়`, স্পেস ও যতিচিহ্ন) স্বয়ংক্রিয়ভাবে হ্যান্ডেল করে নির্ভুল অফিস ও মৌজা ম্যাপিং নিশ্চিত করা।
+512:   - উদাহরণ: `আলাতুলী` বনাম `আলাতূলী`, `দেবীনগর` বনাম `দেবিনগর`, `চর অনুপনগর` বনাম `চরঅনুপনগর`।
+513: - **ডেটাবেজ সিডার ও অটো-মার্জার (`DatabaseSeeder`):**
+514:   - অন্য উপজেলার অপ্রয়োজনীয় অফিস থাকলে তা নিরাপদে অপসারণ।
+515:   - বানান পার্থক্যের কারণে অতীতে তৈরি হওয়া ডুপ্লিকেট অফিস থাকলে তা স্বয়ংক্রিয়ভাবে শনাক্ত করে আবেদনসমূহকে ক্যানোনিক্যাল অফিসে রি-লিংক এবং ডুপ্লিকেট রো নিরাপদে মুছে ফেলা।
+516:   - খালি ডেটাবেজে সঠিক ১৯টি অফিস ও তাদের মৌজা সিড নিশ্চিতকরণ।
+517: - **উপজেলা-পর্যায়ের মৌজা পুলিং ও সিঙ্ক (Upazila-Wide Auto Sync):**
+518:   - উপজেলা/জেলা পর্যায়ের ৪টি অফিসের যেকোনো একটিতে নতুন কোনো কাস্টম মৌজা যোগ বা ডিলিট করলে চারটিতেই একসাথে স্বয়ংক্রিয়ভাবে আপডেট হয়, ফলে মৌজা সংখ্যায় কোনো অমিল থাকে না।
+519: - **ইউজার ইন্টারফেস ও সার্চ ড্রপডাউন স্ট্যান্ডার্ড (`OfficeMouzaSelector` & `OfficeManagementScreen`):**
+520:   - আবেদন তৈরি উইজার্ড থেকে পূর্বের ২০টি সাজেশন চিপস এবং "কাস্টম লিখুন" টগল সম্পূর্ণ বাতিল করে অফিস ও মৌজা উভয়ের জন্যই পরিচ্ছন্ন ড্রপডাউন স্ট্যান্ডার্ড রূপায়ন।
+521:   - বটম শীটে অটো-ফোকাস সার্চ ফিল্টার সহ ৫০+ থেকে ৫২৯টি মৌজার মধ্য থেকে সেকেন্ডে কাঙ্ক্ষিত মৌজা খোঁজার সুবিধা।
+522:   - **ভ্যালিডেশন গার্ড:** অফিস নির্বাচন না করে `+ নতুন মৌজা` বাটনে চাপ দিলে স্বয়ংক্রিয় সতর্কবার্তা প্রদর্শন।
+523:   - **বটম শীট লেআউট ফিক্স:** `width: double.infinity` ও `crossAxisAlignment: CrossAxisAlignment.stretch` প্রয়োগের মাধ্যমে মোবাইল স্ক্রিনে কোনো হেডার টেক্সট ভেঙে উল্লম্ব না হওয়ার নিশ্চয়তা।
+524: - **পূর্ণাঙ্গ CRUD ক্ষমতা:**
+525:   - `OfficeManagementScreen`-এ যেকোনো মৌজার (প্রমিত কিংবা কাস্টম) নাম পরিবর্তন ও ডিলিট করার পূর্ণ সুবিধা (`deleted_mouzas_json` ও `custom_mouzas_json` সহ)।
+526:   - আবেদন তৈরি স্ক্রিনে কেবলমাত্র মৌজা নির্বাচন ও নতুন মৌজা যুক্তকরণ সীমাবদ্ধ রাখা হয়েছে যাতে সংরক্ষিত ডেটার বিশুদ্ধতা অক্ষুণ্ণ থাকে।
+527: - **Verification:**
+528:   - Static Analysis (`flutter analyze`): **No issues found**.
+529:   - Comprehensive Suite (`test/unit/office_mouza_test.dart`): **All 13 tests passed green**.

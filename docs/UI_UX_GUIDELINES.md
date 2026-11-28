@@ -146,12 +146,17 @@ To eliminate long scroll fatigue and reduce form abandonment, complex data entry
    - Fields: আবেদনকারীর নাম (`*`), মোবাইল নম্বর (`*`), এবং গ্রাহকের ঠিকানা (স্পষ্ট টেক্সটফিল্ড)।
    - **ভূমি পোর্টাল লগইন তথ্য (LSG) কার্ড:** `"আবেদনকারীর মোবাইল নম্বরই পোর্টাল লগইন নম্বর"` চেকবক্স (আনচেক করলে আলাদা পোর্টাল নম্বর ফিল্ড) এবং চোখ-আইকন টগলসহ পোর্টাল পাসওয়ার্ড ফিল্ড।
 2. **ধাপ ২: কাজ ও অফিস (Work & Office Logistics):**
-   - Fields: কাজের ধরন (`*` ChoiceChips + নতুন ধরন যোগ), অফিসের নাম (`*` Dropdown + নতুন অফিস যোগ), আবেদনের তারিখ (`*` Date Picker), মৌজার নাম, এবং ১ সারিতে আবেদন ও কেস নম্বর।
+   - Fields: কাজের ধরন (`*` ChoiceChips + নতুন ধরন যোগ), অফিসের নাম (`*` Searchable Dropdown + নতুন অফিস যোগ), মৌজার নাম (Searchable Dropdown + নতুন মৌজা যোগ; বিশৃঙ্খল চিপস ও কাস্টম টগলমুক্ত পরিচ্ছন্ন রূপ), আবেদনের তারিখ (`*` Date Picker), এবং ১ সারিতে আবেদন ও কেস নম্বর।
 3. **ধাপ ৩: চুক্তি ও সম্পন্ন (Financials, Reference & Completion):**
    - **শীর্ষে রিয়েল-টাইম সারসংক্ষেপ কার্ড (Summary Card):** গ্রাহক ও কাজের তথ্য এক নজরে রিভিউ এবং এক ক্লিকে ধাপ ১ বা ২-এ ফিরে যাওয়ার সম্পাদনা শর্টকাট।
    - Fields: রেফারেন্স ব্যক্তি (সিলেক্টর শীট ও ইনলাইন তৈরি), চুক্তিকৃত মোট সার্ভিস ফি (`*` কুইক চিপস সহ), প্রাথমিক অগ্রিম জমা, ফাইল/ডকুমেন্ট সংযুক্তি, এবং বিশেষ নোট।
 
-### 6.2 Visual Indicator Standards (`AppFieldLabel`)
+### 6.2 Searchable Modal Bottom Sheet Standards (`_openOfficeSearchSheet` & `_openMouzaSearchSheet`)
+- **Container Sizing:** `Container` inside `showModalBottomSheet` must specify `width: double.infinity` and its direct `Column` must use `crossAxisAlignment: CrossAxisAlignment.stretch`. This completely prevents row items and header labels from collapsing into character-by-character vertical text.
+- **Search Experience:** Auto-focused search bar with instant keyword matching, clean empty-state feedback, and prominent `+ নতুন মৌজা` / `+ নতুন অফিস` actions.
+- **Office Gating:** If the user attempts to add a new mouza without selecting an office first, an actionable warning SnackBar informs the user to select a land office first.
+
+### 6.3 Visual Indicator Standards (`AppFieldLabel`)
 - **Required Fields:** Explicit red asterisk (` *`) rendered via `AppFieldLabel` with `isRequired: true` (Hex: `#F43F5E`, FontWeight: bold).
 - **Optional Fields:** Clean label without any asterisk. Redundant text like "(ঐচ্ছিক)" is strictly prohibited in label titles to maintain visual clarity.
 
