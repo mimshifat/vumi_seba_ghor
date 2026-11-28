@@ -24,6 +24,7 @@ class SyncServerService {
   int _port = 8765;
   String _pin = '1234';
   DateTime? _lastSyncTime;
+  Timer? _networkRefreshTimer;
 
   final _syncEventsController = StreamController<SyncResult>.broadcast();
 
@@ -46,6 +47,7 @@ class SyncServerService {
       if (_isRunning) {
         _discoveryService.startBroadcasting(
           ip: _currentIp,
+          allIps: _availableIps,
           port: _port,
           deviceName: _getDeviceName(),
           pin: _pin,
@@ -62,7 +64,7 @@ class SyncServerService {
     return 'রজব সেবা ঘর';
   }
 
-  /// লোকাল আইপি অ্যাড্রেস শনাক্ত করা (ভার্চুয়াল অ্যাডাপ্টার বাদ দিয়ে রিয়েল ওয়াই-ফাই প্রাধান্য দেওয়া)
+  /// লোকাল আইপি শনাক্ত করা (মোবাইল হটস্পট ও ওয়াই-ফাই অগ্রাধিকার দিয়ে)
   Future<List<String>> getLocalIpAddresses() async {
     final candidateIps = <Map<String, dynamic>>[];
     try {
@@ -73,6 +75,7 @@ class SyncServerService {
 
       for (final interface in interfaces) {
         final ifaceName = interface.name.toLowerCase();
+
         // ভার্চুয়াল অ্যাডাপ্টার (WSL, VirtualBox, VMware, Docker, ইত্যাদি) শনাক্ত
         final isVirtual = ifaceName.contains('virtual') ||
             ifaceName.contains('vbox') ||
@@ -100,22 +103,39 @@ class SyncServerService {
         }
       }
 
-      // প্রায়োরিটি স্কোরিং: রিয়েল ওয়াই-ফাই > সাধারণ লোকাল সাবনেট > ভার্চুয়াল
+      // প্রায়োরিটি স্কোরিং:
+      // ১. মোবাইল হটস্পট সাবনেট (192.168.43.x) — পরম অগ্রাধিকার
+      // ২. সাধারণ লোকাল ওয়াই-ফাই রাউটার (192.168.x.x)
+      // ৩. নন-ভার্চুয়াল ওয়াই-ফাই / ল্যান
+      // ৪. ভার্চুয়াল অ্যাডাপ্টার
       candidateIps.sort((a, b) {
-        final aVirt = a['isVirtual'] as bool;
-        final bVirt = b['isVirtual'] as bool;
-        if (aVirt != bVirt) return aVirt ? 1 : -1; // নন-ভার্চুয়াল আগে
-
-        final aWifi = a['isWifi'] as bool;
-        final bWifi = b['isWifi'] as bool;
-        if (aWifi != bWifi) return aWifi ? -1 : 1; // ওয়াই-ফাই আগে
-
         final aIp = a['ip'] as String;
         final bIp = b['ip'] as String;
+
+        // মোবাইল হটস্পট সর্বপ্রথম
+        final aIsHotspot = aIp.startsWith('192.168.43.');
+        final bIsHotspot = bIp.startsWith('192.168.43.');
+        if (aIsHotspot && !bIsHotspot) return -1;
+        if (!aIsHotspot && bIsHotspot) return 1;
+
+        // নন-ভার্চুয়াল আগে
+        final aVirt = a['isVirtual'] as bool;
+        final bVirt = b['isVirtual'] as bool;
+        if (aVirt != bVirt) return aVirt ? 1 : -1;
+
+        // ওয়াই-ফাই আগে
+        final aWifi = a['isWifi'] as bool;
+        final bWifi = b['isWifi'] as bool;
+        if (aWifi != bWifi) return aWifi ? -1 : 1;
+
+        // লোকাল ক্লাস সি (192.168.x.x)
         if (aIp.startsWith('192.168.') && !bIp.startsWith('192.168.')) return -1;
         if (!aIp.startsWith('192.168.') && bIp.startsWith('192.168.')) return 1;
+
+        // লোকাল ক্লাস এ (10.x.x.x)
         if (aIp.startsWith('10.') && !bIp.startsWith('10.')) return -1;
         if (!aIp.startsWith('10.') && bIp.startsWith('10.')) return 1;
+
         return aIp.compareTo(bIp);
       });
     } catch (_) {}
@@ -151,9 +171,7 @@ class SyncServerService {
         );
         _port = tryPort;
         break;
-      } catch (_) {
-        // পোর্ট ব্যস্ত থাকলে পরবর্তী পোর্টে চেষ্টা
-      }
+      } catch (_) {}
     }
 
     if (server == null) {
@@ -166,13 +184,35 @@ class SyncServerService {
       _isRunning = true;
       currentRunningInstance = this;
 
-      // লোকাল নেটওয়ার্কে বিযকন পাঠানো শুরু করা
+      // লোকাল নেটওয়ার্কে বিযকন পাঠানো শুরু করা (সব IP সহ)
       _discoveryService.startBroadcasting(
         ip: _currentIp,
+        allIps: _availableIps,
         port: _port,
         deviceName: _getDeviceName(),
         pin: _pin,
       );
+
+      // নেটওয়ার্ক পরিবর্তন স্বয়ংক্রিয় সনাক্তকরণ (প্রতি ৩ সেকেন্ডে আইপি রিফ্রেশ)
+      // যেমন: অ্যাপ ওপেন করার পর হটস্পট বা ওয়াই-ফাই কানেক্ট করা হলে স্বয়ংক্রিয় ডিটেক্ট
+      _networkRefreshTimer =
+          Timer.periodic(const Duration(seconds: 3), (_) async {
+        if (!_isRunning) return;
+        final freshIps = await getLocalIpAddresses();
+        if (freshIps.isNotEmpty &&
+            (freshIps.length != _availableIps.length ||
+                freshIps.first != _currentIp)) {
+          _availableIps = freshIps;
+          _currentIp = freshIps.first;
+          _discoveryService.startBroadcasting(
+            ip: _currentIp,
+            allIps: _availableIps,
+            port: _port,
+            deviceName: _getDeviceName(),
+            pin: _pin,
+          );
+        }
+      });
 
       // এইচটিটিপি রিকোয়েস্ট হ্যান্ডলিং
       _httpServer?.listen(
@@ -208,7 +248,7 @@ class SyncServerService {
 
     final path = request.uri.path;
 
-    // ১. হেলথ চেক এন্ডপয়েন্ট
+    // ১. হেলথ চেক এন্ডপয়েন্ট (পিসির নাম, অপারেটিং সিস্টেম, পিন ও আইপি তালিকা সহ)
     if (path == '/health' || path == '/status') {
       response.statusCode = HttpStatus.ok;
       response.write(jsonEncode({
@@ -216,6 +256,8 @@ class SyncServerService {
         'name': _getDeviceName(),
         'os': Platform.operatingSystem,
         'app': 'rojob_bhumi_seba',
+        'pin': _pin,
+        'ips': _availableIps,
       }));
       await response.close();
       return;
@@ -269,7 +311,7 @@ class SyncServerService {
         await _backupRepo.restoreBackup(
           tempFile.path,
           onDatabaseReopened: onDatabaseReopened,
-          preserveCurrentSettings: false, // ফোনের সমস্ত সেটিংস ও ডেটা সরাসরি আসবে
+          preserveCurrentSettings: false,
         );
 
         _lastSyncTime = DateTime.now();
@@ -320,6 +362,9 @@ class SyncServerService {
   /// সার্ভার বন্ধ করা
   Future<void> stopServer() async {
     _isRunning = false;
+    _networkRefreshTimer?.cancel();
+    _networkRefreshTimer = null;
+
     if (currentRunningInstance == this) {
       currentRunningInstance = null;
     }

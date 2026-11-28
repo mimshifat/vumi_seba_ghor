@@ -182,6 +182,7 @@ class SyncClientController extends StateNotifier<SyncClientUiState> {
 
   Future<SyncResult> sendData({
     required String ip,
+    List<String> allIps = const [],
     required int port,
     required String pin,
   }) async {
@@ -193,6 +194,7 @@ class SyncClientController extends StateNotifier<SyncClientUiState> {
 
     final result = await _clientService.sendDataToPc(
       ip: ip,
+      allIps: allIps,
       port: port,
       pin: pin,
       onProgress: (msg) {

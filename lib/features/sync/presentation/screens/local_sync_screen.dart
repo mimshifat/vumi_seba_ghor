@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../../../core/utils/bengali_digits.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_dialog_action_row.dart';
 import '../../../../core/widgets/app_text_field.dart';
@@ -34,7 +33,7 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
   @override
   void initState() {
     super.initState();
-    // পিসিতে ডিফল্টভাবে রিসিভার মোড, মোবাইলে সেন্ডার মোড
+    // পিসিতে স্থায়ীভাবে রিসিভার মোড, মোবাইলে স্থায়ীভাবে সেন্ডার মোড (ডেটা শুধু ফোন থেকে পিসিতে যাবে)
     _isReceiverMode = widget.initialIsReceiverMode ??
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
@@ -66,30 +65,21 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
     super.dispose();
   }
 
-  void _switchMode(bool receiverMode) {
-    setState(() {
-      _isReceiverMode = receiverMode;
-    });
-    if (_isReceiverMode) {
-      ref.read(syncDiscoveryServiceProvider).stop();
-      _startPcServer();
-    } else {
-      ref.read(syncServerControllerProvider.notifier).stopServer();
-      _startPhoneDiscovery();
-    }
-  }
-
   // পিসিতে ডেটা পাঠানো শুরু করা
   Future<void> _handleSendData() async {
-    final ip = _selectedDevice?.ip ?? _ipController.text.trim();
-    final pin = _selectedDevice?.pin.isNotEmpty == true
-        ? _selectedDevice!.pin
+    final pcs = ref.read(discoveredPcsStreamProvider).valueOrNull ?? const [];
+    final targetDevice = _selectedDevice ?? (pcs.isNotEmpty ? pcs.first : null);
+    final ip = targetDevice?.ip ?? _ipController.text.trim();
+    final pin = targetDevice?.pin.isNotEmpty == true
+        ? targetDevice!.pin
         : _pinController.text.trim();
 
     if (ip.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('অনুগ্রহ করে পিসির আইপি অ্যাড্রেস নির্বাচন করুন বা লিখুন'),
+          content: Text(
+            'কোনো কম্পিউটার নির্বাচন করা হয়নি। অনুগ্রহ করে নিচের তালিকা থেকে আপনার কম্পিউটারটি বেছে নিন অথবা ঠিকানা লিখুন।',
+          ),
           backgroundColor: AppColors.rose,
           behavior: SnackBarBehavior.floating,
         ),
@@ -100,7 +90,9 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
     if (pin.length < 4) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('পিসির স্ক্রিনে দেখানো ৪ সংখ্যার পিন দিন'),
+          content: Text(
+            'কম্পিউটারের স্ক্রিনে দেখানো ৪ সংখ্যার পিন কোড দিন (যেমন: ১২৩৪)',
+          ),
           backgroundColor: AppColors.rose,
           behavior: SnackBarBehavior.floating,
         ),
@@ -110,7 +102,8 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
 
     final result = await ref.read(syncClientControllerProvider.notifier).sendData(
           ip: ip,
-          port: _selectedDevice?.port ?? 8765,
+          allIps: targetDevice?.allAvailableIps ?? [],
+          port: targetDevice?.port ?? 8765,
           pin: pin,
         );
 
@@ -143,14 +136,18 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             const Text(
-              'সিঙ্ক সফল হয়েছে!',
+              'তথ্য স্থানান্তর সফল হয়েছে!',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: AppSpacing.base),
             AppButton(
@@ -171,15 +168,17 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
         title: const Row(
           children: [
-            Icon(Icons.error_outline_rounded, color: AppColors.rose, size: 24),
+            Icon(Icons.info_outline_rounded, color: AppColors.rose, size: 24),
             SizedBox(width: 8),
-            Text('সিঙ্ক সম্পন্ন হয়নি',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'তথ্য পাঠানো যায়নি',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Text(
           message,
-          style: const TextStyle(fontSize: 13.5, height: 1.4),
+          style: const TextStyle(fontSize: 13, height: 1.45),
         ),
         actions: [
           AppDialogActionRow(
@@ -198,18 +197,19 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-        title: const Text('পিসি সিকিউরিটি পিন পরিবর্তন'),
+        title: const Text('কম্পিউটারের নিরাপত্তা পিন পরিবর্তন'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'ফোন থেকে ডেটা পাঠানোর সময় এই পিনটি দিয়ে অনুমতি নিশ্চিত করা হয়।',
-              style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+              'মোবাইল থেকে যখনই তথ্য পাঠানো হবে, নিরাপত্তার স্বার্থে এই পিন কোডটি স্বয়ংক্রিয়ভাবে মিলিয়ে নেওয়া হয়।',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.35),
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
-              label: '৪ সংখ্যার পিন',
+              label: '৪ সংখ্যার পিন কোড',
+              hint: 'যেমন: ১২৩৪',
               controller: pinEditCtrl,
               keyboardType: TextInputType.number,
               maxLength: 6,
@@ -218,7 +218,7 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
         ),
         actions: [
           AppDialogActionRow(
-            confirmText: 'সংরক্ষণ',
+            confirmText: 'সংরক্ষণ করুন',
             onConfirm: () {
               final newPin = pinEditCtrl.text.trim();
               if (newPin.length >= 4) {
@@ -239,121 +239,27 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('লোকাল ওয়াই-ফাই সিঙ্ক'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppColors.slate200,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _isReceiverMode
+                  ? 'ফোন থেকে ডেটা গ্রহণ (কম্পিউটার)'
+                  : 'পিসিতে ডেটা পাঠান (সিঙ্ক)',
+              style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _switchMode(false),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: !_isReceiverMode
-                            ? Colors.white
-                            : Colors.transparent,
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusSm),
-                        boxShadow: !_isReceiverMode
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(20),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.phone_android_rounded,
-                            size: 18,
-                            color: !_isReceiverMode
-                                ? AppColors.primary
-                                : AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'মোবাইল (ডেটা পাঠান)',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: !_isReceiverMode
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: !_isReceiverMode
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _switchMode(true),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _isReceiverMode
-                            ? Colors.white
-                            : Colors.transparent,
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusSm),
-                        boxShadow: _isReceiverMode
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(20),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.laptop_chromebook_rounded,
-                            size: 18,
-                            color: _isReceiverMode
-                                ? AppColors.primary
-                                : AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'কম্পিউটার (ডেটা গ্রহণ)',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: _isReceiverMode
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: _isReceiverMode
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 2),
+            Text(
+              _isReceiverMode
+                  ? 'একমুখী সিঙ্ক • ফোন ➔ কম্পিউটার'
+                  : 'একমুখী সিঙ্ক • ইন্টারনেট ছাড়াই সরাসরি ফোন থেকে পিসিতে',
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.normal,
+              ),
             ),
-          ),
+          ],
         ),
       ),
       body: _isReceiverMode ? _buildReceiverView() : _buildSenderView(),
@@ -409,16 +315,16 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                   children: [
                     Text(
                       serverState.isRunning
-                          ? 'ফোন থেকে ডেটা গ্রহণের জন্য প্রস্তুত'
-                          : 'রিসিভার সার্ভার বন্ধ আছে',
+                          ? 'মোবাইল থেকে তথ্য গ্রহণের জন্য প্রস্তুত'
+                          : 'রিসিভার সাময়িকভাবে বন্ধ আছে',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       serverState.isRunning
-                          ? 'লোকাল ওয়াই-ফাই সংযোগ সক্রিয় (পোর্ট: ${BengaliDigits.toBengali(serverState.port.toString())})'
-                          : 'সার্ভার চালু করতে পাশের সুইচে চাপ দিন',
+                          ? 'মোবাইল থেকে "পাঠান" বাটনে চাপ দিলেই তথ্য চলে আসবে'
+                          : 'চালু করতে পাশের সুইচে ক্লিক করুন',
                       style: const TextStyle(
                           fontSize: 12, color: AppColors.textSecondary),
                     ),
@@ -444,6 +350,35 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
 
         const SizedBox(height: AppSpacing.base),
 
+        // একমুখী নীতি ব্যানার
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(color: const Color(0xFFBBF7D0)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.verified_user_rounded, color: Color(0xFF15803D), size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'একমুখী নীতি: সব তথ্য কেবল মোবাইল থেকে এই কম্পিউটারে আসবে। কম্পিউটার থেকে কোনো ডেটা ফোনে যাবে না বা ফোনের ডেটা নষ্ট হওয়ার সুযোগ নেই।',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF166534),
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.base),
+
         // ২. সংযোগ তথ্য কার্ড (আইপি ও পিন)
         Container(
           padding: const EdgeInsets.all(AppSpacing.base),
@@ -459,10 +394,10 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                 'এই কম্পিউটারের সংযোগ তথ্য',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xs),
               const Text(
-                'ফোনের অ্যাপ এই তথ্যগুলো দিয়ে সরাসরি এই কম্পিউটারে ডেটা পাঠাবে:',
-                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                'মোবাইলের অ্যাপে সাধারণত এই তথ্যগুলো আপনা-আপনি বসে যায় (না পেলে মিলিয়ে নিন):',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -484,7 +419,7 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('লোকাল আইপি (IP Address)',
+                          const Text('কম্পিউটারের নেটওয়ার্ক ঠিকানা (আইপি)',
                               style: TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textSecondary)),
@@ -497,18 +432,31 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                               letterSpacing: 0.5,
                             ),
                           ),
+                          if (serverState.availableIps.length > 1) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'অন্যান্য: ${serverState.availableIps.where((ip) => ip != serverState.currentIp).join(", ")}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.copy_rounded, size: 20),
-                      tooltip: 'আইপি কপি করুন',
+                      tooltip: 'ঠিকানা কপি করুন',
                       onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: serverState.currentIp));
+                        final allIps = serverState.availableIps.isNotEmpty
+                            ? serverState.availableIps.join(', ')
+                            : serverState.currentIp;
+                        Clipboard.setData(ClipboardData(text: allIps));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('আইপি কপি করা হয়েছে'),
+                            content: Text('ঠিকানা কপি করা হয়েছে'),
                             duration: Duration(seconds: 1),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -539,7 +487,7 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('সিকিউরিটি পিন (PIN)',
+                          const Text('নিরাপত্তা পিন কোড (PIN)',
                               style: TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textSecondary)),
@@ -556,7 +504,7 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, size: 20),
-                      tooltip: 'পিন পরিবর্তন',
+                      tooltip: 'পিন পরিবর্তন করুন',
                       onPressed: () => _showChangePinDialog(serverState.pin),
                     ),
                   ],
@@ -581,11 +529,11 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.info_outline_rounded,
+                  Icon(Icons.lightbulb_outline_rounded,
                       color: Color(0xFF1D4ED8), size: 20),
                   SizedBox(width: 8),
                   Text(
-                    'কীভাবে ব্যবহার করবেন?',
+                    'সহজে ব্যবহারের ৩টি নিয়ম',
                     style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.bold,
@@ -596,15 +544,19 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
               const SizedBox(height: AppSpacing.sm),
               _buildStepItem(
                 '১',
-                'আপনার ফোন এবং এই কম্পিউটার একই ওয়াই-ফাই অথবা ফোনের হটস্পটে কানেক্ট করুন (ইন্টারনেট না থাকলেও চলবে)।',
+                'সবচেয়ে সহজ ও দ্রুত উপায়: আপনার ফোনের Hotspot চালু করে কম্পিউটারকে তাতে যুক্ত করুন (অথবা দুটোই একই ওয়াই-ফাই রাউটারে রাখুন)।',
               ),
               _buildStepItem(
                 '২',
-                'ফোনের অ্যাপ ওপেন করে "পিসিতে ডেটা পাঠান" বাটনে চাপ দিন।',
+                'ফোনের রজব অ্যাপে গিয়ে "পিসিতে ডেটা পাঠান" বাটনে চাপ দিন।',
               ),
               _buildStepItem(
                 '৩',
-                'ফোনের স্ক্রিনে এই কম্পিউটার দেখতে পেয়ে "পাঠান" চাপলেই সাথে সাথে পিসিতে সব ডেটা আপডেট হয়ে যাবে।',
+                'ফোনের স্ক্রিনে এই কম্পিউটার দেখতে পেয়ে "পাঠান" চাপলেই নিমেষেই সব আবেদন ও হিসাব এখানে যুক্ত হয়ে যাবে।',
+              ),
+              _buildStepItem(
+                '💡',
+                'পরামর্শ: কম্পিউটারে প্রথমবার অ্যাপ চালুর সময় কোনো অনুমতি (Firewall Alert) চাওয়া হলে "Allow access" বা সম্মতি দিন।',
               ),
             ],
           ),
@@ -631,7 +583,7 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'সর্বশেষ সিঙ্ক সম্পন্ন হয়েছে',
+                        'সর্বশেষ সফল সিঙ্ক সম্পন্ন হয়েছে',
                         style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.bold,
@@ -660,6 +612,21 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
     final clientState = ref.watch(syncClientControllerProvider);
     final pcs = discoveredPcsAsync.valueOrNull ?? const [];
 
+    // কোনো ডিভাইস আগে নির্বাচিত না থাকলে এবং তালিকা পেলে স্বয়ংক্রিয়ভাবে ১মটি সিলেক্ট করা
+    if (_selectedDevice == null && pcs.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedDevice == null && pcs.isNotEmpty) {
+          setState(() {
+            _selectedDevice = pcs.first;
+            _ipController.text = pcs.first.ip;
+            if (pcs.first.pin.isNotEmpty) {
+              _pinController.text = pcs.first.pin;
+            }
+          });
+        }
+      });
+    }
+
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.base),
       children: [
@@ -678,8 +645,8 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'আশেপাশের কম্পিউটার (লোকাল ওয়াই-ফাই)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    'কাছের কম্পিউটারসমূহ',
+                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: const Icon(Icons.refresh_rounded, size: 20),
@@ -698,25 +665,28 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                   child: Column(
                     children: [
                       const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        width: 26,
+                        height: 26,
+                        child: CircularProgressIndicator(strokeWidth: 2.2),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       const Text(
                         'কম্পিউটার খোঁজা হচ্ছে...',
                         style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textSecondary),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
-                        'পিসিতে অ্যাপ খোলা আছে কিনা এবং একই ওয়াই-ফাই বা হটস্পটে আছেন কিনা যাচাই করুন।\n(💡 টিপ: রাউটারে সংযোগ না পেলে ফোনের Hotspot চালু করে পিসিতে যুক্ত করুন)',
+                        'সহজে কানেক্ট করার উপায়:\n'
+                        '১. আপনার ফোনের Hotspot চালু করে পিসিতে ওয়াই-ফাই কানেক্ট করুন (সবচেয়ে দ্রুত ও সহজ!)\n'
+                        '২. অথবা ফোন ও কম্পিউটার একই ওয়াই-ফাই রাউটারে রাখুন\n'
+                        '৩. কম্পিউটারেও রজব অ্যাপের "ডেটা গ্রহণ" স্ক্রিনটি খুলে রাখুন',
                         textAlign: TextAlign.center,
                         style: AppTypography.bodySmall.copyWith(
                           fontSize: 11.5,
-                          height: 1.4,
+                          height: 1.45,
                           color: AppColors.textMuted,
                         ),
                       ),
@@ -784,8 +754,9 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold),
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    'আইপি: ${device.ip}  •  পিন: ${device.pin}',
+                                    'ঠিকানা: ${device.ip}  •  পিন: ${device.pin.isNotEmpty ? device.pin : '১২৩৪'}',
                                     style: const TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textSecondary),
@@ -794,8 +765,28 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                               ),
                             ),
                             if (isSelected)
-                              const Icon(Icons.check_circle_rounded,
-                                  color: AppColors.primary, size: 22),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check, size: 14, color: Colors.white),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'নির্বাচিত',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -830,8 +821,8 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
                 const SizedBox(width: 4),
                 Text(
                   _showManualIpInput
-                      ? 'ম্যানুয়াল আইপি ইনপুট লুকান'
-                      : 'কম্পিউটার খুঁজে না পেলে? ম্যানুয়াল আইপি লিখুন',
+                      ? 'ম্যানুয়াল ঠিকানা ইনপুট লুকান'
+                      : 'কম্পিউটার খুঁজে না পেলে? নিজে ঠিকানা লিখতে চাপুন',
                   style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -854,19 +845,19 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('পিসির সংযোগ তথ্য লিখুন',
+                const Text('কম্পিউটারের সংযোগ তথ্য লিখুন',
                     style:
                         TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  label: 'পিসির আইপি অ্যাড্রেস (IP Address)',
-                  hint: 'যেমন: 192.168.0.105',
+                  label: 'কম্পিউটারের নেটওয়ার্ক ঠিকানা (আইপি)',
+                  hint: 'পিসির স্ক্রিনে দেখানো ঠিকানা, যেমন: 192.168.0.105',
                   controller: _ipController,
                   keyboardType: TextInputType.text,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  label: '৪ সংখ্যার সিকিউরিটি পিন',
+                  label: '৪ সংখ্যার নিরাপত্তা পিন (PIN)',
                   hint: 'যেমন: 1234',
                   controller: _pinController,
                   keyboardType: TextInputType.number,
@@ -904,7 +895,7 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
           ),
         ] else ...[
           AppButton(
-            text: 'পিসিতে সমস্ত ডেটা পাঠান',
+            text: 'কম্পিউটারে সমস্ত তথ্য পাঠান',
             height: 48,
             onPressed: _handleSendData,
           ),
@@ -924,14 +915,14 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.shield_outlined,
-                  size: 18, color: AppColors.textSecondary),
-              SizedBox(width: 8),
+                  size: 20, color: AppColors.textSecondary),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'নোট: এই বাটন চাপলে আপনার ফোনের সকল কাস্টমার, আবেদন, জমা-খরচের পূর্ণাঙ্গ ও নিরাপদ তথ্য পিসিতে প্রতিস্থাপিত হবে। পিসিতে আগের কোনো অসম্পূর্ণ তথ্য থাকলে তা দূর হয়ে ফোনের মতো হুবহু হয়ে যাবে।',
+                  'শতভাগ নিরাপদ: আপনার ফোনের সমস্ত কাস্টমার, আবেদন, জমা-খরচের হালনাগাদ তথ্য কম্পিউটারে যুক্ত হবে। ফোনই তথ্যের একমাত্র মূল উৎস—কম্পিউটার থেকে কোনো তথ্য কখনো ফোনে আসবে না, ফলে ফোনের হিসাবের কোনো ক্ষতি হবে না।',
                   style: TextStyle(
                       fontSize: 11.5,
-                      height: 1.4,
+                      height: 1.45,
                       color: AppColors.textSecondary),
                 ),
               ),
@@ -944,13 +935,13 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
 
   Widget _buildStepItem(String number, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 18,
-            height: 18,
+            width: 20,
+            height: 20,
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               color: Color(0xFF3B82F6),
@@ -960,17 +951,17 @@ class _LocalSyncScreenState extends ConsumerState<LocalSyncScreen> {
               number,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(
-                  fontSize: 12, height: 1.4, color: Color(0xFF1E3A8A)),
+                  fontSize: 12.5, height: 1.4, color: Color(0xFF1E3A8A)),
             ),
           ),
         ],
